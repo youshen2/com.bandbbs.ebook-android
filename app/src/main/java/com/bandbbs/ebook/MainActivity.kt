@@ -1,0 +1,67 @@
+package com.bandbbs.ebook
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.bandbbs.ebook.logic.InterHandshake
+import com.bandbbs.ebook.ui.screens.MainScreen
+import com.bandbbs.ebook.ui.theme.EbookTheme
+import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.importBook(it)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        val conn = InterHandshake(this, lifecycleScope)
+        (application as App).conn = conn
+        viewModel.setConnection(conn)
+
+        setContent {
+            EbookTheme {
+                MainScreen(
+                    viewModel = viewModel,
+                    onImportClick = {
+                        filePickerLauncher.launch(arrayOf("text/plain"))
+                    }
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.reconnect()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.data?.let {
+            viewModel.importBook(it)
+        }
+    }
+
+    override fun onDestroy() {
+        lifecycleScope.launch {
+            (application as App).conn.destroy().await()
+        }
+        super.onDestroy()
+    }
+}
