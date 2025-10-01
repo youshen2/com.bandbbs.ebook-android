@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     kotlin("plugin.serialization") version "2.1.20"
+    id("com.google.devtools.ksp") version "2.0.0-1.0.21"
 }
 
 android {
@@ -56,4 +57,9 @@ dependencies {
     implementation("androidx.loader:loader:1.1.0")
     implementation("androidx.compose.material3:material3-window-size-class:1.3.2")
     implementation("com.github.albfernandez:juniversalchardet:2.4.0")
+
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
 }

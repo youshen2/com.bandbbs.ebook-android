@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.R
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.components.BookItem
+import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
+import com.bandbbs.ebook.ui.components.ChapterPreviewBottomSheet
+import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.StatusCard
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
@@ -53,12 +56,19 @@ fun MainScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val books by viewModel.books.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
+    val importState by viewModel.importState.collectAsState()
+    val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
+    val chapters by viewModel.chaptersForSelectedBook.collectAsState()
+    val chapterToPreview by viewModel.chapterToPreview.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val chapterListSheetState = rememberModalBottomSheetState()
+    val chapterPreviewSheetState = rememberModalBottomSheetState()
 
     if (pushState.book != null) {
         ModalBottomSheet(
@@ -83,6 +93,53 @@ fun MainScreen(
             sheetState = aboutSheetState
         ) {
             AboutBottomSheet()
+        }
+    }
+
+    importState?.let {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelImport() },
+            sheetState = importSheetState
+        ) {
+            ImportBookBottomSheet(
+                state = it,
+                onCancel = {
+                    scope.launch {
+                        importSheetState.hide()
+                        viewModel.cancelImport()
+                    }
+                },
+                onConfirm = { bookName, splitMethod ->
+                    scope.launch {
+                        importSheetState.hide()
+                        viewModel.confirmImport(bookName, splitMethod)
+                    }
+                }
+            )
+        }
+    }
+
+    selectedBookForChapters?.let { book ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.closeChapterList() },
+            sheetState = chapterListSheetState
+        ) {
+            ChapterListBottomSheet(
+                book = book,
+                chapters = chapters,
+                onChapterClick = { chapter ->
+                    viewModel.showChapterPreview(chapter)
+                }
+            )
+        }
+    }
+
+    chapterToPreview?.let { chapter ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.closeChapterPreview() },
+            sheetState = chapterPreviewSheetState
+        ) {
+            ChapterPreviewBottomSheet(chapter = chapter)
         }
     }
 
@@ -146,6 +203,7 @@ fun MainScreen(
                             book = book,
                             onDeleteClick = { viewModel.deleteBook(book) },
                             onSyncClick = { viewModel.startPush(book) },
+                            onCardClick = { viewModel.showChapterList(book) },
                             isSyncEnabled = connectionState.isConnected
                         )
                     }

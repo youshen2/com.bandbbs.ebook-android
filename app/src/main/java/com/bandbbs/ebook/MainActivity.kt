@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
-            viewModel.importBook(it)
+            viewModel.startImport(it)
         }
     }
 
@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.data?.let {
-            viewModel.importBook(it)
+            viewModel.startImport(it)
         }
     }
 
