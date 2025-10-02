@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
 class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(context) {
     companion object {
         private const val TYPE = "__hs__"
-        private const val TIMEOUT = 3000L
+        private const val TIMEOUT = 10000L
     }
 
     private var promise: Deferred<Unit>? = null
@@ -36,10 +36,10 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             onDisconnected.invoke()
         }
         handler.postDelayed(timeoutRunnable!!, TIMEOUT)
-        val message = message.decodeToString()
-        Log.d("InterconnIn", message)
-        val msg = json.decodeFromString<Message>(message)
-        onMessage[msg.tag]?.invoke(message)
+        val messageStr = message.decodeToString()
+        Log.d("Interconn <<<", messageStr)
+        val msg = json.decodeFromString<Message>(messageStr)
+        onMessage[msg.tag]?.invoke(messageStr)
     }
 
     init {
@@ -64,7 +64,13 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             // 递增计数并继续握手（最多 2 次）
             val newCount = currentCount + 1
             if (newCount < 3) {
-                super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount}")
+                scope.launch {
+                    try {
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount}").await()
+                    } catch (e: Exception) {
+                        Log.e("Handshake", "Failed to send handshake reply", e)
+                    }
+                }
             }
         }
     }
@@ -75,35 +81,48 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 completeExceptionally(e)
             }
             scope.launch {
-                if (!connected)
+                if (!connected) {
                     if (promise != null) {
-                        promise?.await()
+                        try {
+                            promise?.await()
+                        } catch (e: Exception) {
+                            cpe(e)
+                            return@launch
+                        }
                     } else {
                         // 初始化握手流程
-                        promise = CompletableDeferred<Unit>().apply {
-                            val timeoutCb = Runnable {
-                                promise = null
-                                resolve = null
-                                connected = false
-                                cpe(Exception("握手超时"))
-                            }
-                            handler.postDelayed(timeoutCb, TIMEOUT)
-                            resolve = {
-                                complete(Unit)
-                                Log.i("handShake", "success")
-                                handler.removeCallbacks(timeoutCb)
-                                connected = true
-                            }
-                            // 发送初始握手消息（count=0）
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
+                        val handshakePromise = CompletableDeferred<Unit>()
+                        promise = handshakePromise
+                        val timeoutCb = Runnable {
+                            promise = null
+                            resolve = null
+                            connected = false
+                            handshakePromise.completeExceptionally(Exception("握手超时"))
                         }
-                        promise?.await()
+                        handler.postDelayed(timeoutCb, TIMEOUT)
+                        resolve = {
+                            handshakePromise.complete(Unit)
+                            Log.i("handShake", "success")
+                            handler.removeCallbacks(timeoutCb)
+                            connected = true
+                        }
+                        // 发送初始握手消息（count=0）
+                        try {
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
+                            handshakePromise.await()
+                        } catch (e: Exception) {
+                            cpe(e)
+                            return@launch
+                        }
                     }
-                complete(super.sendMessage(message).await())
+                }
+                try {
+                    complete(super.sendMessage(message).await())
+                } catch (e: Exception) {
+                    cpe(e)
+                }
             }
         }
-        // 等待握手完成
-
     }
 
     @Serializable

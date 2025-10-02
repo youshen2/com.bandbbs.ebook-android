@@ -4,6 +4,7 @@ import android.util.Log
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,6 +21,12 @@ class InterconnetFile(private val conn: InterHandshake) {
     private lateinit var onSuccess: (message: String, count: Int) -> Unit
     private lateinit var onProgress: (progress: Double, chunkPreview: String, status: String) -> Unit
     var busy = false
+    private val CHUNK_SIZE = 10 * 1024
+
+    private var currentChapterChunks: List<String> = emptyList()
+    private var currentChunkIndex: Int = 0
+    private var currentChapterForTransfer: com.bandbbs.ebook.database.Chapter? = null
+    private var currentChapterIndexInBook: Int = 0
 
     init {
         conn.addListener("file") listener@{
@@ -34,7 +41,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                             conn.destroy()
                             return@listener
                         }
-                        sendNextChunk(jsonMessage.count)
+                        sendNextChapter(jsonMessage.count)
                     }
 
                     "error" -> {
@@ -55,7 +62,11 @@ class InterconnetFile(private val conn: InterHandshake) {
 
                     "next" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Next>(it)
-                        sendNextChunk(jsonMessage.count)
+                        sendNextChapter(jsonMessage.count)
+                    }
+
+                    "next_chunk" -> {
+                        sendCurrentChunk()
                     }
 
                     "cancel" -> {
@@ -98,17 +109,15 @@ class InterconnetFile(private val conn: InterHandshake) {
                     wordCount = book.wordCount
                 )
             )
-        )
+        ).await()
         this.onError = onError
         this.onSuccess = onSuccess
         this.onProgress = onProgress
         Log.d("File", "sentChapters")
     }
 
-    private fun sendNextChunk(
-        currentChunk: Int
-    ) {
-        if (currentChunk >= chapters.size) {
+    private fun sendNextChapter(chapterIndex: Int) {
+        if (chapterIndex >= chapters.size) {
             busy = false
             onProgress(1.0, "", " --")
             onSuccess("传输完成", chapters.size)
@@ -117,37 +126,81 @@ class InterconnetFile(private val conn: InterHandshake) {
             return
         }
 
-        val chunkObject = chapters[currentChunk]
-        val chunk = json.encodeToString(chunkObject)
-        val message = FileMessagesToSend.DataChunk(
-            count = currentChunk,
-            data = chunk,
-        )
-
-        val currentTime = System.currentTimeMillis()
-        if (lastChunkTime != 0L) {
-            val timeTaken = currentTime - lastChunkTime
-            val speed = bytesToReadable(chunk.toByteArray().size / (timeTaken / 1000.0))
-            val remainingTime =
-                (chapters.size - currentChunk) * (currentTime - lastChunkTime) / 1000.0
-            onProgress(
-                currentChunk.toDouble() / chapters.size,
-                chunkObject.name,
-                " $speed/s ${remainingTime.toInt()}s"
-            )
-        } else {
-            onProgress(currentChunk.toDouble() / chapters.size, chunkObject.name, " --")
-        }
-        lastChunkTime = currentTime
-
-        conn.sendMessage(json.encodeToString(message)).invokeOnCompletion {
-            if (it != null) {
-                onError("发送失败", currentChunk)
-            }
-        }
-
-        Log.d("File", "sendNextChunk$currentChunk")
+        val chapter = chapters[chapterIndex]
+        currentChapterForTransfer = chapter
+        currentChapterIndexInBook = chapterIndex
+        currentChapterChunks = chapter.content.chunked(CHUNK_SIZE)
+        currentChunkIndex = 0
+        sendCurrentChunk()
     }
+
+    private fun sendCurrentChunk() {
+        conn.scope.launch {
+            if (currentChapterForTransfer == null || currentChunkIndex >= currentChapterChunks.size) {
+                Log.w("File", "sendCurrentChunk called in invalid state.")
+                return@launch
+            }
+
+            val chapter = currentChapterForTransfer!!
+            val chunkContent = currentChapterChunks[currentChunkIndex]
+            val totalChunks = currentChapterChunks.size
+
+            val chapterForTransfer = ChapterForTransfer(
+                index = chapter.index,
+                name = chapter.name,
+                content = chunkContent,
+                wordCount = chapter.wordCount,
+                chunkNum = currentChunkIndex,
+                totalChunks = totalChunks
+            )
+
+            val dataString = json.encodeToString(chapterForTransfer)
+            val message = FileMessagesToSend.DataChunk(
+                count = currentChapterIndexInBook,
+                data = dataString
+            )
+
+            val currentTime = System.currentTimeMillis()
+            try {
+                conn.sendMessage(json.encodeToString(message)).await()
+            } catch (e: Exception) {
+                onError("发送失败: ${e.message ?: "未知错误"}", currentChapterIndexInBook)
+                busy = false
+                conn.setOnDisconnected { }
+                conn.destroy()
+                return@launch
+            }
+
+            if (lastChunkTime != 0L) {
+                val timeTaken = currentTime - lastChunkTime
+                if (timeTaken > 0) {
+                    val speed = bytesToReadable(chunkContent.toByteArray().size / (timeTaken / 1000.0))
+                    val progress = (currentChapterIndexInBook.toDouble() + (currentChunkIndex + 1.0) / totalChunks) / chapters.size
+                    onProgress(
+                        progress,
+                        chapter.name + " (${currentChunkIndex + 1}/$totalChunks)",
+                        " $speed/s"
+                    )
+                } else {
+                    onProgress(
+                        (currentChapterIndexInBook.toDouble() + (currentChunkIndex + 1.0) / totalChunks) / chapters.size,
+                        chapter.name + " (${currentChunkIndex + 1}/$totalChunks)",
+                        " --"
+                    )
+                }
+            } else {
+                onProgress(
+                    (currentChapterIndexInBook.toDouble() + (currentChunkIndex + 1.0) / totalChunks) / chapters.size,
+                    chapter.name + " (${currentChunkIndex + 1}/$totalChunks)",
+                    " --"
+                )
+            }
+            lastChunkTime = currentTime
+
+            currentChunkIndex++
+        }
+    }
+
 
     fun cancel() {
         conn.destroy()
@@ -189,6 +242,11 @@ class InterconnetFile(private val conn: InterHandshake) {
             val type: String = "next",
             val message: String,
             val count: Int
+        ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class NextChunk(
+            val type: String = "next_chunk"
         ) : FileMessagesFromDevice()
 
         @Serializable
@@ -235,3 +293,13 @@ class InterconnetFile(private val conn: InterHandshake) {
         ) : FileMessagesToSend()
     }
 }
+
+@Serializable
+private data class ChapterForTransfer(
+    val index: Int,
+    val name: String,
+    val content: String,
+    val wordCount: Int,
+    val chunkNum: Int = 0,
+    val totalChunks: Int = 1
+)

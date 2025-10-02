@@ -86,7 +86,7 @@ open class Interconn(context: Context) {
     }
 
     open fun sendMessage(message: String): CompletableDeferred<Unit> {
-        Log.d("Interconn", message)
+        Log.d("Interconn >>>", message)
         return CompletableDeferred<Unit>().apply {
             messageApi.sendMessage(currentNode!!.id, message.toByteArray()).addOnSuccessListener {
                 complete(Unit)
