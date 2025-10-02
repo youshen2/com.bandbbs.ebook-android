@@ -14,12 +14,14 @@ import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.UritoFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.min
 
 data class ConnectionState(
     val statusText: String = "手环连接中",
@@ -53,6 +55,12 @@ data class ImportingState(
 data class ImportReportState(
     val bookName: String,
     val mergedChaptersInfo: String
+)
+
+data class SyncOptionsState(
+    val book: Book,
+    val totalChapters: Int,
+    val syncedChapters: Int
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -90,6 +98,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _chapterToPreview = MutableStateFlow<Chapter?>(null)
     val chapterToPreview = _chapterToPreview.asStateFlow()
 
+    private val _bookToDelete = MutableStateFlow<Book?>(null)
+    val bookToDelete = _bookToDelete.asStateFlow()
+
+    private val _syncOptionsState = MutableStateFlow<SyncOptionsState?>(null)
+    val syncOptionsState = _syncOptionsState.asStateFlow()
+
 
     init {
         loadBooks()
@@ -113,7 +127,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 conn.destroy().await()
                 val deviceName = conn.connect().await().replace(" ", "")
-                conn.auth()
+                conn.auth().await()
                 try {
                     if (!conn.getAppState().await()) {
                         _connectionState.update {
@@ -135,7 +149,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     return@launch
                 }
-                conn.openApp()
+                conn.openApp().await()
+                conn.registerListener().await()
                 _connectionState.update {
                     it.copy(
                         statusText = "设备连接成功",
@@ -292,33 +307,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importReportState.value = null
     }
 
-    fun deleteBook(book: Book) {
-        viewModelScope.launch(Dispatchers.IO) {
-            File(book.path).delete()
-            val bookEntity = db.bookDao().getBookByPath(book.path)
-            if (bookEntity != null) {
-                db.chapterDao().deleteChaptersByBookId(bookEntity.id)
-                db.bookDao().delete(bookEntity)
+    fun requestDeleteBook(book: Book) {
+        _bookToDelete.value = book
+    }
+
+    fun confirmDeleteBook() {
+        _bookToDelete.value?.let { book ->
+            viewModelScope.launch(Dispatchers.IO) {
+                File(book.path).delete()
+                val bookEntity = db.bookDao().getBookByPath(book.path)
+                if (bookEntity != null) {
+                    db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+                    db.bookDao().delete(bookEntity)
+                }
+                withContext(Dispatchers.Main) {
+                    loadBooks()
+                }
             }
-            withContext(Dispatchers.Main) {
-                loadBooks()
+        }
+        _bookToDelete.value = null
+    }
+
+    fun cancelDeleteBook() {
+        _bookToDelete.value = null
+    }
+
+    fun startPush(book: Book) {
+        if (fileConn.busy || _syncOptionsState.value != null) return
+
+        _syncOptionsState.value = SyncOptionsState(book, 0, 0)
+
+        viewModelScope.launch {
+            try {
+                conn.init()
+                delay(500L) // Give watch time to settle
+                val syncedChapters = withContext(Dispatchers.IO) {
+                    fileConn.getBookStatus(book.name)
+                }
+                val totalChapters = withContext(Dispatchers.IO) {
+                    val bookEntity = db.bookDao().getBookByPath(book.path)
+                    if (bookEntity != null) db.chapterDao().getChapterCountForBook(bookEntity.id) else 0
+                }
+                _syncOptionsState.value = SyncOptionsState(book, totalChapters, syncedChapters)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to get book status", e)
+                _pushState.update { it.copy(statusText = "获取手环状态失败: ${e.message}", isFinished = true, isSuccess = false, book = book) }
+                _syncOptionsState.value = null
             }
         }
     }
 
-    fun startPush(book: Book) {
-        if (fileConn.busy) return
+    fun confirmPush(book: Book, startChapter: Int, chapterCount: Int) {
+        _syncOptionsState.value = null
+        val finalChapterCount = if (chapterCount > 400) 400 else chapterCount
+        if (finalChapterCount <= 0) {
+            return
+        }
 
         _pushState.value = PushState(book = book, preview = "准备开始传输...")
 
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
-            val chapters = db.chapterDao().getChaptersForBook(bookEntity.id)
+            val allChapters = db.chapterDao().getChaptersForBook(bookEntity.id)
+
+            val startFromIndex = (startChapter - 1).coerceIn(0, allChapters.size)
+            val endFromIndex = (startFromIndex + finalChapterCount).coerceAtMost(allChapters.size)
+
+            if (startFromIndex >= endFromIndex) {
+                withContext(Dispatchers.Main) {
+                    _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true) }
+                }
+                return@launch
+            }
+
+            val chaptersToSend = allChapters.subList(startFromIndex, endFromIndex)
 
             withContext(Dispatchers.Main) {
                 fileConn.sentChapters(
                     book = book,
-                    chapters = chapters,
+                    chapters = chaptersToSend,
+                    totalChaptersInBook = allChapters.size,
+                    startFromIndex = startFromIndex,
                     onError = { error, _ ->
                         _pushState.update {
                             it.copy(
@@ -357,6 +426,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (fileConn.busy) {
             fileConn.cancel()
         }
+        _syncOptionsState.value = null
         resetPushState()
     }
 

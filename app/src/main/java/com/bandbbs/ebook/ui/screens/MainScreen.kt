@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -47,6 +49,7 @@ import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.StatusCard
+import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -65,6 +68,8 @@ fun MainScreen(
     val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
     val chapters by viewModel.chaptersForSelectedBook.collectAsState()
     val chapterToPreview by viewModel.chapterToPreview.collectAsState()
+    val bookToDelete by viewModel.bookToDelete.collectAsState()
+    val syncOptionsState by viewModel.syncOptionsState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -76,6 +81,25 @@ fun MainScreen(
     val chapterPreviewSheetState = rememberModalBottomSheetState()
     val importProgressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importReportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val syncOptionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    bookToDelete?.let { book ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelDeleteBook() },
+            title = { Text("删除书籍") },
+            text = { Text("确定要删除《${book.name}》吗？此操作将同时删除文件和所有章节数据，且不可恢复。") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDeleteBook() }) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelDeleteBook() }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
 
     if (pushState.book != null) {
         ModalBottomSheet(
@@ -88,6 +112,29 @@ fun MainScreen(
                     scope.launch {
                         pushSheetState.hide()
                         viewModel.cancelPush()
+                    }
+                }
+            )
+        }
+    }
+
+    syncOptionsState?.let {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelPush() },
+            sheetState = syncOptionsSheetState
+        ) {
+            SyncOptionsBottomSheet(
+                state = it,
+                onCancel = {
+                    scope.launch {
+                        syncOptionsSheetState.hide()
+                        viewModel.cancelPush()
+                    }
+                },
+                onConfirm = { startChapter, chapterCount ->
+                    scope.launch {
+                        syncOptionsSheetState.hide()
+                        viewModel.confirmPush(it.book, startChapter, chapterCount)
                     }
                 }
             )
@@ -236,7 +283,7 @@ fun MainScreen(
                     ) {
                         BookItem(
                             book = book,
-                            onDeleteClick = { viewModel.deleteBook(book) },
+                            onDeleteClick = { viewModel.requestDeleteBook(book) },
                             onSyncClick = { viewModel.startPush(book) },
                             onCardClick = { viewModel.showChapterList(book) },
                             isSyncEnabled = connectionState.isConnected

@@ -15,8 +15,8 @@ object ChapterSplitter {
     const val METHOD_DIGIT_DOT = "METHOD_DIGIT_DOT"
 
     val methods = mapOf(
-        METHOD_DEFAULT to "默认 (第X章)",
-        METHOD_DEFAULT_LOOSE to "默认-宽松 (…第X章…)",
+        METHOD_DEFAULT to "默认 (第X章/卷/节/部/篇)",
+        METHOD_DEFAULT_LOOSE to "默认-宽松 (…第X章/卷/节/部/篇…)",
         METHOD_CHAPTER to "英文 (Chapter X)",
         METHOD_ZH_NUM_DOT to "中文数字 (一、 二.)",
         METHOD_DIGIT_DOT to "阿拉伯数字 (1. 2、)"

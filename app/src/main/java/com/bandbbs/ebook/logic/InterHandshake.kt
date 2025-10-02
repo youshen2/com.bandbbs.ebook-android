@@ -97,7 +97,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             promise = null
                             resolve = null
                             connected = false
-                            handshakePromise.completeExceptionally(Exception("握手超时"))
+                            handshakePromise.completeExceptionally(Exception("握手超时，可尝试重启手机端"))
                         }
                         handler.postDelayed(timeoutCb, TIMEOUT)
                         resolve = {
