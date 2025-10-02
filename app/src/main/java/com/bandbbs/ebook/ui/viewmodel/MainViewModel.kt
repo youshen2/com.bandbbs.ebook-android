@@ -101,8 +101,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (!conn.getAppState().await()) {
                         _connectionState.update {
                             it.copy(
-                                statusText = "喵喵电子书未安装",
-                                descriptionText = "请在手环上安装喵喵电子书",
+                                statusText = "弦电子书未安装",
+                                descriptionText = "请在手环上安装小程序",
                                 isConnected = false
                             )
                         }
@@ -111,8 +111,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } catch (e: Exception) {
                     _connectionState.update {
                         it.copy(
-                            statusText = "喵喵电子书未安装",
-                            descriptionText = "请在手环上安装喵喵电子书",
+                            statusText = "弦电子书未安装",
+                            descriptionText = "请在手环上安装小程序",
                             isConnected = false
                         )
                     }
