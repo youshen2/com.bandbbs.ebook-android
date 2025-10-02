@@ -17,12 +17,12 @@ import java.io.File;
 public class FileUtils {
     public static String getRealPath(Context context, Uri fileUri) {
 
-        try{
-            String path = getPathFromUri(context,fileUri);
-            if(path != null && new File(path).exists()){
+        try {
+            String path = getPathFromUri(context, fileUri);
+            if (path != null && new File(path).exists()) {
                 return path;
             }
-        } catch (Exception ignored){
+        } catch (Exception ignored) {
 
         }
         String realPath;
@@ -39,7 +39,7 @@ public class FileUtils {
             realPath = FileUtils.getRealPathFromURI_API19(context, fileUri);
         }
 
-        if(realPath != null && new File(realPath).exists()){
+        if (realPath != null && new File(realPath).exists()) {
             return realPath;
         }
         realPath = GetFilePathFromUri.getFileAbsolutePath(context, fileUri);
@@ -110,7 +110,7 @@ public class FileUtils {
                 String fileName = getFilePath(context, uri);
                 if (fileName != null) {
                     String path = Environment.getExternalStorageDirectory().toString() + "/Download/" + fileName;
-                    if(new File(path).exists()){
+                    if (new File(path).exists()) {
                         return path;
                     }
 //                    return Environment.getExternalStorageDirectory().toString() + "/Download/" + fileName;
@@ -122,14 +122,14 @@ public class FileUtils {
                     File file = new File(id);
                     if (file.exists())
                         return id;
-                } else if(id.startsWith("msf:")) {
+                } else if (id.startsWith("msf:")) {
                     id = id.replaceFirst("msf:", "");
                 }
 
-                try{
+                try {
                     final Uri contentUri = ContentUris.withAppendedId(Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
                     return getDataColumn(context, contentUri, null, null);
-                } catch (Exception e){
+                } catch (Exception e) {
                     return null;
                 }
             }
@@ -147,7 +147,7 @@ public class FileUtils {
                 } else if ("audio".equals(type)) {
                     contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
                 } else {
-                    contentUri = MediaStore.getMediaUri(context,uri);
+                    contentUri = MediaStore.getMediaUri(context, uri);
                 }
 
                 final String selection = "_id=?";

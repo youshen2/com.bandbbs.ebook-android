@@ -31,7 +31,8 @@ fun UritoFile(uri: Uri?, context: Context): File? {
                 null
             }
         } ?: ((System.currentTimeMillis() + ((Math.random() + 1) * 1000).roundToInt()
-                ).toString() + "." + MimeTypeMap.getSingleton().getExtensionFromMimeType(contentResolver.getType(uri)))
+                ).toString() + "." + MimeTypeMap.getSingleton()
+            .getExtensionFromMimeType(contentResolver.getType(uri)))
 
         try {
             val `is`: InputStream = contentResolver.openInputStream(uri)!!

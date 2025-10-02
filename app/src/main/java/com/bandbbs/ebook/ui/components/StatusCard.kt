@@ -35,7 +35,8 @@ fun StatusCard(
         targetValue = MaterialTheme.colorScheme.surfaceContainerHigh,
         label = "StatusCardColor"
     )
-    val contentColor = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+    val contentColor =
+        if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
     val icon: ImageVector = if (isConnected) Icons.Default.CheckCircle else Icons.Default.Error
 
     Card(
@@ -56,9 +57,11 @@ fun StatusCard(
                 modifier = Modifier.size(32.dp),
                 tint = contentColor
             )
-            Column(modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .weight(1f)
+            ) {
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.titleMedium,

@@ -44,6 +44,7 @@ fun ChapterPreviewBottomSheet(chapter: Chapter) {
                 .verticalScroll(scrollState),
             style = MaterialTheme.typography.bodyMedium
         )
+        Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }

@@ -40,7 +40,8 @@ data class PushState(
 data class ImportState(
     val uri: Uri,
     val bookName: String,
-    val splitMethod: String = ChapterSplitter.METHOD_DEFAULT
+    val splitMethod: String = ChapterSplitter.METHOD_DEFAULT,
+    val noSplit: Boolean = false
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -163,7 +164,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val context = getApplication<Application>().applicationContext
             UritoFile(uri, context)?.let { sourceFile ->
-                _importState.value = ImportState(uri = uri, bookName = sourceFile.nameWithoutExtension)
+                _importState.value =
+                    ImportState(uri = uri, bookName = sourceFile.nameWithoutExtension)
             }
         }
     }
@@ -172,7 +174,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importState.value = null
     }
 
-    fun confirmImport(bookName: String, splitMethod: String) {
+    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean) {
         val state = _importState.value ?: return
         val finalBookName = bookName.trim()
         if (finalBookName.isEmpty()) {
@@ -187,10 +189,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 sourceFile.copyTo(destFile, overwrite = true)
 
                 val bookId = db.bookDao().insert(
-                    BookEntity(name = finalBookName, path = destFile.absolutePath, size = destFile.length())
+                    BookEntity(
+                        name = finalBookName,
+                        path = destFile.absolutePath,
+                        size = destFile.length()
+                    )
                 )
 
-                val chapters = ChapterSplitter.split(context, state.uri, bookId.toInt(), splitMethod)
+                val chapters = if (noSplit) {
+                    val content = ChapterSplitter.readTextFromUri(context, state.uri)
+                    listOf(
+                        Chapter(
+                            bookId = bookId.toInt(),
+                            index = 0,
+                            name = "全文",
+                            content = content.trim(),
+                            wordCount = content.trim().length
+                        )
+                    )
+                } else {
+                    ChapterSplitter.split(context, state.uri, bookId.toInt(), splitMethod)
+                }
                 db.chapterDao().insertAll(chapters)
 
                 sourceFile.delete()

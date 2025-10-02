@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 fun bytesToReadable(bytes: Long): String {
     return bytesToReadable(bytes.toDouble())
 }
+
 @SuppressLint("DefaultLocale")
 fun bytesToReadable(bytes: Double): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB")

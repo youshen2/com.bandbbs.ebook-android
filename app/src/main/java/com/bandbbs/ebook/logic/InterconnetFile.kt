@@ -1,4 +1,5 @@
 package com.bandbbs.ebook.logic
+
 import android.util.Log
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
@@ -6,7 +7,6 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.File
 
 class InterconnetFile(private val conn: InterHandshake) {
     private val json = Json {
@@ -19,15 +19,16 @@ class InterconnetFile(private val conn: InterHandshake) {
     private lateinit var onError: (message: String, count: Int) -> Unit
     private lateinit var onSuccess: (message: String, count: Int) -> Unit
     private lateinit var onProgress: (progress: Double, chunkPreview: String, status: String) -> Unit
-    var busy=false
+    var busy = false
+
     init {
         conn.addListener("file") listener@{
             try {
                 val type = json.decodeFromString<FileMessagesFromDevice.Header>(it).type
                 when (type) {
-                    "ready"-> {
+                    "ready" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Ready>(it)
-                        if(jsonMessage.usage>25*1024*1024){
+                        if (jsonMessage.usage > 25 * 1024 * 1024) {
                             onError("存储空间不足", 0)
                             busy = false
                             conn.destroy()
@@ -35,37 +36,42 @@ class InterconnetFile(private val conn: InterHandshake) {
                         }
                         sendNextChunk(jsonMessage.count)
                     }
+
                     "error" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Error>(it)
                         onError(jsonMessage.message, jsonMessage.count)
                         busy = false
-                        conn.setOnDisconnected {  }
+                        conn.setOnDisconnected { }
                         conn.destroy()
                     }
+
                     "success" -> {
                         busy = false
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
                         onSuccess(jsonMessage.message, jsonMessage.count)
-                        conn.setOnDisconnected {  }
+                        conn.setOnDisconnected { }
                         conn.destroy()
                     }
+
                     "next" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Next>(it)
                         sendNextChunk(jsonMessage.count)
                     }
+
                     "cancel" -> {
                         busy = false
                         conn.destroy()
                         onSuccess("取消传输", 0)
                     }
 
-                    "usuage"-> TODO()
+                    "usuage" -> TODO()
                 }
             } catch (e: Exception) {
                 Log.e("file", "Error parsing JSON message: $it", e)
             }
         }
     }
+
     suspend fun sentChapters(
         book: Book,
         chapters: List<com.bandbbs.ebook.database.Chapter>,
@@ -81,7 +87,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
         this.chapters = chapters
         busy = true
-        onProgress(0.0, chapters.firstOrNull()?.name ?: ""," --")
+        onProgress(0.0, chapters.firstOrNull()?.name ?: "", " --")
         delay(1000L) //等待应用打开
 
         conn.sendMessage(
@@ -101,12 +107,12 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     private fun sendNextChunk(
         currentChunk: Int
-    ){
-        if (currentChunk >= chapters.size){
-            busy=false
-            onProgress(1.0,""," --")
+    ) {
+        if (currentChunk >= chapters.size) {
+            busy = false
+            onProgress(1.0, "", " --")
             onSuccess("传输完成", chapters.size)
-            conn.setOnDisconnected {  }
+            conn.setOnDisconnected { }
             conn.destroy()
             return
         }
@@ -122,10 +128,15 @@ class InterconnetFile(private val conn: InterHandshake) {
         if (lastChunkTime != 0L) {
             val timeTaken = currentTime - lastChunkTime
             val speed = bytesToReadable(chunk.toByteArray().size / (timeTaken / 1000.0))
-            val remainingTime = (chapters.size - currentChunk) * (currentTime - lastChunkTime) / 1000.0
-            onProgress(currentChunk.toDouble()/chapters.size, chunkObject.name, " $speed/s ${remainingTime.toInt()}s")
+            val remainingTime =
+                (chapters.size - currentChunk) * (currentTime - lastChunkTime) / 1000.0
+            onProgress(
+                currentChunk.toDouble() / chapters.size,
+                chunkObject.name,
+                " $speed/s ${remainingTime.toInt()}s"
+            )
         } else {
-            onProgress(currentChunk.toDouble()/chapters.size, chunkObject.name, " --")
+            onProgress(currentChunk.toDouble() / chapters.size, chunkObject.name, " --")
         }
         lastChunkTime = currentTime
 
@@ -135,20 +146,23 @@ class InterconnetFile(private val conn: InterHandshake) {
             }
         }
 
-        Log.d("File","sendNextChunk$currentChunk")
+        Log.d("File", "sendNextChunk$currentChunk")
     }
-    fun cancel(){
+
+    fun cancel() {
         conn.destroy()
-        busy=false
+        busy = false
         conn.sendMessage(json.encodeToString(FileMessagesToSend.Cancel()))
     }
+
     @Serializable
     private sealed class FileMessagesFromDevice {
         @Serializable
         data class Header(
-            val tag:String="file",
+            val tag: String = "file",
             val type: String
-        ):FileMessagesFromDevice()
+        ) : FileMessagesFromDevice()
+
         @Serializable
         data class Ready(
             val type: String = "ready",
@@ -188,17 +202,18 @@ class InterconnetFile(private val conn: InterHandshake) {
             val usage: Long
         ) : FileMessagesFromDevice()
     }
+
     @Serializable
     private sealed class FileMessagesToSend {
         @Serializable
         data class GetUsage(
-            val tag:String="file",
+            val tag: String = "file",
             val stat: String = "getUsage"
         ) : FileMessagesToSend()
 
         @Serializable
         data class StartTransfer(
-            val tag:String="file",
+            val tag: String = "file",
             val stat: String = "startTransfer",
             val filename: String,
             val total: Int,
@@ -207,7 +222,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
         @Serializable
         data class DataChunk(
-            val tag:String="file",
+            val tag: String = "file",
             val stat: String = "d",
             val count: Int,
             val data: String
@@ -215,7 +230,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
         @Serializable
         data class Cancel(
-            val tag:String="file",
+            val tag: String = "file",
             val stat: String = "cancel"
         ) : FileMessagesToSend()
     }

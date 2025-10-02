@@ -75,18 +75,16 @@ public class GetFilePathFromUri {
         }
 
         // MediaStore (and general)  大于等于10
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
-            return uriToFileApiQ(context,imageUri);
-        }
-        else if ("content".equalsIgnoreCase(imageUri.getScheme())) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return uriToFileApiQ(context, imageUri);
+        } else if ("content".equalsIgnoreCase(imageUri.getScheme())) {
             // Return the remote address
             if (isGooglePhotosUri(imageUri)) {
                 return imageUri.getLastPathSegment();
             }
-            if (Build.VERSION.SDK_INT >= 24)
-            {
-                return getFilePathFromUri(context,imageUri); //content 类型
-            }else {
+            if (Build.VERSION.SDK_INT >= 24) {
+                return getFilePathFromUri(context, imageUri); //content 类型
+            } else {
                 return getDataColumn(context, imageUri, null, null);
             }
         }
@@ -177,6 +175,7 @@ public class GetFilePathFromUri {
 
     /**
      * Android 10 以上适配 另一种写法
+     *
      * @param context
      * @param uri
      * @return
@@ -205,6 +204,7 @@ public class GetFilePathFromUri {
 
     /**
      * Android 10 以上适配
+     *
      * @param context
      * @param uri
      * @return
@@ -222,9 +222,8 @@ public class GetFilePathFromUri {
                 String displayName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
                 try {
                     InputStream is = contentResolver.openInputStream(uri);
-                    File file1 = new File(context.getExternalCacheDir().getAbsolutePath()+"/"+System.currentTimeMillis());
-                    if (!file1.exists())
-                    {
+                    File file1 = new File(context.getExternalCacheDir().getAbsolutePath() + "/" + System.currentTimeMillis());
+                    if (!file1.exists()) {
                         file1.mkdir();
                     }
                     File cache = new File(file1.getPath(), displayName);
@@ -241,43 +240,38 @@ public class GetFilePathFromUri {
         return file.getAbsolutePath();
     }
 
-    private static String getFilePathFromUri(Context context,Uri uri)
-    {
-        String realFilePath = getRealFilePath(context,uri); //防止获取不到真实的地址，因此这里需要进行判断
-        if (!TextUtils.isEmpty(realFilePath))
-        {
+    private static String getFilePathFromUri(Context context, Uri uri) {
+        String realFilePath = getRealFilePath(context, uri); //防止获取不到真实的地址，因此这里需要进行判断
+        if (!TextUtils.isEmpty(realFilePath)) {
             return realFilePath;
         }
         File filesDir = context.getApplicationContext().getFilesDir();
         String fileName = getFileName(uri);
-        if (!TextUtils.isEmpty(fileName))
-        {
+        if (!TextUtils.isEmpty(fileName)) {
             File copyFile1 = new File(filesDir + File.separator + fileName);
-            copyFile(context,uri,copyFile1);
+            copyFile(context, uri, copyFile1);
             return copyFile1.getAbsolutePath();
         }
         return null;
     }
-    private static String getFileName(Uri uri)
-    {
-        if (uri == null)
-        {
+
+    private static String getFileName(Uri uri) {
+        if (uri == null) {
             return null;
         }
         String fileName = null;
         String path = uri.getPath();
         int cut = path.lastIndexOf('/');
-        if (cut != -1)
-        {
-            fileName = path.substring(cut+1);
+        if (cut != -1) {
+            fileName = path.substring(cut + 1);
         }
         return fileName;
     }
+
     private static void copyFile(Context context, Uri srcUri, File dstFile) {
         try {
             InputStream inputStream = context.getContentResolver().openInputStream(srcUri);
-            if (inputStream == null)
-            {
+            if (inputStream == null) {
                 return;
             }
             OutputStream outputStream = new FileOutputStream(dstFile);
@@ -290,7 +284,7 @@ public class GetFilePathFromUri {
     }
 
 
-    private static int copyStream(InputStream input, OutputStream output){
+    private static int copyStream(InputStream input, OutputStream output) {
         final int BUFFER_SIZE = 1024 * 2;
         byte[] buffer = new byte[BUFFER_SIZE];
         BufferedInputStream in = new BufferedInputStream(input, BUFFER_SIZE);
@@ -302,10 +296,8 @@ public class GetFilePathFromUri {
                 count += n;
             }
             out.flush();
-        }
-        catch (Exception e)
-        {
-        }finally {
+        } catch (Exception e) {
+        } finally {
             try {
                 out.close();
                 in.close();

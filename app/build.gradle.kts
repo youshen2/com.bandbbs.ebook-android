@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.bandbbs.ebook"
+        applicationId = "com.bandbbs.ebook.plus"
         minSdk = 29
         targetSdk = 35
         versionCode = 4

@@ -6,8 +6,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -33,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.R
@@ -109,10 +110,10 @@ fun MainScreen(
                         viewModel.cancelImport()
                     }
                 },
-                onConfirm = { bookName, splitMethod ->
+                onConfirm = { bookName, splitMethod, noSplit ->
                     scope.launch {
                         importSheetState.hide()
-                        viewModel.confirmImport(bookName, splitMethod)
+                        viewModel.confirmImport(bookName, splitMethod, noSplit)
                     }
                 }
             )
@@ -153,6 +154,7 @@ fun MainScreen(
                     IconButton(onClick = onImportClick) {
                         Icon(Icons.Default.Add, contentDescription = "导入书籍")
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }

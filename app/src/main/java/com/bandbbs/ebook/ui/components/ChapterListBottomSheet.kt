@@ -56,6 +56,7 @@ fun ChapterListBottomSheet(
                 )
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }

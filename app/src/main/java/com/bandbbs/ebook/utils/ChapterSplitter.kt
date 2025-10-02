@@ -4,8 +4,6 @@ import android.content.Context
 import android.net.Uri
 import com.bandbbs.ebook.database.Chapter
 import org.mozilla.universalchardet.UniversalDetector
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.nio.charset.Charset
 
 object ChapterSplitter {
@@ -18,7 +16,8 @@ object ChapterSplitter {
         METHOD_CHAPTER to "英文 (Chapter X)"
     )
 
-    private val regexDefault = Regex("""^\s*(.{0,10})第(\s*[一二三四五六七八九十百千万零〇\d]+\s*)(章|卷|节|部|篇)(.{0,30})$""")
+    private val regexDefault =
+        Regex("""^\s*(.{0,10})第(\s*[一二三四五六七八九十百千万零〇\d]+\s*)(章|卷|节|部|篇)(.{0,30})$""")
     private val regexChapter = Regex("""^\s*(Chapter|CHAPTER)\s+(\d+)\s*.*$""")
 
     fun split(context: Context, uri: Uri, bookId: Int, method: String): List<Chapter> {
@@ -74,7 +73,7 @@ object ChapterSplitter {
         return chapters
     }
 
-    private fun readTextFromUri(context: Context, uri: Uri): String {
+    fun readTextFromUri(context: Context, uri: Uri): String {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return ""
         val bytes = inputStream.readBytes()
         inputStream.close()

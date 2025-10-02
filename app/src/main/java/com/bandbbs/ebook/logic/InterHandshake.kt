@@ -5,12 +5,16 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 //握握手，握握双手
 
-class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(context) {
+class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(context) {
     companion object {
         private const val TYPE = "__hs__"
         private const val TIMEOUT = 3000L
@@ -22,7 +26,7 @@ class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(con
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
 
-    override val onMessageListener = OnMessageReceivedListener{ _, message -> // 收到手表端应用发来的消息
+    override val onMessageListener = OnMessageReceivedListener { _, message -> // 收到手表端应用发来的消息
         //重置计时器
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
@@ -33,7 +37,7 @@ class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(con
         }
         handler.postDelayed(timeoutRunnable!!, TIMEOUT)
         val message = message.decodeToString()
-        Log.d("InterconnIn",message)
+        Log.d("InterconnIn", message)
         val msg = json.decodeFromString<Message>(message)
         onMessage[msg.tag]?.invoke(message)
     }
@@ -42,7 +46,7 @@ class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(con
         // 注册握手消息监听器
         addListener(TYPE) { payload ->
             // 解析 payload 中的 count（假设 payload 是 JSON 格式）
-            val data: HandshakePayload = json.decodeFromString( payload)
+            val data: HandshakePayload = json.decodeFromString(payload)
             val currentCount = data.count
 
             // 处理握手计数逻辑
@@ -64,36 +68,37 @@ class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(con
             }
         }
     }
+
     override fun sendMessage(message: String): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
-            val cpe= {e: Exception->
+            val cpe = { e: Exception ->
                 completeExceptionally(e)
             }
             scope.launch {
-                if(!connected)
-                if (promise != null) {
-                    promise?.await()
-                } else {
-                    // 初始化握手流程
-                    promise = CompletableDeferred<Unit>().apply {
-                        val timeoutCb = Runnable {
-                            promise = null
-                            resolve = null
-                            connected = false
-                            cpe(Exception("握手超时"))
+                if (!connected)
+                    if (promise != null) {
+                        promise?.await()
+                    } else {
+                        // 初始化握手流程
+                        promise = CompletableDeferred<Unit>().apply {
+                            val timeoutCb = Runnable {
+                                promise = null
+                                resolve = null
+                                connected = false
+                                cpe(Exception("握手超时"))
+                            }
+                            handler.postDelayed(timeoutCb, TIMEOUT)
+                            resolve = {
+                                complete(Unit)
+                                Log.i("handShake", "success")
+                                handler.removeCallbacks(timeoutCb)
+                                connected = true
+                            }
+                            // 发送初始握手消息（count=0）
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
                         }
-                        handler.postDelayed(timeoutCb, TIMEOUT)
-                        resolve = {
-                            complete(Unit)
-                            Log.i("handShake","success")
-                            handler.removeCallbacks(timeoutCb)
-                            connected = true
-                        }
-                        // 发送初始握手消息（count=0）
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
+                        promise?.await()
                     }
-                    promise?.await()
-                }
                 complete(super.sendMessage(message).await())
             }
         }
@@ -102,13 +107,14 @@ class InterHandshake(context: Context,val scope: CoroutineScope) : Interconn(con
     }
 
     @Serializable
-    private data class HandshakePayload(val count: Int,val tag: String)
+    private data class HandshakePayload(val count: Int, val tag: String)
 
-    private var onConnected={}
+    private var onConnected = {}
     fun setOnConnected(callback: () -> Unit) {
         onConnected = callback
     }
-    private var onDisconnected={}
+
+    private var onDisconnected = {}
     fun setOnDisconnected(callback: () -> Unit) {
         onDisconnected = callback
     }

@@ -38,14 +38,9 @@ fun AboutBottomSheet() {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher),
-                contentDescription = null,
-                modifier = Modifier.size(64.dp)
-            )
             Column(modifier = Modifier.padding(start = 16.dp)) {
                 Text(
-                    text = "喵喵电子书同步器",
+                    text = "弦电子书 - Android同步器",
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
@@ -62,7 +57,16 @@ fun AboutBottomSheet() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text("参与开发的人员", style = MaterialTheme.typography.titleMedium)
+            Text("开发者", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "爅峫",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "《喵喵电子书》开发人员",
+                style = MaterialTheme.typography.titleMedium
+            )
             Text(
                 "NEORUAA, 乐色桶, 无源流沙",
                 style = MaterialTheme.typography.bodyMedium,
@@ -77,6 +81,7 @@ fun AboutBottomSheet() {
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }

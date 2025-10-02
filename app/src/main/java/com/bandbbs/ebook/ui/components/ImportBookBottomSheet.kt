@@ -11,8 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
-import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -34,11 +35,12 @@ import com.bandbbs.ebook.utils.ChapterSplitter
 fun ImportBookBottomSheet(
     state: ImportState,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String) -> Unit
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean) -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
     var splitMethod by remember { mutableStateOf(state.splitMethod) }
     var showSplitMethodMenu by remember { mutableStateOf(false) }
+    var noSplit by remember { mutableStateOf(state.noSplit) }
 
     Column(
         modifier = Modifier
@@ -53,8 +55,8 @@ fun ImportBookBottomSheet(
             TextButton(onClick = onCancel) {
                 Text("取消")
             }
-            Text("导入书籍", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = { onConfirm(bookName, splitMethod) }) {
+            Text("导入书籍", style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = { onConfirm(bookName, splitMethod, noSplit) }) {
                 Text("导入")
             }
         }
@@ -71,6 +73,23 @@ fun ImportBookBottomSheet(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { noSplit = !noSplit }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = noSplit,
+                onCheckedChange = { noSplit = it }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "不分章")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         Box {
             OutlinedTextField(
                 value = ChapterSplitter.methods[splitMethod] ?: "",
@@ -78,9 +97,9 @@ fun ImportBookBottomSheet(
                 label = { Text("分章方式") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showSplitMethodMenu = true },
+                    .clickable(enabled = !noSplit) { showSplitMethodMenu = true },
                 readOnly = true,
-                enabled = false
+                enabled = !noSplit
             )
             DropdownMenu(
                 expanded = showSplitMethodMenu,
@@ -99,6 +118,7 @@ fun ImportBookBottomSheet(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
