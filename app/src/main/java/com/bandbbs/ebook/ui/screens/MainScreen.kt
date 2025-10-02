@@ -43,6 +43,8 @@ import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.ChapterPreviewBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
+import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
+import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.StatusCard
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
@@ -58,6 +60,8 @@ fun MainScreen(
     val books by viewModel.books.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
+    val importingState by viewModel.importingState.collectAsState()
+    val importReportState by viewModel.importReportState.collectAsState()
     val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
     val chapters by viewModel.chaptersForSelectedBook.collectAsState()
     val chapterToPreview by viewModel.chapterToPreview.collectAsState()
@@ -70,6 +74,8 @@ fun MainScreen(
     val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val chapterListSheetState = rememberModalBottomSheetState()
     val chapterPreviewSheetState = rememberModalBottomSheetState()
+    val importProgressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val importReportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     if (pushState.book != null) {
         ModalBottomSheet(
@@ -114,6 +120,33 @@ fun MainScreen(
                     scope.launch {
                         importSheetState.hide()
                         viewModel.confirmImport(bookName, splitMethod, noSplit)
+                    }
+                }
+            )
+        }
+    }
+
+    importingState?.let {
+        ModalBottomSheet(
+            onDismissRequest = { },
+            sheetState = importProgressSheetState,
+            dragHandle = null
+        ) {
+            ImportProgressBottomSheet(state = it)
+        }
+    }
+
+    importReportState?.let {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissImportReport() },
+            sheetState = importReportSheetState
+        ) {
+            ImportReportBottomSheet(
+                state = it,
+                onDismiss = {
+                    scope.launch {
+                        importReportSheetState.hide()
+                        viewModel.dismissImportReport()
                     }
                 }
             )

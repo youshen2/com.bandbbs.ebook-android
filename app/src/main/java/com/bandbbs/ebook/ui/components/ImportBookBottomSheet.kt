@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.utils.ChapterSplitter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportBookBottomSheet(
     state: ImportState,
@@ -91,29 +94,40 @@ fun ImportBookBottomSheet(
         Spacer(modifier = Modifier.height(8.dp))
 
         Box {
-            OutlinedTextField(
-                value = ChapterSplitter.methods[splitMethod] ?: "",
-                onValueChange = {},
-                label = { Text("分章方式") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !noSplit) { showSplitMethodMenu = true },
-                readOnly = true,
-                enabled = !noSplit
-            )
-            DropdownMenu(
+            ExposedDropdownMenuBox(
                 expanded = showSplitMethodMenu,
-                onDismissRequest = { showSplitMethodMenu = false },
-                modifier = Modifier.fillMaxWidth(0.9f)
+                onExpandedChange = {
+                    if (!noSplit) {
+                        showSplitMethodMenu = !showSplitMethodMenu
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
-                ChapterSplitter.methods.forEach { (key, value) ->
-                    DropdownMenuItem(
-                        text = { Text(value) },
-                        onClick = {
-                            splitMethod = key
-                            showSplitMethodMenu = false
-                        }
-                    )
+                OutlinedTextField(
+                    value = ChapterSplitter.methods[splitMethod] ?: "",
+                    onValueChange = {},
+                    label = { Text("分章方式") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    readOnly = true,
+                    enabled = !noSplit,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSplitMethodMenu) },
+                    colors = ExposedDropdownMenuDefaults.textFieldColors()
+                )
+                ExposedDropdownMenu(
+                    expanded = showSplitMethodMenu,
+                    onDismissRequest = { showSplitMethodMenu = false },
+                ) {
+                    ChapterSplitter.methods.forEach { (key, value) ->
+                        DropdownMenuItem(
+                            text = { Text(value) },
+                            onClick = {
+                                splitMethod = key
+                                showSplitMethodMenu = false
+                            }
+                        )
+                    }
                 }
             }
         }
