@@ -52,14 +52,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Error>(it)
                         onError(jsonMessage.message, jsonMessage.count)
                         busy = false
-                        conn.setOnDisconnected { }
                     }
 
                     "success" -> {
                         busy = false
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
                         onSuccess(jsonMessage.message, jsonMessage.count)
-                        conn.setOnDisconnected { }
                     }
 
                     "next" -> {
@@ -78,7 +76,6 @@ class InterconnetFile(private val conn: InterHandshake) {
                     "cancel" -> {
                         busy = false
                         onSuccess("取消传输", 0)
-                        conn.setOnDisconnected { }
                     }
 
                     "book_status" -> {
@@ -145,7 +142,6 @@ class InterconnetFile(private val conn: InterHandshake) {
             busy = false
             onProgress(1.0, "", " --")
             onSuccess("传输完成", chapters.size)
-            conn.setOnDisconnected { }
             return
         }
 
@@ -190,7 +186,6 @@ class InterconnetFile(private val conn: InterHandshake) {
             } catch (e: Exception) {
                 onError("发送失败: ${e.message ?: "未知错误"}", currentChapterIndexInBook)
                 busy = false
-                conn.setOnDisconnected { }
                 return@launch
             }
 

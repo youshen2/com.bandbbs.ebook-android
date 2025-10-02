@@ -426,6 +426,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (fileConn.busy) {
             fileConn.cancel()
         }
+        conn.setOnDisconnected { }
         _syncOptionsState.value = null
         resetPushState()
     }
