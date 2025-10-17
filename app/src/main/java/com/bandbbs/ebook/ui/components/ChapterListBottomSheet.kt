@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.Chapter
@@ -36,9 +37,11 @@ fun ChapterListBottomSheet(
         Text(
             text = book.name,
             style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "${book.chapterCount} 章 · ${book.wordCount} 字",
             style = MaterialTheme.typography.bodyMedium,

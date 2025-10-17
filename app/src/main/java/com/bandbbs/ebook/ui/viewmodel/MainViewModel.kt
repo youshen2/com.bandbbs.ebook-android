@@ -60,7 +60,16 @@ data class ImportReportState(
 data class SyncOptionsState(
     val book: Book,
     val totalChapters: Int,
-    val syncedChapters: Int
+    val syncedChapters: Int,
+    val chapters: List<Chapter> = emptyList()
+)
+
+data class OverwriteConfirmState(
+    val existingBook: Book,
+    val uri: Uri,
+    val newBookName: String,
+    val splitMethod: String,
+    val noSplit: Boolean
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -103,6 +112,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _syncOptionsState = MutableStateFlow<SyncOptionsState?>(null)
     val syncOptionsState = _syncOptionsState.asStateFlow()
+
+    private val _overwriteConfirmState = MutableStateFlow<OverwriteConfirmState?>(null)
+    val overwriteConfirmState = _overwriteConfirmState.asStateFlow()
 
 
     init {
@@ -183,7 +195,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     size = entity.size,
                     chapterCount = chapterCount,
                     wordCount = wordCount,
-                    syncedChapterCount = 0 // Placeholder, real value from watch
+                    syncedChapterCount = 0
                 )
             }
             withContext(Dispatchers.Main) {
@@ -208,7 +220,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean) {
         val state = _importState.value ?: return
-        _importState.value = null // Hide the options sheet
 
         val finalBookName = bookName.trim()
         if (finalBookName.isEmpty()) {
@@ -216,25 +227,83 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            _importingState.value = ImportingState(bookName = finalBookName)
-            val context = getApplication<Application>().applicationContext
-            UritoFile(state.uri, context)?.let { sourceFile ->
-                _importingState.update { it?.copy(statusText = "正在复制文件...") }
-                val destFile = File(booksDir, sourceFile.name)
-                sourceFile.copyTo(destFile, overwrite = true)
-
-                _importingState.update { it?.copy(statusText = "正在写入数据库...") }
-                val bookId = db.bookDao().insert(
-                    BookEntity(
-                        name = finalBookName,
-                        path = destFile.absolutePath,
-                        size = destFile.length()
+            val existingBook = _books.value.find { it.name == finalBookName }
+            if (existingBook != null) {
+                withContext(Dispatchers.Main) {
+                    _importState.value = null
+                    _overwriteConfirmState.value = OverwriteConfirmState(
+                        existingBook = existingBook,
+                        uri = state.uri,
+                        newBookName = finalBookName,
+                        splitMethod = splitMethod,
+                        noSplit = noSplit
                     )
+                }
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
+                _importState.value = null
+            }
+            performImport(state.uri, finalBookName, splitMethod, noSplit, false)
+        }
+    }
+
+    fun cancelOverwriteConfirm() {
+        _overwriteConfirmState.value = null
+    }
+
+    fun confirmOverwrite() {
+        val overwriteState = _overwriteConfirmState.value ?: return
+        _overwriteConfirmState.value = null
+
+        viewModelScope.launch(Dispatchers.IO) {
+            deleteBookInternal(overwriteState.existingBook)
+            performImport(
+                overwriteState.uri,
+                overwriteState.newBookName,
+                overwriteState.splitMethod,
+                overwriteState.noSplit,
+                true
+            )
+        }
+    }
+
+    private suspend fun deleteBookInternal(book: Book) {
+        File(book.path).delete()
+        val bookEntity = db.bookDao().getBookByPath(book.path)
+        if (bookEntity != null) {
+            db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+            db.bookDao().delete(bookEntity)
+        }
+    }
+
+    private suspend fun performImport(
+        uri: Uri,
+        finalBookName: String,
+        splitMethod: String,
+        noSplit: Boolean,
+        isOverwrite: Boolean
+    ) {
+        _importingState.value = ImportingState(bookName = finalBookName)
+        val context = getApplication<Application>().applicationContext
+        UritoFile(uri, context)?.let { sourceFile ->
+            _importingState.update { it?.copy(statusText = "正在复制文件...") }
+            val destFile = File(booksDir, sourceFile.name)
+            sourceFile.copyTo(destFile, overwrite = true)
+
+            _importingState.update { it?.copy(statusText = "正在写入数据库...") }
+            val bookId = db.bookDao().insert(
+                BookEntity(
+                    name = finalBookName,
+                    path = destFile.absolutePath,
+                    size = destFile.length()
                 )
+            )
 
                 val initialChapters = if (noSplit) {
                     _importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.5f) }
-                    val content = ChapterSplitter.readTextFromUri(context, state.uri)
+                    val content = ChapterSplitter.readTextFromUri(context, uri)
                     listOf(
                         Chapter(
                             bookId = bookId.toInt(),
@@ -245,7 +314,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     )
                 } else {
-                    ChapterSplitter.split(context, state.uri, bookId.toInt(), splitMethod) { progress, status ->
+                    ChapterSplitter.split(context, uri, bookId.toInt(), splitMethod) { progress, status ->
                         _importingState.update {
                             it?.copy(
                                 statusText = status,
@@ -284,22 +353,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
                 db.chapterDao().insertAll(reIndexedChapters)
 
-                sourceFile.delete()
-                withContext(Dispatchers.Main) {
-                    _importingState.value = null
-                    loadBooks()
-                    if (mergedChapterTitles.isNotEmpty()) {
-                        val reportMessage = "有 ${mergedChapterTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
-                                mergedChapterTitles.joinToString("\n") { "- $it" }
-                        _importReportState.value = ImportReportState(
-                            bookName = finalBookName,
-                            mergedChaptersInfo = reportMessage
-                        )
-                    }
-                }
-            } ?: run {
+            sourceFile.delete()
+            withContext(Dispatchers.Main) {
                 _importingState.value = null
+                loadBooks()
+                if (mergedChapterTitles.isNotEmpty()) {
+                    val reportMessage = "有 ${mergedChapterTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
+                            mergedChapterTitles.joinToString("\n") { "- $it" }
+                    _importReportState.value = ImportReportState(
+                        bookName = finalBookName,
+                        mergedChaptersInfo = reportMessage
+                    )
+                }
             }
+        } ?: run {
+            _importingState.value = null
         }
     }
 
@@ -335,20 +403,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startPush(book: Book) {
         if (fileConn.busy || _syncOptionsState.value != null) return
 
-        _syncOptionsState.value = SyncOptionsState(book, 0, 0)
+        _syncOptionsState.value = SyncOptionsState(book, 0, 0, emptyList())
 
         viewModelScope.launch {
             try {
                 conn.init()
-                delay(500L) // Give watch time to settle
+                delay(500L)
                 val syncedChapters = withContext(Dispatchers.IO) {
                     fileConn.getBookStatus(book.name)
                 }
-                val totalChapters = withContext(Dispatchers.IO) {
+                val (totalChapters, chapters) = withContext(Dispatchers.IO) {
                     val bookEntity = db.bookDao().getBookByPath(book.path)
-                    if (bookEntity != null) db.chapterDao().getChapterCountForBook(bookEntity.id) else 0
+                    if (bookEntity != null) {
+                        val count = db.chapterDao().getChapterCountForBook(bookEntity.id)
+                        val chapterList = db.chapterDao().getChaptersForBook(bookEntity.id)
+                        Pair(count, chapterList)
+                    } else {
+                        Pair(0, emptyList())
+                    }
                 }
-                _syncOptionsState.value = SyncOptionsState(book, totalChapters, syncedChapters)
+                _syncOptionsState.value = SyncOptionsState(book, totalChapters, syncedChapters, chapters)
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to get book status", e)
                 _pushState.update { it.copy(statusText = "获取手环状态失败: ${e.message}", isFinished = true, isSuccess = false, book = book) }
@@ -357,10 +431,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun confirmPush(book: Book, startChapter: Int, chapterCount: Int) {
+    fun confirmPush(book: Book, selectedChapterIndices: Set<Int>) {
         _syncOptionsState.value = null
-        val finalChapterCount = if (chapterCount > 400) 400 else chapterCount
-        if (finalChapterCount <= 0) {
+        
+        if (selectedChapterIndices.isEmpty()) {
             return
         }
 
@@ -370,17 +444,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
             val allChapters = db.chapterDao().getChaptersForBook(bookEntity.id)
 
-            val startFromIndex = (startChapter - 1).coerceIn(0, allChapters.size)
-            val endFromIndex = (startFromIndex + finalChapterCount).coerceAtMost(allChapters.size)
+            val chaptersToSend = selectedChapterIndices
+                .sorted()
+                .mapNotNull { index -> allChapters.getOrNull(index) }
 
-            if (startFromIndex >= endFromIndex) {
+            if (chaptersToSend.isEmpty()) {
                 withContext(Dispatchers.Main) {
                     _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true) }
                 }
                 return@launch
             }
 
-            val chaptersToSend = allChapters.subList(startFromIndex, endFromIndex)
+            val startFromIndex = selectedChapterIndices.minOrNull() ?: 0
 
             withContext(Dispatchers.Main) {
                 fileConn.sentChapters(

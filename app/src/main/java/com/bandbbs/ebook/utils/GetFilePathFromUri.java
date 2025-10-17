@@ -74,11 +74,9 @@ public class GetFilePathFromUri {
             }
         }
 
-        // MediaStore (and general)  大于等于10
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return uriToFileApiQ(context, imageUri);
         } else if ("content".equalsIgnoreCase(imageUri.getScheme())) {
-            // Return the remote address
             if (isGooglePhotosUri(imageUri)) {
                 return imageUri.getLastPathSegment();
             }
@@ -88,7 +86,6 @@ public class GetFilePathFromUri {
                 return getDataColumn(context, imageUri, null, null);
             }
         }
-        // File
         else if ("file".equalsIgnoreCase(imageUri.getScheme())) {
             return imageUri.getPath();
         }

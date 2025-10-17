@@ -26,7 +26,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
 
-    override val onMessageListener = OnMessageReceivedListener { _, message -> // 收到手表端应用发来的消息
+    override val onMessageListener = OnMessageReceivedListener { _, message ->
         //重置计时器
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
@@ -43,13 +43,10 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     }
 
     init {
-        // 注册握手消息监听器
         addListener(TYPE) { payload ->
-            // 解析 payload 中的 count（假设 payload 是 JSON 格式）
             val data: HandshakePayload = json.decodeFromString(payload)
             val currentCount = data.count
 
-            // 处理握手计数逻辑
             if (currentCount > 0) {
                 if (promise != null) {
                     resolve?.invoke()
@@ -61,7 +58,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 }
             }
 
-            // 递增计数并继续握手（最多 2 次）
             val newCount = currentCount + 1
             if (newCount < 3) {
                 scope.launch {
@@ -90,7 +86,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             return@launch
                         }
                     } else {
-                        // 初始化握手流程
                         val handshakePromise = CompletableDeferred<Unit>()
                         promise = handshakePromise
                         val timeoutCb = Runnable {
@@ -106,7 +101,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             handler.removeCallbacks(timeoutCb)
                             connected = true
                         }
-                        // 发送初始握手消息（count=0）
                         try {
                             super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
                             handshakePromise.await()

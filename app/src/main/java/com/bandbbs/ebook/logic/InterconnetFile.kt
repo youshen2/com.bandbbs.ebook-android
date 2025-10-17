@@ -33,6 +33,21 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var bookStatusCompleter: CompletableDeferred<Int>? = null
     private var transferStartChapterIndex: Int = 0
 
+    private fun resetTransferState() {
+        busy = false
+        chapters = emptyList()
+        totalChaptersInBook = 0
+        lastChunkTime = 0
+        currentChapterChunks = emptyList()
+        currentChunkIndex = 0
+        currentChapterForTransfer = null
+        currentChapterIndexInBook = 0
+        currentChapterIndexInSlicedList = 0
+        bookStatusCompleter?.cancel()
+        bookStatusCompleter = null
+        transferStartChapterIndex = 0
+    }
+
     init {
         conn.addListener("file") listener@{
             try {
@@ -42,7 +57,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Ready>(it)
                         if (jsonMessage.usage > 25 * 1024 * 1024) {
                             onError("存储空间不足", 0)
-                            busy = false
+                            resetTransferState()
                             return@listener
                         }
                         sendNextChapter(0)
@@ -51,13 +66,13 @@ class InterconnetFile(private val conn: InterHandshake) {
                     "error" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Error>(it)
                         onError(jsonMessage.message, jsonMessage.count)
-                        busy = false
+                        resetTransferState()
                     }
 
                     "success" -> {
-                        busy = false
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
                         onSuccess(jsonMessage.message, jsonMessage.count)
+                        resetTransferState()
                     }
 
                     "next" -> {
@@ -74,8 +89,8 @@ class InterconnetFile(private val conn: InterHandshake) {
                     }
 
                     "cancel" -> {
-                        busy = false
                         onSuccess("取消传输", 0)
+                        resetTransferState()
                     }
 
                     "book_status" -> {
@@ -94,7 +109,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun getBookStatus(bookName: String): Int {
         conn.init()
-        delay(500L) // Add delay for watch app to start
+        delay(500L)
         bookStatusCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookStatus(filename = bookName))).await()
         val result = bookStatusCompleter!!.await()
@@ -113,10 +128,20 @@ class InterconnetFile(private val conn: InterHandshake) {
     ) {
         conn.setOnDisconnected {
             onError("连接断开", 0)
+            resetTransferState()
         }
         this.chapters = chapters
         this.totalChaptersInBook = totalChaptersInBook
         this.transferStartChapterIndex = startFromIndex
+        this.onError = onError
+        this.onSuccess = onSuccess
+        this.onProgress = onProgress
+
+        this.currentChapterChunks = emptyList()
+        this.currentChunkIndex = 0
+        this.currentChapterForTransfer = null
+        this.lastChunkTime = 0L
+
         busy = true
         onProgress(0.0, chapters.firstOrNull()?.name ?: "", " --")
         delay(200L)
@@ -131,17 +156,18 @@ class InterconnetFile(private val conn: InterHandshake) {
                 )
             )
         ).await()
-        this.onError = onError
-        this.onSuccess = onSuccess
-        this.onProgress = onProgress
         Log.d("File", "sentChapters")
     }
 
     private fun sendNextChapter(chapterIndexInSlicedList: Int) {
-        if (chapterIndexInSlicedList >= chapters.size) {
-            busy = false
-            onProgress(1.0, "", " --")
-            onSuccess("传输完成", chapters.size)
+        if (chapterIndexInSlicedList < 0 || chapterIndexInSlicedList >= chapters.size) {
+            if (chapterIndexInSlicedList >= chapters.size) {
+                onProgress(1.0, "", " --")
+                onSuccess("传输完成", chapters.size)
+            } else {
+                onError("无效的章节索引: $chapterIndexInSlicedList", currentChapterIndexInBook)
+            }
+            resetTransferState()
             return
         }
 
@@ -185,7 +211,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                 conn.sendMessage(json.encodeToString(message)).await()
             } catch (e: Exception) {
                 onError("发送失败: ${e.message ?: "未知错误"}", currentChapterIndexInBook)
-                busy = false
+                resetTransferState()
                 return@launch
             }
 
@@ -223,14 +249,14 @@ class InterconnetFile(private val conn: InterHandshake) {
 
 
     fun cancel() {
-        busy = false
+        if (!busy) return
         conn.scope.launch {
             try {
                 conn.sendMessage(json.encodeToString(FileMessagesToSend.Cancel())).await()
             } catch (e: Exception) {
-                // It might fail if connection is already bad, which is fine.
             }
         }
+        resetTransferState()
     }
 
     @Serializable

@@ -84,28 +84,23 @@ public class FileUtils {
 
         final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
 
-        // DocumentProvider
         if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
-            // ExternalStorageProvider
             if (isExternalStorageDocument(uri)) {
                 final String docId = DocumentsContract.getDocumentId(uri);
                 final String[] split = docId.split(":");
                 final String type = split[0];
 
-                // This is for checking Main Memory
                 if ("primary".equalsIgnoreCase(type)) {
                     if (split.length > 1) {
                         return Environment.getExternalStorageDirectory() + "/" + split[1];
                     } else {
                         return Environment.getExternalStorageDirectory() + "/";
                     }
-                    // This is for checking SD Card
                 } else {
                     return "storage" + "/" + docId.replace(":", "/");
                 }
 
             }
-            // DownloadsProvider
             else if (isDownloadsDocument(uri)) {
                 String fileName = getFilePath(context, uri);
                 if (fileName != null) {
@@ -133,7 +128,6 @@ public class FileUtils {
                     return null;
                 }
             }
-            // MediaProvider
             else if (isMediaDocument(uri)) {
                 final String docId = DocumentsContract.getDocumentId(uri);
                 final String[] split = docId.split(":");
@@ -158,16 +152,12 @@ public class FileUtils {
                 return getDataColumn(context, contentUri, selection, selectionArgs);
             }
         }
-        // MediaStore (and general)
         else if ("content".equalsIgnoreCase(uri.getScheme())) {
-
-            // Return the remote address
             if (isGooglePhotosUri(uri))
                 return uri.getLastPathSegment();
 
             return getDataColumn(context, uri, null, null);
         }
-        // File
         else if ("file".equalsIgnoreCase(uri.getScheme())) {
             return uri.getPath();
         }
@@ -255,10 +245,8 @@ public class FileUtils {
     public static String getPathFromUri(Context context, Uri uri) {
         String path = null;
         if (uri != null) {
-            // 方法一：使用Uri的getPath方法
             path = uri.getPath();
 
-            // 方法二：使用ContentResolver的query方法
             if (path == null) {
                 String[] projection = {MediaStore.Images.Media.DATA};
                 Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null);

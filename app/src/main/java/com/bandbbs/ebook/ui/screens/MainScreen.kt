@@ -6,6 +6,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,9 +46,11 @@ import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.ChapterPreviewBottomSheet
+import com.bandbbs.ebook.ui.components.HelpBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
+import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.StatusCard
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
@@ -70,10 +74,13 @@ fun MainScreen(
     val chapterToPreview by viewModel.chapterToPreview.collectAsState()
     val bookToDelete by viewModel.bookToDelete.collectAsState()
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
+    val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
+    val helpSheetState = rememberModalBottomSheetState()
+    var showHelpSheet by remember { mutableStateOf(false) }
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -82,6 +89,7 @@ fun MainScreen(
     val importProgressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importReportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val syncOptionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val overwriteConfirmSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     bookToDelete?.let { book ->
         AlertDialog(
@@ -131,10 +139,10 @@ fun MainScreen(
                         viewModel.cancelPush()
                     }
                 },
-                onConfirm = { startChapter, chapterCount ->
+                onConfirm = { selectedChapters ->
                     scope.launch {
                         syncOptionsSheetState.hide()
-                        viewModel.confirmPush(it.book, startChapter, chapterCount)
+                        viewModel.confirmPush(it.book, selectedChapters)
                     }
                 }
             )
@@ -147,6 +155,15 @@ fun MainScreen(
             sheetState = aboutSheetState
         ) {
             AboutBottomSheet()
+        }
+    }
+
+    if (showHelpSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showHelpSheet = false },
+            sheetState = helpSheetState
+        ) {
+            HelpBottomSheet()
         }
     }
 
@@ -224,12 +241,46 @@ fun MainScreen(
         }
     }
 
+    overwriteConfirmState?.let { state ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelOverwriteConfirm() },
+            sheetState = overwriteConfirmSheetState
+        ) {
+            OverwriteConfirmBottomSheet(
+                existingBook = state.existingBook,
+                newBookName = state.newBookName,
+                onCancel = {
+                    scope.launch {
+                        overwriteConfirmSheetState.hide()
+                        viewModel.cancelOverwriteConfirm()
+                    }
+                },
+                onOverwrite = {
+                    scope.launch {
+                        overwriteConfirmSheetState.hide()
+                        viewModel.confirmOverwrite()
+                    }
+                }
+            )
+        }
+    }
+
 
     Scaffold(
         topBar = {
             var showMenu by remember { mutableStateOf(false) }
             TopAppBar(
-                title = { Text(stringResource(id = R.string.app_name)) },
+                title = { 
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.app_name),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = onImportClick) {
                         Icon(Icons.Default.Add, contentDescription = "导入书籍")
@@ -243,6 +294,13 @@ fun MainScreen(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text("帮助") },
+                            onClick = {
+                                showMenu = false
+                                showHelpSheet = true
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("关于") },
                             onClick = {
                                 showMenu = false
@@ -252,7 +310,9 @@ fun MainScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },

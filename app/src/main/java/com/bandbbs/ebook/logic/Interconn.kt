@@ -24,7 +24,7 @@ open class Interconn(context: Context) {
         ignoreUnknownKeys = true
     }
     val onMessage = mutableMapOf<String, (String) -> Unit>()
-    open val onMessageListener = OnMessageReceivedListener { _, message -> // 收到手表端应用发来的消息
+    open val onMessageListener = OnMessageReceivedListener { _, message ->
         Log.d("Interconn", message.decodeToString())
         val message = message.decodeToString()
         val msg = json.decodeFromString<Message>(message)
