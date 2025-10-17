@@ -32,6 +32,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var currentChapterIndexInSlicedList: Int = 0
     private var bookStatusCompleter: CompletableDeferred<Int>? = null
     private var transferStartChapterIndex: Int = 0
+    private var chapterIndexMap: Map<Int, Int> = emptyMap()
 
     private fun resetTransferState() {
         busy = false
@@ -46,6 +47,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         bookStatusCompleter?.cancel()
         bookStatusCompleter = null
         transferStartChapterIndex = 0
+        chapterIndexMap = emptyMap()
     }
 
     init {
@@ -79,7 +81,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                         if (!busy) return@listener
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Next>(it)
                         val nextAbsoluteIndex = jsonMessage.count
-                        val nextSlicedListIndex = nextAbsoluteIndex - transferStartChapterIndex
+                        val nextSlicedListIndex = chapterIndexMap[nextAbsoluteIndex]
+                        if (nextSlicedListIndex == null) {
+                            onError("章节索引映射错误: $nextAbsoluteIndex", nextAbsoluteIndex)
+                            resetTransferState()
+                            return@listener
+                        }
                         sendNextChapter(nextSlicedListIndex)
                     }
 
@@ -137,6 +144,10 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.onSuccess = onSuccess
         this.onProgress = onProgress
 
+        this.chapterIndexMap = chapters.mapIndexed { listIndex, chapter -> 
+            chapter.index to listIndex 
+        }.toMap()
+
         this.currentChapterChunks = emptyList()
         this.currentChunkIndex = 0
         this.currentChapterForTransfer = null
@@ -146,13 +157,16 @@ class InterconnetFile(private val conn: InterHandshake) {
         onProgress(0.0, chapters.firstOrNull()?.name ?: "", " --")
         delay(200L)
 
+        val chapterIndices = chapters.map { it.index }
+
         conn.sendMessage(
             json.encodeToString(
                 FileMessagesToSend.StartTransfer(
                     filename = book.name,
                     total = totalChaptersInBook,
                     wordCount = book.wordCount,
-                    startFrom = startFromIndex
+                    startFrom = startFromIndex,
+                    chapterIndices = chapterIndices
                 )
             )
         ).await()
@@ -333,7 +347,8 @@ class InterconnetFile(private val conn: InterHandshake) {
             val filename: String,
             val total: Int,
             val wordCount: Long,
-            val startFrom: Int
+            val startFrom: Int,
+            val chapterIndices: List<Int>
         ) : FileMessagesToSend()
 
         @Serializable
