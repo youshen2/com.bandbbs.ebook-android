@@ -9,18 +9,25 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Help
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -285,29 +292,6 @@ fun MainScreen(
                     IconButton(onClick = onImportClick) {
                         Icon(Icons.Default.Add, contentDescription = "导入书籍")
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("帮助") },
-                            onClick = {
-                                showMenu = false
-                                showHelpSheet = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("关于") },
-                            onClick = {
-                                showMenu = false
-                                showAboutSheet = true
-                            }
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -330,6 +314,47 @@ fun MainScreen(
                 isConnected = connectionState.isConnected,
                 onClick = { viewModel.reconnect() }
             )
+
+
+            Spacer(modifier = Modifier.padding(vertical = 6.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { showHelpSheet = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Help,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text("帮助")
+                    }
+                    FilledTonalButton(
+                        onClick = { showAboutSheet = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text("关于")
+                    }
+                }
+            }
+
 
             LazyColumn(
                 contentPadding = PaddingValues(vertical = 8.dp),
