@@ -6,5 +6,6 @@ data class Book(
     val size: Long,
     val chapterCount: Int = 0,
     val syncedChapterCount: Int = 0,
-    val wordCount: Long = 0
+    val wordCount: Long = 0,
+    val coverImagePath: String? = null
 )

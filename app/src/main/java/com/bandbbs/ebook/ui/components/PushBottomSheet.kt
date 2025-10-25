@@ -97,6 +97,17 @@ fun PushBottomSheet(
             modifier = Modifier.fillMaxWidth(),
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )
+        
+        
+        if (pushState.isSendingCover && pushState.coverProgress.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = pushState.coverProgress,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

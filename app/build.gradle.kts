@@ -57,6 +57,9 @@ dependencies {
     implementation("androidx.loader:loader:1.1.0")
     implementation("androidx.compose.material3:material3-window-size-class:1.3.2")
     implementation("com.github.albfernandez:juniversalchardet:2.4.0")
+    
+    
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")

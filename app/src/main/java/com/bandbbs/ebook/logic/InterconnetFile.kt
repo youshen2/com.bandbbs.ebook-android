@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+data class BookStatusResult(val chapterCount: Int, val hasCover: Boolean)
+
 class InterconnetFile(private val conn: InterHandshake) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -22,6 +24,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     private lateinit var onError: (message: String, count: Int) -> Unit
     private lateinit var onSuccess: (message: String, count: Int) -> Unit
     private lateinit var onProgress: (progress: Double, chunkPreview: String, status: String) -> Unit
+    private lateinit var onCoverProgress: (current: Int, total: Int) -> Unit
     var busy = false
     private val CHUNK_SIZE = 10 * 1024
 
@@ -30,9 +33,14 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var currentChapterForTransfer: com.bandbbs.ebook.database.Chapter? = null
     private var currentChapterIndexInBook: Int = 0
     private var currentChapterIndexInSlicedList: Int = 0
-    private var bookStatusCompleter: CompletableDeferred<Int>? = null
+    private var bookStatusCompleter: CompletableDeferred<BookStatusResult>? = null
     private var transferStartChapterIndex: Int = 0
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
+    private var coverImageChunks: List<String> = emptyList()
+    private var currentCoverChunkIndex: Int = 0
+    private val COVER_CHUNK_SIZE = 8 * 1024 
+    private var hasPendingCoverTransfer = false
+    private var isCoverOnlyTransfer = false
 
     private fun resetTransferState() {
         busy = false
@@ -48,6 +56,10 @@ class InterconnetFile(private val conn: InterHandshake) {
         bookStatusCompleter = null
         transferStartChapterIndex = 0
         chapterIndexMap = emptyMap()
+        coverImageChunks = emptyList()
+        currentCoverChunkIndex = 0
+        hasPendingCoverTransfer = false
+        isCoverOnlyTransfer = false
     }
 
     init {
@@ -62,7 +74,10 @@ class InterconnetFile(private val conn: InterHandshake) {
                             resetTransferState()
                             return@listener
                         }
-                        sendNextChapter(0)
+                        
+                        if (!hasPendingCoverTransfer) {
+                            sendNextChapter(0)
+                        }
                     }
 
                     "error" -> {
@@ -94,6 +109,11 @@ class InterconnetFile(private val conn: InterHandshake) {
                         if (!busy) return@listener
                         sendCurrentChunk()
                     }
+                    
+                    "cover_chunk_received" -> {
+                        if (!busy) return@listener
+                        sendNextCoverChunk()
+                    }
 
                     "cancel" -> {
                         onSuccess("取消传输", 0)
@@ -102,7 +122,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
                     "book_status" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.BookStatus>(it)
-                        bookStatusCompleter?.complete(jsonMessage.chapterCount)
+                        bookStatusCompleter?.complete(BookStatusResult(jsonMessage.chapterCount, jsonMessage.hasCover))
                         bookStatusCompleter = null
                     }
 
@@ -114,7 +134,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
     }
 
-    suspend fun getBookStatus(bookName: String): Int {
+    suspend fun getBookStatus(bookName: String): BookStatusResult {
         conn.init()
         delay(500L)
         bookStatusCompleter = CompletableDeferred()
@@ -124,14 +144,44 @@ class InterconnetFile(private val conn: InterHandshake) {
         return result
     }
 
+    suspend fun sendCoverOnly(
+        book: Book,
+        coverImagePath: String,
+        onError: (message: String, count: Int) -> Unit,
+        onSuccess: (message: String, count: Int) -> Unit,
+        onCoverProgress: (current: Int, total: Int) -> Unit
+    ) {
+        conn.setOnDisconnected {
+            onError("连接断开", 0)
+            resetTransferState()
+        }
+        this.onError = onError
+        this.onSuccess = onSuccess
+        this.onCoverProgress = onCoverProgress
+        
+        busy = true
+        isCoverOnlyTransfer = true
+        
+        conn.sendMessage(
+            json.encodeToString(
+                FileMessagesToSend.StartCoverTransfer(filename = book.name)
+            )
+        ).await()
+        
+        hasPendingCoverTransfer = true
+        sendCoverImage(coverImagePath)
+    }
+
     suspend fun sentChapters(
         book: Book,
         chapters: List<com.bandbbs.ebook.database.Chapter>,
         totalChaptersInBook: Int,
         startFromIndex: Int,
+        coverImagePath: String?,
         onError: (message: String, count: Int) -> Unit,
         onSuccess: (message: String, count: Int) -> Unit,
         onProgress: (progress: Double, String, status: String) -> Unit,
+        onCoverProgress: (current: Int, total: Int) -> Unit = { _, _ -> }
     ) {
         conn.setOnDisconnected {
             onError("连接断开", 0)
@@ -143,6 +193,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.onError = onError
         this.onSuccess = onSuccess
         this.onProgress = onProgress
+        this.onCoverProgress = onCoverProgress
 
         this.chapterIndexMap = chapters.mapIndexed { listIndex, chapter -> 
             chapter.index to listIndex 
@@ -154,10 +205,17 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.lastChunkTime = 0L
 
         busy = true
+        isCoverOnlyTransfer = false
         onProgress(0.0, chapters.firstOrNull()?.name ?: "", " --")
         delay(200L)
 
         val chapterIndices = chapters.map { it.index }
+        
+        
+        val hasCoverImage = coverImagePath?.let { path ->
+            val file = java.io.File(path)
+            file.exists()
+        } ?: false
 
         conn.sendMessage(
             json.encodeToString(
@@ -166,10 +224,20 @@ class InterconnetFile(private val conn: InterHandshake) {
                     total = totalChaptersInBook,
                     wordCount = book.wordCount,
                     startFrom = startFromIndex,
-                    chapterIndices = chapterIndices
+                    chapterIndices = chapterIndices,
+                    hasCover = hasCoverImage
                 )
             )
         ).await()
+        
+        
+        if (hasCoverImage && coverImagePath != null) {
+            hasPendingCoverTransfer = true
+            sendCoverImage(coverImagePath)
+        } else {
+            hasPendingCoverTransfer = false
+        }
+        
         Log.d("File", "sentChapters")
     }
 
@@ -262,6 +330,142 @@ class InterconnetFile(private val conn: InterHandshake) {
     }
 
 
+    private fun sendCoverImage(coverImagePath: String) {
+        conn.scope.launch {
+            try {
+                val file = java.io.File(coverImagePath)
+                if (!file.exists()) {
+                    Log.e("File", "Cover image file not found")
+                    return@launch
+                }
+                
+                
+                val originalBytes = file.readBytes()
+                Log.d("File", "Original cover image size: ${originalBytes.size} bytes")
+                
+                val compressedBytes = compressCoverImage(originalBytes)
+                Log.d("File", "Compressed cover image size: ${compressedBytes.size} bytes")
+                
+                val coverBase64 = android.util.Base64.encodeToString(compressedBytes, android.util.Base64.NO_WRAP)
+                
+                
+                coverImageChunks = coverBase64.chunked(COVER_CHUNK_SIZE)
+                currentCoverChunkIndex = 0
+                
+                Log.d("File", "Cover image chunks: ${coverImageChunks.size}")
+                
+                
+                sendNextCoverChunk()
+            } catch (e: Exception) {
+                Log.e("File", "Failed to send cover image", e)
+                onError("封面发送失败: ${e.message}", 0)
+                resetTransferState()
+            }
+        }
+    }
+    
+    /**
+     * 压缩封面图片以避免手环端内存溢出
+     * 目标：保持图片在合理大小范围内（< 50KB）
+     */
+    private fun compressCoverImage(imageBytes: ByteArray): ByteArray {
+        try {
+            
+            val originalBitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                ?: return imageBytes
+            
+            
+            val targetWidth = 160
+            val targetHeight = 213
+            
+            
+            val scaleWidth = targetWidth.toFloat() / originalBitmap.width
+            val scaleHeight = targetHeight.toFloat() / originalBitmap.height
+            val scale = minOf(scaleWidth, scaleHeight)
+            
+            
+            val finalWidth = if (scale < 1) (originalBitmap.width * scale).toInt() else originalBitmap.width
+            val finalHeight = if (scale < 1) (originalBitmap.height * scale).toInt() else originalBitmap.height
+            
+            
+            val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(
+                originalBitmap, 
+                finalWidth, 
+                finalHeight, 
+                true
+            )
+            
+            
+            val outputStream = java.io.ByteArrayOutputStream()
+            var quality = 85 
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
+            
+            
+            while (outputStream.size() > 50 * 1024 && quality > 20) {
+                outputStream.reset()
+                quality -= 10
+                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
+            }
+            
+            val result = outputStream.toByteArray()
+            
+            
+            originalBitmap.recycle()
+            if (scaledBitmap != originalBitmap) {
+                scaledBitmap.recycle()
+            }
+            
+            Log.d("File", "Image compressed: ${imageBytes.size} -> ${result.size} bytes (quality: $quality)")
+            return result
+            
+        } catch (e: Exception) {
+            Log.e("File", "Failed to compress image, using original", e)
+            return imageBytes
+        }
+    }
+    
+    private fun sendNextCoverChunk() {
+        conn.scope.launch {
+            if (currentCoverChunkIndex >= coverImageChunks.size) {
+                
+                Log.d("File", "Cover image transfer completed, starting chapter transfer")
+                coverImageChunks = emptyList()
+                currentCoverChunkIndex = 0
+                hasPendingCoverTransfer = false
+                onCoverProgress(0, 0) 
+                
+                if (isCoverOnlyTransfer) {
+                    
+                } else {
+                    
+                    sendNextChapter(0)
+                }
+                return@launch
+            }
+            
+            try {
+                val chunkData = coverImageChunks[currentCoverChunkIndex]
+                val message = FileMessagesToSend.CoverChunk(
+                    chunkIndex = currentCoverChunkIndex,
+                    totalChunks = coverImageChunks.size,
+                    data = chunkData
+                )
+                
+                conn.sendMessage(json.encodeToString(message)).await()
+                currentCoverChunkIndex++
+                
+                
+                onCoverProgress(currentCoverChunkIndex, coverImageChunks.size)
+                
+                Log.d("File", "Sent cover chunk ${currentCoverChunkIndex}/${coverImageChunks.size}")
+            } catch (e: Exception) {
+                Log.e("File", "Failed to send cover chunk", e)
+                onError("封面发送失败: ${e.message}", 0)
+                resetTransferState()
+            }
+        }
+    }
+
     fun cancel() {
         if (!busy) return
         conn.scope.launch {
@@ -328,7 +532,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         @Serializable
         data class BookStatus(
             val type: String = "book_status",
-            val chapterCount: Int
+            val chapterCount: Int,
+            val hasCover: Boolean = false
         ) : FileMessagesFromDevice()
     }
 
@@ -348,7 +553,17 @@ class InterconnetFile(private val conn: InterHandshake) {
             val total: Int,
             val wordCount: Long,
             val startFrom: Int,
-            val chapterIndices: List<Int>
+            val chapterIndices: List<Int>,
+            val hasCover: Boolean = false
+        ) : FileMessagesToSend()
+        
+        @Serializable
+        data class CoverChunk(
+            val tag: String = "file",
+            val stat: String = "cover_chunk",
+            val chunkIndex: Int,
+            val totalChunks: Int,
+            val data: String
         ) : FileMessagesToSend()
 
         @Serializable
@@ -369,6 +584,13 @@ class InterconnetFile(private val conn: InterHandshake) {
         data class GetBookStatus(
             val tag: String = "file",
             val stat: String = "get_book_status",
+            val filename: String
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class StartCoverTransfer(
+            val tag: String = "file",
+            val stat: String = "start_cover_transfer",
             val filename: String
         ) : FileMessagesToSend()
     }

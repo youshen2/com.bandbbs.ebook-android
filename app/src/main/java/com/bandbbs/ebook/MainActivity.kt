@@ -39,7 +39,8 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     viewModel = viewModel,
                     onImportClick = {
-                        filePickerLauncher.launch(arrayOf("text/plain"))
+                        
+                        filePickerLauncher.launch(arrayOf("text/plain", "application/octet-stream", "application/epub+zip", "*/*"))
                     }
                 )
             }

@@ -146,10 +146,10 @@ fun MainScreen(
                         viewModel.cancelPush()
                     }
                 },
-                onConfirm = { selectedChapters ->
+                onConfirm = { selectedChapters, syncCover ->
                     scope.launch {
                         syncOptionsSheetState.hide()
-                        viewModel.confirmPush(it.book, selectedChapters)
+                        viewModel.confirmPush(it.book, selectedChapters, syncCover)
                     }
                 }
             )
