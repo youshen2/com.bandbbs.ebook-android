@@ -111,6 +111,20 @@ fun AboutBottomSheet() {
                 
                 Column {
                     Text(
+                        "QQ交流群",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "1067415278",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                
+                Column {
+                    Text(
                         "更多资源请访问",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium

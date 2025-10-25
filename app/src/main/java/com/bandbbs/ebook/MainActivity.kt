@@ -3,12 +3,15 @@ package com.bandbbs.ebook
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
@@ -33,6 +36,21 @@ class MainActivity : ComponentActivity() {
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
         viewModel.setConnection(conn)
+
+        
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.pushState.collect { pushState ->
+                    if (pushState.isTransferring && !pushState.isFinished) {
+                        
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+            }
+        }
 
         setContent {
             EbookTheme {

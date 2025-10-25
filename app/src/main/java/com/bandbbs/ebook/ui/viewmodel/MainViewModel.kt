@@ -41,7 +41,8 @@ data class PushState(
     val isFinished: Boolean = false,
     val isSuccess: Boolean = false,
     val isSendingCover: Boolean = false,
-    val coverProgress: String = ""
+    val coverProgress: String = "",
+    val isTransferring: Boolean = false
 )
 
 data class ImportState(
@@ -236,6 +237,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             val existingBook = _books.value.find { it.name == finalBookName }
+            
+            
+            val context = getApplication<Application>().applicationContext
+            val fileFormat = detectFileFormat(context, state.uri)
+            
+            
+            if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
+                withContext(Dispatchers.Main) {
+                    _importState.value = null
+                }
+                
+                performImport(state.uri, finalBookName, splitMethod, noSplit, false)
+                return@launch
+            }
+            
+            
             if (existingBook != null) {
                 withContext(Dispatchers.Main) {
                     _importState.value = null
@@ -333,6 +350,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importingState.update { it?.copy(statusText = "正在解析 NVB 文件...", progress = 0.1f) }
         val nvbBook = NvbParser.parse(context, uri)
         
+        
+        val existingBook = db.bookDao().getBookByName(finalBookName)
+        
         _importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
         UritoFile(uri, context)?.let { sourceFile ->
             val destFile = File(booksDir, sourceFile.name)
@@ -346,18 +366,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 coverImagePath = coverFile.absolutePath
             }
             
-            _importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
-            val bookId = db.bookDao().insert(
-                BookEntity(
-                    name = finalBookName,
-                    path = destFile.absolutePath,
-                    size = destFile.length(),
-                    format = "nvb",
-                    coverImagePath = coverImagePath
+            val bookId = if (existingBook != null) {
+                
+                _importingState.update { it?.copy(statusText = "检测到已存在的书籍，准备更新...", progress = 0.5f) }
+                
+                if (coverImagePath != null) {
+                    db.bookDao().update(existingBook.copy(
+                        size = destFile.length(),
+                        coverImagePath = coverImagePath
+                    ))
+                } else {
+                    db.bookDao().update(existingBook.copy(size = destFile.length()))
+                }
+                existingBook.id.toLong()
+            } else {
+                
+                _importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+                db.bookDao().insert(
+                    BookEntity(
+                        name = finalBookName,
+                        path = destFile.absolutePath,
+                        size = destFile.length(),
+                        format = "nvb",
+                        coverImagePath = coverImagePath
+                    )
                 )
-            )
+            }
             
             _importingState.update { it?.copy(statusText = "正在导入章节...", progress = 0.7f) }
+            
+            
+            val existingChapters = db.chapterDao().getChaptersForBook(bookId.toInt())
+            val existingChapterNames = existingChapters.map { it.name }.toSet()
+            
             val chapters = if (noSplit) {
                 
                 val allContent = nvbBook.chapters.joinToString("\n\n") { chapter ->
@@ -375,19 +416,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             } else {
                 
-                nvbBook.chapters.mapIndexed { index, nvbChapter ->
-                    Chapter(
-                        bookId = bookId.toInt(),
-                        index = index,
-                        name = nvbChapter.title,
-                        content = nvbChapter.content,
-                        wordCount = nvbChapter.wordCount
-                    )
+                val startIndex = if (existingBook != null) existingChapters.size else 0
+                val newChapters = mutableListOf<Chapter>()
+                var currentIndex = startIndex
+                
+                nvbBook.chapters.forEach { nvbChapter ->
+                    if (existingBook == null || nvbChapter.title !in existingChapterNames) {
+                        newChapters.add(
+                            Chapter(
+                                bookId = bookId.toInt(),
+                                index = currentIndex,
+                                name = nvbChapter.title,
+                                content = nvbChapter.content,
+                                wordCount = nvbChapter.wordCount
+                            )
+                        )
+                        currentIndex++
+                    }
                 }
+                newChapters
             }
             
-            _importingState.update { it?.copy(statusText = "正在保存章节...", progress = 0.9f) }
-            db.chapterDao().insertAll(chapters)
+            _importingState.update { 
+                it?.copy(
+                    statusText = if (existingBook != null) "正在保存新章节 (${chapters.size} 章)..." else "正在保存章节...", 
+                    progress = 0.9f
+                ) 
+            }
+            if (chapters.isNotEmpty()) {
+                db.chapterDao().insertAll(chapters)
+            }
             
             sourceFile.delete()
         }
@@ -396,6 +454,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun importEpubFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean) {
         _importingState.update { it?.copy(statusText = "正在解析 EPUB 文件...", progress = 0.1f) }
         val epubBook = EpubParser.parse(context, uri)
+        
+        
+        val existingBook = db.bookDao().getBookByName(finalBookName)
         
         _importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
         UritoFile(uri, context)?.let { sourceFile ->
@@ -410,18 +471,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 coverImagePath = coverFile.absolutePath
             }
             
-            _importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
-            val bookId = db.bookDao().insert(
-                BookEntity(
-                    name = finalBookName,
-                    path = destFile.absolutePath,
-                    size = destFile.length(),
-                    format = "epub",
-                    coverImagePath = coverImagePath
+            val bookId = if (existingBook != null) {
+                
+                _importingState.update { it?.copy(statusText = "检测到已存在的书籍，准备更新...", progress = 0.5f) }
+                
+                if (coverImagePath != null) {
+                    db.bookDao().update(existingBook.copy(
+                        size = destFile.length(),
+                        coverImagePath = coverImagePath
+                    ))
+                } else {
+                    db.bookDao().update(existingBook.copy(size = destFile.length()))
+                }
+                existingBook.id.toLong()
+            } else {
+                
+                _importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+                db.bookDao().insert(
+                    BookEntity(
+                        name = finalBookName,
+                        path = destFile.absolutePath,
+                        size = destFile.length(),
+                        format = "epub",
+                        coverImagePath = coverImagePath
+                    )
                 )
-            )
+            }
             
             _importingState.update { it?.copy(statusText = "正在导入章节...", progress = 0.7f) }
+            
+            
+            val existingChapters = db.chapterDao().getChaptersForBook(bookId.toInt())
+            val existingChapterNames = existingChapters.map { it.name }.toSet()
+            
             val chapters = if (noSplit) {
                 
                 val allContent = epubBook.chapters.joinToString("\n\n") { chapter ->
@@ -439,19 +521,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             } else {
                 
-                epubBook.chapters.mapIndexed { index, epubChapter ->
-                    Chapter(
-                        bookId = bookId.toInt(),
-                        index = index,
-                        name = epubChapter.title,
-                        content = epubChapter.content,
-                        wordCount = epubChapter.wordCount
-                    )
+                val startIndex = if (existingBook != null) existingChapters.size else 0
+                val newChapters = mutableListOf<Chapter>()
+                var currentIndex = startIndex
+                
+                epubBook.chapters.forEach { epubChapter ->
+                    if (existingBook == null || epubChapter.title !in existingChapterNames) {
+                        newChapters.add(
+                            Chapter(
+                                bookId = bookId.toInt(),
+                                index = currentIndex,
+                                name = epubChapter.title,
+                                content = epubChapter.content,
+                                wordCount = epubChapter.wordCount
+                            )
+                        )
+                        currentIndex++
+                    }
                 }
+                newChapters
             }
             
-            _importingState.update { it?.copy(statusText = "正在保存章节...", progress = 0.9f) }
-            db.chapterDao().insertAll(chapters)
+            _importingState.update { 
+                it?.copy(
+                    statusText = if (existingBook != null) "正在保存新章节 (${chapters.size} 章)..." else "正在保存章节...", 
+                    progress = 0.9f
+                ) 
+            }
+            if (chapters.isNotEmpty()) {
+                db.chapterDao().insertAll(chapters)
+            }
             
             sourceFile.delete()
         }
@@ -670,7 +769,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        _pushState.value = PushState(book = book, preview = if (syncCover) "准备传输封面..." else "准备开始传输...")
+        _pushState.value = PushState(book = book, preview = if (syncCover) "准备传输封面..." else "准备开始传输...", isTransferring = true)
 
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
@@ -682,7 +781,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             if (chaptersToSend.isEmpty()) {
                 withContext(Dispatchers.Main) {
-                    _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true) }
+                    _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true, isTransferring = false) }
                 }
                 return@launch
             }
@@ -704,7 +803,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             it.copy(
                                 statusText = "传输失败: $error",
                                 isFinished = true,
-                                isSuccess = false
+                                isSuccess = false,
+                                isTransferring = false
                             )
                         }
                     },
@@ -714,7 +814,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 statusText = "传输成功",
                                 progress = 1.0,
                                 isFinished = true,
-                                isSuccess = true
+                                isSuccess = true,
+                                isTransferring = false
                             )
                         }
                     },
@@ -724,7 +825,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 progress = p,
                                 preview = preview,
                                 speed = speed,
-                                statusText = "正在推送 ${(p * 100).toInt()}%"
+                                statusText = "正在推送 ${(p * 100).toInt()}%",
+                                isTransferring = true
                             )
                         }
                     },
@@ -733,7 +835,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             _pushState.update {
                                 it.copy(
                                     isSendingCover = true,
-                                    coverProgress = "封面: $current/$total"
+                                    coverProgress = "封面: $current/$total",
+                                    isTransferring = true
                                 )
                             }
                         } else {

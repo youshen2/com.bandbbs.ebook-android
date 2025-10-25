@@ -14,6 +14,9 @@ interface BookDao {
 
     @Query("SELECT * FROM books WHERE path = :path LIMIT 1")
     suspend fun getBookByPath(path: String): BookEntity?
+    
+    @Query("SELECT * FROM books WHERE name = :name LIMIT 1")
+    suspend fun getBookByName(name: String): BookEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(book: BookEntity): Long
