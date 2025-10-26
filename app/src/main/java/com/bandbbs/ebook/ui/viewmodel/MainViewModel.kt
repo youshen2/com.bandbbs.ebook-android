@@ -777,7 +777,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val chaptersToSend = selectedChapterIndices
                 .sorted()
-                .mapNotNull { index -> allChapters.getOrNull(index) }
+                .mapNotNull { chapterIndex -> allChapters.find { it.index == chapterIndex } }
 
             if (chaptersToSend.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -786,7 +786,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            val startFromIndex = selectedChapterIndices.minOrNull() ?: 0
+            val startFromIndex = chaptersToSend.firstOrNull()?.index ?: 0
             
             
             val coverImagePath = if (syncCover) bookEntity.coverImagePath else null

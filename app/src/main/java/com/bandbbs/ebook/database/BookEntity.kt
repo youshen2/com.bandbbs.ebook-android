@@ -9,6 +9,6 @@ data class BookEntity(
     val name: String,
     val path: String,
     val size: Long,
-    val format: String = "txt", // txt, nvb, epub
-    val coverImagePath: String? = null // NVB 封面图片路径
+    val format: String = "txt", 
+    val coverImagePath: String? = null 
 )
