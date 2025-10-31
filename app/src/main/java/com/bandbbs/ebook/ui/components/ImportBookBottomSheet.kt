@@ -54,12 +54,13 @@ import com.bandbbs.ebook.utils.ChapterSplitter
 fun ImportBookBottomSheet(
     state: ImportState,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean) -> Unit
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int) -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
     var splitMethod by remember { mutableStateOf(state.splitMethod) }
     var showSplitMethodMenu by remember { mutableStateOf(false) }
     var noSplit by remember { mutableStateOf(state.noSplit) }
+    var wordsPerChapterText by remember { mutableStateOf(state.wordsPerChapter.toString()) }
 
     Column(
         modifier = Modifier
@@ -91,7 +92,10 @@ fun ImportBookBottomSheet(
                 )
             }
             TextButton(
-                onClick = { onConfirm(bookName, splitMethod, noSplit) },
+                onClick = { 
+                    val wordsPerChapter = wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
+                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter) 
+                },
                 enabled = bookName.isNotBlank()
             ) {
                 Text("导入")
@@ -262,6 +266,24 @@ fun ImportBookBottomSheet(
                         }
                     }
                     
+                    if (!noSplit && splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = wordsPerChapterText,
+                            onValueChange = { 
+                                if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                    wordsPerChapterText = it
+                                }
+                            },
+                            label = { Text("每章字数") },
+                            placeholder = { Text("5000") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            supportingText = { Text("范围: 100 - 50000 字") }
+                        )
+                    }
+                    
                     if (!noSplit) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Card(
@@ -271,7 +293,10 @@ fun ImportBookBottomSheet(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "系统将根据所选方式自动识别章节标题并分章",
+                                text = if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) 
+                                    "系统将按指定字数自动分章" 
+                                else 
+                                    "系统将根据所选方式自动识别章节标题并分章",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(12.dp)

@@ -196,10 +196,10 @@ fun MainScreen(
                         viewModel.cancelImport()
                     }
                 },
-                onConfirm = { bookName, splitMethod, noSplit ->
+                onConfirm = { bookName, splitMethod, noSplit, wordsPerChapter ->
                     scope.launch {
                         importSheetState.hide()
-                        viewModel.confirmImport(bookName, splitMethod, noSplit)
+                        viewModel.confirmImport(bookName, splitMethod, noSplit, wordsPerChapter)
                     }
                 }
             )

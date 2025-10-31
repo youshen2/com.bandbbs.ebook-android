@@ -75,7 +75,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                             return@listener
                         }
                         
-                        if (!hasPendingCoverTransfer) {
+                        if (hasPendingCoverTransfer) {
+                            
+                            Log.d("File", "Received ready signal, starting cover transfer")
+                            sendNextCoverChunk()
+                        } else {
+                            
                             sendNextChapter(0)
                         }
                     }
@@ -397,12 +402,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                 coverImageChunks = coverBase64.chunked(COVER_CHUNK_SIZE)
                 currentCoverChunkIndex = 0
                 
-                Log.d("File", "Cover image chunks: ${coverImageChunks.size}")
+                Log.d("File", "Cover image prepared: ${coverImageChunks.size} chunks, waiting for ready signal")
                 
-                sendNextCoverChunk()
+                
             } catch (e: Exception) {
-                Log.e("File", "Failed to send cover image", e)
-                onError("封面发送失败: ${e.message}", 0)
+                Log.e("File", "Failed to prepare cover image", e)
+                onError("封面准备失败: ${e.message}", 0)
                 resetTransferState()
             }
         }

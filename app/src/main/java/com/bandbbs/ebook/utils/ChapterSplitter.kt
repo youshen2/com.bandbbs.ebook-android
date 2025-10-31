@@ -37,11 +37,12 @@ object ChapterSplitter {
         uri: Uri,
         bookId: Int,
         method: String,
-        onProgress: (progress: Float, status: String) -> Unit
+        onProgress: (progress: Float, status: String) -> Unit,
+        wordsPerChapter: Int = 5000
     ): List<Chapter> {
         
         if (method == METHOD_BY_WORD_COUNT) {
-            return splitByWordCount(context, uri, bookId, onProgress)
+            return splitByWordCount(context, uri, bookId, onProgress, wordsPerChapter)
         }
         
         val regex = when (method) {
@@ -135,7 +136,7 @@ object ChapterSplitter {
         uri: Uri,
         bookId: Int,
         onProgress: (progress: Float, status: String) -> Unit,
-        wordsPerChapter: Int = 5000 
+        wordsPerChapter: Int
     ): List<Chapter> {
         onProgress(0f, "正在读取文件...")
         val content = readTextFromUri(context, uri)

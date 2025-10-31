@@ -51,7 +51,8 @@ data class ImportState(
     val bookName: String,
     val splitMethod: String = ChapterSplitter.METHOD_DEFAULT,
     val noSplit: Boolean = false,
-    val fileFormat: String = "txt" 
+    val fileFormat: String = "txt",
+    val wordsPerChapter: Int = 5000
 )
 
 data class ImportingState(
@@ -79,7 +80,8 @@ data class OverwriteConfirmState(
     val uri: Uri,
     val newBookName: String,
     val splitMethod: String,
-    val noSplit: Boolean
+    val noSplit: Boolean,
+    val wordsPerChapter: Int
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -236,7 +238,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importState.value = null
     }
 
-    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean) {
+    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int) {
         val state = _importState.value ?: return
 
         val finalBookName = bookName.trim()
@@ -257,7 +259,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _importState.value = null
                 }
                 
-                performImport(state.uri, finalBookName, splitMethod, noSplit, false)
+                performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter)
                 return@launch
             }
             
@@ -270,7 +272,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         uri = state.uri,
                         newBookName = finalBookName,
                         splitMethod = splitMethod,
-                        noSplit = noSplit
+                        noSplit = noSplit,
+                        wordsPerChapter = wordsPerChapter
                     )
                 }
                 return@launch
@@ -279,7 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 _importState.value = null
             }
-            performImport(state.uri, finalBookName, splitMethod, noSplit, false)
+            performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter)
         }
     }
 
@@ -298,7 +301,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 overwriteState.newBookName,
                 overwriteState.splitMethod,
                 overwriteState.noSplit,
-                true
+                true,
+                overwriteState.wordsPerChapter
             )
         }
     }
@@ -317,7 +321,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         finalBookName: String,
         splitMethod: String,
         noSplit: Boolean,
-        isOverwrite: Boolean
+        isOverwrite: Boolean,
+        wordsPerChapter: Int
     ) {
         _importingState.value = ImportingState(bookName = finalBookName)
         val context = getApplication<Application>().applicationContext
@@ -330,7 +335,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             when (fileFormat) {
                 "nvb" -> importNvbFile(context, uri, finalBookName, noSplit)
                 "epub" -> importEpubFile(context, uri, finalBookName, noSplit)
-                else -> importTxtFile(context, uri, finalBookName, splitMethod, noSplit)
+                else -> importTxtFile(context, uri, finalBookName, splitMethod, noSplit, wordsPerChapter)
             }
             
             withContext(Dispatchers.Main) {
@@ -572,7 +577,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         uri: Uri,
         finalBookName: String,
         splitMethod: String,
-        noSplit: Boolean
+        noSplit: Boolean,
+        wordsPerChapter: Int
     ) {
         UritoFile(uri, context)?.let { sourceFile ->
             _importingState.update { it?.copy(statusText = "正在复制文件...") }
@@ -602,14 +608,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
             } else {
-                ChapterSplitter.split(context, uri, bookId.toInt(), splitMethod) { progress, status ->
+                ChapterSplitter.split(context, uri, bookId.toInt(), splitMethod, { progress, status ->
                     _importingState.update {
                         it?.copy(
                             statusText = status,
                             progress = progress
                         )
                     }
-                }
+                }, wordsPerChapter)
             }
 
             _importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
