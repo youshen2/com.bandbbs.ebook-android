@@ -14,8 +14,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 29
         targetSdk = 35
-        versionCode = 40301
-        versionName = "4.3.1.DEV"
+        versionCode = 40400
+        versionName = "4.4.0.DEV"
     }
 
     buildTypes {

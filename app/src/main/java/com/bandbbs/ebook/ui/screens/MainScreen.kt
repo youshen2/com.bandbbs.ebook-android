@@ -68,7 +68,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    onImportClick: () -> Unit
+    onImportClick: () -> Unit,
+    onImportCoverClick: () -> Unit
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
     val books by viewModel.books.collectAsState()
@@ -82,6 +83,7 @@ fun MainScreen(
     val bookToDelete by viewModel.bookToDelete.collectAsState()
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
+    val bookForCoverImport by viewModel.bookForCoverImport.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -150,6 +152,13 @@ fun MainScreen(
                     scope.launch {
                         syncOptionsSheetState.hide()
                         viewModel.confirmPush(it.book, selectedChapters, syncCover)
+                    }
+                },
+                onResyncCoverOnly = {
+                    scope.launch {
+                        syncOptionsSheetState.hide()
+                        viewModel.cancelPush()
+                        viewModel.syncCoverOnly(it.book)
                     }
                 }
             )
@@ -371,6 +380,10 @@ fun MainScreen(
                             onDeleteClick = { viewModel.requestDeleteBook(book) },
                             onSyncClick = { viewModel.startPush(book) },
                             onCardClick = { viewModel.showChapterList(book) },
+                            onImportCoverClick = { 
+                                viewModel.requestImportCover(book)
+                                onImportCoverClick()
+                            },
                             isSyncEnabled = connectionState.isConnected
                         )
                     }

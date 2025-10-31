@@ -13,13 +13,15 @@ object ChapterSplitter {
     const val METHOD_CHAPTER = "METHOD_CHAPTER"
     const val METHOD_ZH_NUM_DOT = "METHOD_ZH_NUM_DOT"
     const val METHOD_DIGIT_DOT = "METHOD_DIGIT_DOT"
+    const val METHOD_BY_WORD_COUNT = "METHOD_BY_WORD_COUNT"
 
     val methods = mapOf(
         METHOD_DEFAULT to "默认 (第X章/卷/节/部/篇)",
         METHOD_DEFAULT_LOOSE to "默认-宽松 (…第X章/卷/节/部/篇…)",
         METHOD_CHAPTER to "英文 (Chapter X)",
         METHOD_ZH_NUM_DOT to "中文数字 (一、 二.)",
-        METHOD_DIGIT_DOT to "阿拉伯数字 (1. 2、)"
+        METHOD_DIGIT_DOT to "阿拉伯数字 (1. 2、)",
+        METHOD_BY_WORD_COUNT to "按字数分章"
     )
 
     private val regexDefault =
@@ -37,6 +39,11 @@ object ChapterSplitter {
         method: String,
         onProgress: (progress: Float, status: String) -> Unit
     ): List<Chapter> {
+        
+        if (method == METHOD_BY_WORD_COUNT) {
+            return splitByWordCount(context, uri, bookId, onProgress)
+        }
+        
         val regex = when (method) {
             METHOD_CHAPTER -> regexChapter
             METHOD_DEFAULT_LOOSE -> regexDefaultLoose
@@ -119,6 +126,51 @@ object ChapterSplitter {
             )
         }
 
+        onProgress(0.95f, "分章完成, 共 ${chapters.size} 章")
+        return chapters
+    }
+    
+    private fun splitByWordCount(
+        context: Context,
+        uri: Uri,
+        bookId: Int,
+        onProgress: (progress: Float, status: String) -> Unit,
+        wordsPerChapter: Int = 5000 
+    ): List<Chapter> {
+        onProgress(0f, "正在读取文件...")
+        val content = readTextFromUri(context, uri)
+        onProgress(0.2f, "正在按字数分章...")
+        
+        val chapters = mutableListOf<Chapter>()
+        val totalLength = content.length
+        var chapterIndex = 0
+        var startIndex = 0
+        
+        while (startIndex < totalLength) {
+            val endIndex = (startIndex + wordsPerChapter).coerceAtMost(totalLength)
+            val chapterContent = content.substring(startIndex, endIndex).trim()
+            
+            if (chapterContent.isNotEmpty()) {
+                chapters.add(
+                    Chapter(
+                        bookId = bookId,
+                        index = chapterIndex,
+                        name = "第 ${chapterIndex + 1} 章",
+                        content = chapterContent,
+                        wordCount = chapterContent.length
+                    )
+                )
+                chapterIndex++
+            }
+            
+            startIndex = endIndex
+            
+            onProgress(
+                0.2f + 0.75f * (startIndex.toFloat() / totalLength),
+                "正在分章: ${chapterIndex} 章"
+            )
+        }
+        
         onProgress(0.95f, "分章完成, 共 ${chapters.size} 章")
         return chapters
     }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -75,7 +76,8 @@ import kotlin.math.min
 fun SyncOptionsBottomSheet(
     state: SyncOptionsState,
     onCancel: () -> Unit,
-    onConfirm: (selectedChapterIndices: Set<Int>, syncCover: Boolean) -> Unit
+    onConfirm: (selectedChapterIndices: Set<Int>, syncCover: Boolean) -> Unit,
+    onResyncCoverOnly: (() -> Unit)? = null
 ) {
     var selectedChapters by remember { mutableStateOf(setOf<Int>()) }
     var syncCover by remember { mutableStateOf(true) }
@@ -255,6 +257,51 @@ fun SyncOptionsBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
+            
+            if (state.hasCover && state.isCoverSynced && onResyncCoverOnly != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "封面已同步",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "如需更新封面，可以重新同步",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        FilledTonalButton(
+                            onClick = onResyncCoverOnly,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("重新同步")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             if (isOverLimit) {
                 Card(
@@ -321,7 +368,8 @@ fun SyncOptionsBottomSheet(
                             val startIndex = state.syncedChapters.coerceIn(0, state.totalChapters)
                             val endIndex = state.totalChapters
                             selectedChapters = (startIndex until endIndex).toSet()
-                        }
+                        },
+                        onResyncCoverOnly = onResyncCoverOnly
                     )
                 }
             }
@@ -441,7 +489,8 @@ private fun BulkActionsTab(
     onQuickSelectConfirmed: () -> Unit,
     onSelectAll: () -> Unit,
     onSelectNone: () -> Unit,
-    onSelectUnread: () -> Unit
+    onSelectUnread: () -> Unit,
+    onResyncCoverOnly: (() -> Unit)?
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -512,6 +561,7 @@ private fun BulkActionsTab(
                 Text("未读")
             }
         }
+        
     }
 }
 

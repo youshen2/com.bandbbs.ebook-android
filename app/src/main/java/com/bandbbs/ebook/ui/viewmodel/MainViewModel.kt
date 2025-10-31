@@ -50,7 +50,8 @@ data class ImportState(
     val uri: Uri,
     val bookName: String,
     val splitMethod: String = ChapterSplitter.METHOD_DEFAULT,
-    val noSplit: Boolean = false
+    val noSplit: Boolean = false,
+    val fileFormat: String = "txt" 
 )
 
 data class ImportingState(
@@ -125,6 +126,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _overwriteConfirmState = MutableStateFlow<OverwriteConfirmState?>(null)
     val overwriteConfirmState = _overwriteConfirmState.asStateFlow()
 
+    private val _bookForCoverImport = MutableStateFlow<Book?>(null)
+    val bookForCoverImport = _bookForCoverImport.asStateFlow()
 
     init {
         loadBooks()
@@ -218,8 +221,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val context = getApplication<Application>().applicationContext
             UritoFile(uri, context)?.let { sourceFile ->
+                val fileFormat = detectFileFormat(context, uri)
                 _importState.value =
-                    ImportState(uri = uri, bookName = sourceFile.nameWithoutExtension)
+                    ImportState(
+                        uri = uri, 
+                        bookName = sourceFile.nameWithoutExtension,
+                        fileFormat = fileFormat
+                    )
             }
         }
     }
@@ -897,5 +905,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun closeChapterPreview() {
         _chapterToPreview.value = null
+    }
+    
+    fun requestImportCover(book: Book) {
+        _bookForCoverImport.value = book
+    }
+    
+    fun cancelImportCover() {
+        _bookForCoverImport.value = null
+    }
+    
+    fun importCoverForBook(uri: Uri) {
+        val book = _bookForCoverImport.value ?: return
+        _bookForCoverImport.value = null
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
+                
+                
+                val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
+                val imageBytes = inputStream.readBytes()
+                inputStream.close()
+                
+                
+                val coverFile = File(booksDir, "${bookEntity.name}_cover.jpg")
+                coverFile.writeBytes(imageBytes)
+                
+                
+                db.bookDao().update(bookEntity.copy(coverImagePath = coverFile.absolutePath))
+                
+                
+                withContext(Dispatchers.Main) {
+                    loadBooks()
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to import cover", e)
+            }
+        }
     }
 }

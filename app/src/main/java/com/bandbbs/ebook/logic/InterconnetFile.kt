@@ -399,7 +399,6 @@ class InterconnetFile(private val conn: InterHandshake) {
                 
                 Log.d("File", "Cover image chunks: ${coverImageChunks.size}")
                 
-                
                 sendNextCoverChunk()
             } catch (e: Exception) {
                 Log.e("File", "Failed to send cover image", e)
@@ -552,7 +551,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                 Log.d("File", "Sent transfer_complete command")
             } catch (e: Exception) {
                 Log.e("File", "Failed to send transfer_complete", e)
-                // 即使发送失败，也不应该中断流程，因为传输已经完成
+                
                 onProgress(1.0, "", " --")
                 onSuccess("传输完成（但未能通知手环）", chapters.size)
                 busy = false

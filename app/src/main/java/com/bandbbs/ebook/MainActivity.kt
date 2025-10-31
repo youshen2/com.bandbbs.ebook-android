@@ -29,6 +29,14 @@ class MainActivity : ComponentActivity() {
             viewModel.startImport(it)
         }
     }
+    
+    private val coverPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.importCoverForBook(it)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +67,10 @@ class MainActivity : ComponentActivity() {
                     onImportClick = {
                         
                         filePickerLauncher.launch(arrayOf("text/plain", "application/octet-stream", "application/epub+zip", "*/*"))
+                    },
+                    onImportCoverClick = {
+                        
+                        coverPickerLauncher.launch(arrayOf("image/*"))
                     }
                 )
             }
