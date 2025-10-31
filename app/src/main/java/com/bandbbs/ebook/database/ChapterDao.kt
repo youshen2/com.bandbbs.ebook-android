@@ -13,6 +13,22 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY `index` ASC")
     suspend fun getChaptersForBook(bookId: Int): List<Chapter>
 
+    /**
+     * 获取章节信息（不包含内容），避免CursorWindow溢出
+     */
+    @Query("SELECT id, bookId, `index`, name, wordCount FROM chapters WHERE bookId = :bookId ORDER BY `index` ASC")
+    suspend fun getChapterInfoForBook(bookId: Int): List<ChapterInfo>
+
+    @Query("SELECT * FROM chapters WHERE id = :chapterId LIMIT 1")
+    suspend fun getChapterById(chapterId: Int): Chapter?
+
+    /**
+     * 根据书籍ID和章节索引列表批量获取章节
+     * 避免加载所有章节导致CursorWindow溢出
+     */
+    @Query("SELECT * FROM chapters WHERE bookId = :bookId AND `index` IN (:indices) ORDER BY `index` ASC")
+    suspend fun getChaptersByIndices(bookId: Int, indices: List<Int>): List<Chapter>
+
     @Query("SELECT COUNT(id) FROM chapters WHERE bookId = :bookId")
     suspend fun getChapterCountForBook(bookId: Int): Int
 

@@ -232,8 +232,8 @@ fun MainScreen(
             ChapterListBottomSheet(
                 book = book,
                 chapters = chapters,
-                onChapterClick = { chapter ->
-                    viewModel.showChapterPreview(chapter)
+                onChapterClick = { chapterId ->
+                    viewModel.showChapterPreview(chapterId)
                 }
             )
         }

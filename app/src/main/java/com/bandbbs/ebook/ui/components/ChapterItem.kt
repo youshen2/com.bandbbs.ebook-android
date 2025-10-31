@@ -15,11 +15,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.database.ChapterInfo
 
 @Composable
 fun ChapterItem(
-    chapter: Chapter,
+    chapter: ChapterInfo,
     onClick: () -> Unit
 ) {
     Surface(

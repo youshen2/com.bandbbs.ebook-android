@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.database.BookEntity
 import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.database.ChapterInfo
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.logic.InterconnetFile
 import com.bandbbs.ebook.ui.model.Book
@@ -67,7 +68,7 @@ data class SyncOptionsState(
     val book: Book,
     val totalChapters: Int,
     val syncedChapters: Int,
-    val chapters: List<Chapter> = emptyList(),
+    val chapters: List<ChapterInfo> = emptyList(),
     val hasCover: Boolean = false,
     val isCoverSynced: Boolean = false
 )
@@ -109,7 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedBookForChapters = MutableStateFlow<Book?>(null)
     val selectedBookForChapters = _selectedBookForChapters.asStateFlow()
 
-    private val _chaptersForSelectedBook = MutableStateFlow<List<Chapter>>(emptyList())
+    private val _chaptersForSelectedBook = MutableStateFlow<List<ChapterInfo>>(emptyList())
     val chaptersForSelectedBook = _chaptersForSelectedBook.asStateFlow()
 
     private val _chapterToPreview = MutableStateFlow<Chapter?>(null)
@@ -396,7 +397,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _importingState.update { it?.copy(statusText = "正在导入章节...", progress = 0.7f) }
             
             
-            val existingChapters = db.chapterDao().getChaptersForBook(bookId.toInt())
+            
+            val existingChapters = db.chapterDao().getChapterInfoForBook(bookId.toInt())
             val existingChapterNames = existingChapters.map { it.name }.toSet()
             
             val chapters = if (noSplit) {
@@ -501,7 +503,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _importingState.update { it?.copy(statusText = "正在导入章节...", progress = 0.7f) }
             
             
-            val existingChapters = db.chapterDao().getChaptersForBook(bookId.toInt())
+            
+            val existingChapters = db.chapterDao().getChapterInfoForBook(bookId.toInt())
             val existingChapterNames = existingChapters.map { it.name }.toSet()
             
             val chapters = if (noSplit) {
@@ -692,7 +695,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val bookEntity = db.bookDao().getBookByPath(book.path)
                     if (bookEntity != null) {
                         val count = db.chapterDao().getChapterCountForBook(bookEntity.id)
-                        val chapterList = db.chapterDao().getChaptersForBook(bookEntity.id)
+                        
+                        val chapterList = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                         val hasCoverImage = bookEntity.coverImagePath != null
                         Triple(count, chapterList, hasCoverImage)
                     } else {
@@ -702,7 +706,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _syncOptionsState.value = SyncOptionsState(
                     book = book, 
                     totalChapters = totalChapters, 
-                    syncedChapters = bookStatus.chapterCount,
+                    syncedChapters = bookStatus.syncedChapters.size,
                     chapters = chapters, 
                     hasCover = hasCover,
                     isCoverSynced = bookStatus.hasCover
@@ -763,21 +767,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun confirmPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean = false) {
+        val isCoverAlreadySynced = _syncOptionsState.value?.isCoverSynced ?: false
         _syncOptionsState.value = null
         
         if (selectedChapterIndices.isEmpty()) {
             return
         }
 
-        _pushState.value = PushState(book = book, preview = if (syncCover) "准备传输封面..." else "准备开始传输...", isTransferring = true)
+        _pushState.value = PushState(book = book, preview = if (syncCover && !isCoverAlreadySynced) "准备传输封面..." else "准备开始传输...", isTransferring = true)
 
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
-            val allChapters = db.chapterDao().getChaptersForBook(bookEntity.id)
-
-            val chaptersToSend = selectedChapterIndices
-                .sorted()
-                .mapNotNull { chapterIndex -> allChapters.find { it.index == chapterIndex } }
+            
+            
+            val sortedIndices = selectedChapterIndices.sorted()
+            val chaptersToSend = db.chapterDao().getChaptersByIndices(bookEntity.id, sortedIndices)
 
             if (chaptersToSend.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -787,15 +791,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val startFromIndex = chaptersToSend.firstOrNull()?.index ?: 0
+            val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
             
-            
-            val coverImagePath = if (syncCover) bookEntity.coverImagePath else null
+            val coverImagePath = if (syncCover && !isCoverAlreadySynced) bookEntity.coverImagePath else null
 
             withContext(Dispatchers.Main) {
                 fileConn.sentChapters(
                     book = book,
                     chapters = chaptersToSend,
-                    totalChaptersInBook = allChapters.size,
+                    totalChaptersInBook = totalChaptersInBook,
                     startFromIndex = startFromIndex,
                     coverImagePath = coverImagePath,
                     onError = { error, _ ->
@@ -867,7 +871,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path)
             if (bookEntity != null) {
-                val chapters = db.chapterDao().getChaptersForBook(bookEntity.id)
+                
+                val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                 withContext(Dispatchers.Main) {
                     _chaptersForSelectedBook.value = chapters
                     _selectedBookForChapters.value = book
@@ -881,8 +886,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _chaptersForSelectedBook.value = emptyList()
     }
 
-    fun showChapterPreview(chapter: Chapter) {
-        _chapterToPreview.value = chapter
+    fun showChapterPreview(chapterId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val chapter = db.chapterDao().getChapterById(chapterId)
+            withContext(Dispatchers.Main) {
+                _chapterToPreview.value = chapter
+            }
+        }
     }
 
     fun closeChapterPreview() {

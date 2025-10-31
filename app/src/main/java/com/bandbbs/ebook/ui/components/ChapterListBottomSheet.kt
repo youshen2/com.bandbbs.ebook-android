@@ -19,14 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.database.ChapterInfo
 import com.bandbbs.ebook.ui.model.Book
 
 @Composable
 fun ChapterListBottomSheet(
     book: Book,
-    chapters: List<Chapter>,
-    onChapterClick: (Chapter) -> Unit
+    chapters: List<ChapterInfo>,
+    onChapterClick: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -55,7 +55,7 @@ fun ChapterListBottomSheet(
             items(chapters, key = { it.id }) { chapter ->
                 ChapterItem(
                     chapter = chapter,
-                    onClick = { onChapterClick(chapter) }
+                    onClick = { onChapterClick(chapter.id) }
                 )
             }
         }

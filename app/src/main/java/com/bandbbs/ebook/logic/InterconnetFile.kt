@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-data class BookStatusResult(val chapterCount: Int, val hasCover: Boolean)
+data class BookStatusResult(val syncedChapters: List<Int>, val hasCover: Boolean)
 
 class InterconnetFile(private val conn: InterHandshake) {
     private val json = Json {
@@ -26,7 +26,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     private lateinit var onProgress: (progress: Double, chunkPreview: String, status: String) -> Unit
     private lateinit var onCoverProgress: (current: Int, total: Int) -> Unit
     var busy = false
-    private val CHUNK_SIZE = 10 * 1024
+    private val CHUNK_SIZE = 10 * 1024  
 
     private var currentChapterChunks: List<String> = emptyList()
     private var currentChunkIndex: Int = 0
@@ -107,12 +107,59 @@ class InterconnetFile(private val conn: InterHandshake) {
 
                     "next_chunk" -> {
                         if (!busy) return@listener
+                        currentChunkIndex++
                         sendCurrentChunk()
+                    }
+                    
+                    "chapter_chunk_complete" -> {
+                        if (!busy) return@listener
+                        
+                        sendChapterComplete()
+                    }
+                    
+                    "chapter_saved" -> {
+                        if (!busy) return@listener
+                        
+                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.ChapterSaved>(it)
+                        Log.d("File", "Chapter saved: ${jsonMessage.syncedCount}/${jsonMessage.totalCount}")
+                        val nextSlicedListIndex = currentChapterIndexInSlicedList + 1
+                        if (nextSlicedListIndex >= chapters.size) {
+                            
+                            sendTransferComplete()
+                        } else {
+                            sendNextChapter(nextSlicedListIndex)
+                        }
+                    }
+                    
+                    "transfer_finished" -> {
+                        if (!busy) return@listener
+                        
+                        Log.d("File", "Transfer finished confirmed by watch")
+                        onProgress(1.0, "", " --")
+                        onSuccess("传输完成", chapters.size)
+                        
+                        busy = false
                     }
                     
                     "cover_chunk_received" -> {
                         if (!busy) return@listener
                         sendNextCoverChunk()
+                    }
+                    
+                    "cover_ready" -> {
+                        if (!busy) return@listener
+                        
+                        sendNextCoverChunk()
+                    }
+                    
+                    "cover_saved" -> {
+                        if (!busy) return@listener
+                        
+                        Log.d("File", "Cover saved successfully")
+                        if (isCoverOnlyTransfer) {
+                            onSuccess("封面同步完成", 1)
+                            resetTransferState()
+                        }
                     }
 
                     "cancel" -> {
@@ -122,7 +169,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
                     "book_status" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.BookStatus>(it)
-                        bookStatusCompleter?.complete(BookStatusResult(jsonMessage.chapterCount, jsonMessage.hasCover))
+                        bookStatusCompleter?.complete(BookStatusResult(jsonMessage.syncedChapters, jsonMessage.hasCover))
                         bookStatusCompleter = null
                     }
 
@@ -324,8 +371,6 @@ class InterconnetFile(private val conn: InterHandshake) {
                 )
             }
             lastChunkTime = currentTime
-
-            currentChunkIndex++
         }
     }
 
@@ -428,17 +473,25 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.scope.launch {
             if (currentCoverChunkIndex >= coverImageChunks.size) {
                 
-                Log.d("File", "Cover image transfer completed, starting chapter transfer")
-                coverImageChunks = emptyList()
-                currentCoverChunkIndex = 0
-                hasPendingCoverTransfer = false
-                onCoverProgress(0, 0) 
+                Log.d("File", "All cover chunks sent, sending cover_transfer_complete command")
                 
-                if (isCoverOnlyTransfer) {
+                try {
                     
-                } else {
+                    conn.sendMessage(json.encodeToString(FileMessagesToSend.CoverTransferComplete())).await()
                     
-                    sendNextChapter(0)
+                    coverImageChunks = emptyList()
+                    currentCoverChunkIndex = 0
+                    hasPendingCoverTransfer = false
+                    onCoverProgress(0, 0)
+                    
+                    if (!isCoverOnlyTransfer) {
+                        
+                        sendNextChapter(0)
+                    }
+                } catch (e: Exception) {
+                    Log.e("File", "Failed to send cover_transfer_complete", e)
+                    onError("封面传输完成命令发送失败: ${e.message}", 0)
+                    resetTransferState()
                 }
                 return@launch
             }
@@ -475,6 +528,36 @@ class InterconnetFile(private val conn: InterHandshake) {
             }
         }
         resetTransferState()
+    }
+
+    private fun sendChapterComplete() {
+        conn.scope.launch {
+            try {
+                val message = FileMessagesToSend.ChapterComplete(count = currentChapterIndexInBook)
+                conn.sendMessage(json.encodeToString(message)).await()
+                Log.d("File", "Sent chapter_complete for chapter ${currentChapterIndexInBook}")
+            } catch (e: Exception) {
+                Log.e("File", "Failed to send chapter_complete", e)
+                onError("章节完成命令发送失败: ${e.message}", currentChapterIndexInBook)
+                resetTransferState()
+            }
+        }
+    }
+
+    private fun sendTransferComplete() {
+        conn.scope.launch {
+            try {
+                val message = FileMessagesToSend.TransferComplete()
+                conn.sendMessage(json.encodeToString(message)).await()
+                Log.d("File", "Sent transfer_complete command")
+            } catch (e: Exception) {
+                Log.e("File", "Failed to send transfer_complete", e)
+                // 即使发送失败，也不应该中断流程，因为传输已经完成
+                onProgress(1.0, "", " --")
+                onSuccess("传输完成（但未能通知手环）", chapters.size)
+                busy = false
+            }
+        }
     }
 
     @Serializable
@@ -532,8 +615,17 @@ class InterconnetFile(private val conn: InterHandshake) {
         @Serializable
         data class BookStatus(
             val type: String = "book_status",
-            val chapterCount: Int,
+            val syncedChapters: List<Int>,
             val hasCover: Boolean = false
+        ) : FileMessagesFromDevice()
+        
+        @Serializable
+        data class ChapterSaved(
+            val type: String = "chapter_saved",
+            val count: Int,
+            val syncedCount: Int,
+            val totalCount: Int,
+            val progress: Double
         ) : FileMessagesFromDevice()
     }
 
@@ -592,6 +684,25 @@ class InterconnetFile(private val conn: InterHandshake) {
             val tag: String = "file",
             val stat: String = "start_cover_transfer",
             val filename: String
+        ) : FileMessagesToSend()
+        
+        @Serializable
+        data class CoverTransferComplete(
+            val tag: String = "file",
+            val stat: String = "cover_transfer_complete"
+        ) : FileMessagesToSend()
+        
+        @Serializable
+        data class ChapterComplete(
+            val tag: String = "file",
+            val stat: String = "chapter_complete",
+            val count: Int
+        ) : FileMessagesToSend()
+        
+        @Serializable
+        data class TransferComplete(
+            val tag: String = "file",
+            val stat: String = "transfer_complete"
         ) : FileMessagesToSend()
     }
 }
