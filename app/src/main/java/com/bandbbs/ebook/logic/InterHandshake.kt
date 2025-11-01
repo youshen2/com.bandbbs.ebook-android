@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.bandbbs.ebook.BuildConfig
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +63,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             if (newCount < 3) {
                 scope.launch {
                     try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount}").await()
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":${BuildConfig.VERSION_CODE}}").await()
                     } catch (e: Exception) {
                         Log.e("Handshake", "Failed to send handshake reply", e)
                     }
@@ -102,7 +103,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             connected = true
                         }
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0}").await()
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":${BuildConfig.VERSION_CODE}}").await()
                             handshakePromise.await()
                         } catch (e: Exception) {
                             cpe(e)
@@ -120,7 +121,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     }
 
     @Serializable
-    private data class HandshakePayload(val count: Int, val tag: String)
+    private data class HandshakePayload(val count: Int, val tag: String, val version: Int? = null)
 
     private var onConnected = {}
     fun setOnConnected(callback: () -> Unit) {

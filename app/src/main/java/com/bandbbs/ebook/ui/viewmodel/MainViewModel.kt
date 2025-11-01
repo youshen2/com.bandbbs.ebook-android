@@ -660,6 +660,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val initialChapters = if (noSplit) {
                 _importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.5f) }
                 val content = ChapterSplitter.readTextFromUri(context, uri)
+                if (content.toByteArray().size > 1.8 * 1024 * 1024) {
+                    throw Exception("文件过大（>1.8MB），请分章后再导入")
+                }
                 listOf(
                     Chapter(
                         bookId = bookId.toInt(),
@@ -685,6 +688,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val mergedChapterTitles = mutableListOf<String>()
 
             for (chapter in initialChapters) {
+                if (chapter.content.toByteArray().size > 1.8 * 1024 * 1024) {
+                    throw Exception("章节 ${chapter.name} 过大（>1.8MB），请分章后再导入")
+                }
                 if (chapter.wordCount == 0 && chapter.content.isBlank()) {
                     if (finalChapters.isNotEmpty()) {
                         val lastChapter = finalChapters.last()

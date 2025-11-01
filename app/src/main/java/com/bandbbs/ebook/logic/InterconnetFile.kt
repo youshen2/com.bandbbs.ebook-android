@@ -339,6 +339,12 @@ class InterconnetFile(private val conn: InterHandshake) {
             return
         }
 
+        if (chapterContent.toByteArray().size > 1.8 * 1024 * 1024) {
+            onError("章节过大（>1.8MB），请分章后再同步", chapterIndex)
+            resetTransferState()
+            return
+        }
+
         val chapter = Chapter(
             id = chapterInfo.id,
             bookId = chapterInfo.bookId,
