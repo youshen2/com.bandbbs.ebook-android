@@ -12,10 +12,10 @@ android {
 
     defaultConfig {
         applicationId = "com.bandbbs.ebook.plus"
-        minSdk = 29
+        minSdk = 21
         targetSdk = 35
-        versionCode = 40400
-        versionName = "4.4.0.DEV"
+        versionCode = 40401
+        versionName = "4.4.1.DEV"
     }
 
     buildTypes {
