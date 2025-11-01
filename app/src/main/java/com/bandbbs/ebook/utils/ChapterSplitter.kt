@@ -16,8 +16,8 @@ object ChapterSplitter {
     const val METHOD_BY_WORD_COUNT = "METHOD_BY_WORD_COUNT"
 
     val methods = mapOf(
-        METHOD_DEFAULT to "默认 (第X章/卷/节/部/篇)",
-        METHOD_DEFAULT_LOOSE to "默认-宽松 (…第X章/卷/节/部/篇…)",
+        METHOD_DEFAULT to "默认 (第X章/卷/节/部/篇/回/番外…)",
+        METHOD_DEFAULT_LOOSE to "默认-宽松 (…X章/卷/节/部/篇/回…/番外…)",
         METHOD_CHAPTER to "英文 (Chapter X)",
         METHOD_ZH_NUM_DOT to "中文数字 (一、 二.)",
         METHOD_DIGIT_DOT to "阿拉伯数字 (1. 2、)",
@@ -25,9 +25,9 @@ object ChapterSplitter {
     )
 
     private val regexDefault =
-        Regex("""^\s*第(\s*[一二三四五六七八九十百千万零〇\d]+\s*)(章|卷|节|部|篇)(.*)$""")
+        Regex("""^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$""")
     private val regexDefaultLoose =
-        Regex("""^\s*(.{0,10})第(\s*[一二三四五六七八九十百千万零〇\d]+\s*)(章|卷|节|部|篇)(.{0,30})$""")
+        Regex("""^(\s*[第]?(\s*[一二三四五六七八九十百千万零〇\d]+\s*)(章|卷|节|部|篇|回|本)|番外\s*[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$""")
     private val regexChapter = Regex("""^\s*(Chapter|CHAPTER)\s+(\d+)\s*.*$""")
     private val regexZhNumDot = Regex("""^\s*([一二三四五六七八九十百千万零〇]+)[、.\s]+(.*)$""")
     private val regexDigitDot = Regex("""^\s*(\d+)[、.\s]+(.*)$""")

@@ -18,9 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,6 +28,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +55,6 @@ import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.ChapterPreviewBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
-import com.bandbbs.ebook.ui.components.HelpBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
@@ -90,8 +90,6 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
-    val helpSheetState = rememberModalBottomSheetState()
-    var showHelpSheet by remember { mutableStateOf(false) }
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -174,15 +172,6 @@ fun MainScreen(
             sheetState = aboutSheetState
         ) {
             AboutBottomSheet()
-        }
-    }
-
-    if (showHelpSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showHelpSheet = false },
-            sheetState = helpSheetState
-        ) {
-            HelpBottomSheet()
         }
     }
 
@@ -315,27 +304,58 @@ fun MainScreen(
             var showMenu by remember { mutableStateOf(false) }
             TopAppBar(
                 title = { 
-                    Row(
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
+                    Column {
                         Text(
                             text = stringResource(id = R.string.app_name),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                        )
+                        Text(
+                            text = connectionState.statusText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 actions = {
-                    IconButton(onClick = onImportClick) {
-                        Icon(Icons.Default.Add, contentDescription = "导入书籍")
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("重新连接手环") },
+                            onClick = {
+                                viewModel.reconnect()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("关于") },
+                            onClick = {
+                                showMenu = false
+                                showAboutSheet = true
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Info, contentDescription = null)
+                            }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onImportClick) {
+                Icon(Icons.Default.Add, contentDescription = "导入书籍")
+            }
         },
         containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
@@ -343,58 +363,10 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+//                .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
-            StatusCard(
-                statusText = connectionState.statusText,
-                descriptionText = connectionState.descriptionText,
-                isConnected = connectionState.isConnected,
-                onClick = { viewModel.reconnect() }
-            )
-
-
-            Spacer(modifier = Modifier.padding(vertical = 6.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilledTonalButton(
-                        onClick = { showHelpSheet = true },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Help,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("帮助")
-                    }
-                    FilledTonalButton(
-                        onClick = { showAboutSheet = true },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("关于")
-                    }
-                }
-            }
-
-
             LazyColumn(
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(books, key = { it.path }) { book ->

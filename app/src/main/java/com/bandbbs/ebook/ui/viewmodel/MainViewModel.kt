@@ -166,7 +166,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val deviceName = conn.connect().await().replace(" ", "")
 
                     val unsupportedDevices = listOf("小米手环8", "小米手环9", "小米手环10")
-                    val isUnsupported = unsupportedDevices.any { deviceName.contains(it) }
+                    val isUnsupported = unsupportedDevices.any { deviceName.equals(it) }
                     
                     if (isUnsupported) {
                         _connectionState.update {

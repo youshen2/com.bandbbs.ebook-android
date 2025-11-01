@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -75,22 +76,11 @@ fun ImportBookBottomSheet(
             TextButton(onClick = onCancel) {
                 Text("取消")
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Book,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    "导入书籍",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            Text(
+                "导入书籍",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
             TextButton(
                 onClick = { 
                     val wordsPerChapter = wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
@@ -102,225 +92,163 @@ fun ImportBookBottomSheet(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = bookName,
+            onValueChange = { bookName = it },
+            label = { Text("书名") },
+            placeholder = { Text("请输入书籍名称") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp)
+        )
+        
         Spacer(modifier = Modifier.height(20.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            ),
-            shape = RoundedCornerShape(16.dp)
+        Text(
+            text = "章节设置",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { noSplit = !noSplit },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
+            Checkbox(
+                checked = noSplit,
+                onCheckedChange = { noSplit = it }
+            )
+            Column {
                 Text(
-                    text = "书籍信息",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "不分章",
+                    style = MaterialTheme.typography.bodyLarge,
                 )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                OutlinedTextField(
-                    value = bookName,
-                    onValueChange = { bookName = it },
-                    label = { Text("书名") },
-                    placeholder = { Text("请输入书籍名称") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                Text(
+                    text = "将整本书作为单个章节导入",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        if (state.fileFormat != "epub" && state.fileFormat != "nvb") {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "章节设置",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { noSplit = !noSplit }
-                        .border(
-                            width = if (noSplit) 2.dp else 1.dp,
-                            color = if (noSplit) MaterialTheme.colorScheme.primary 
-                                   else MaterialTheme.colorScheme.outline,
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    color = if (noSplit) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                               else MaterialTheme.colorScheme.surface
+            Box {
+                ExposedDropdownMenuBox(
+                    expanded = showSplitMethodMenu,
+                    onExpandedChange = {
+                        if (!noSplit) {
+                            showSplitMethodMenu = !showSplitMethodMenu
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    OutlinedTextField(
+                        value = ChapterSplitter.methods[splitMethod] ?: "",
+                        onValueChange = {},
+                        label = { Text("分章方式") },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (noSplit) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                            tint = if (noSplit) MaterialTheme.colorScheme.primary 
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "不分章",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (noSplit) FontWeight.Medium else FontWeight.Normal,
-                                color = if (noSplit) MaterialTheme.colorScheme.onPrimaryContainer
-                                       else MaterialTheme.colorScheme.onSurface
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        readOnly = true,
+                        enabled = !noSplit,
+                        trailingIcon = { 
+                            Icon(
+                                imageVector = Icons.Outlined.ExpandMore,
+                                contentDescription = null,
+                                tint = if (noSplit) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                       else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "将整本书作为单个章节导入",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = showSplitMethodMenu,
+                        onDismissRequest = { showSplitMethodMenu = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        ChapterSplitter.methods.forEach { (key, value) ->
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(
+                                        value,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    ) 
+                                },
+                                onClick = {
+                                    splitMethod = key
+                                    showSplitMethodMenu = false
+                                },
+                                modifier = Modifier.background(
+                                    if (splitMethod == key) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                                    else Color.Transparent
+                                )
                             )
                         }
                     }
                 }
-
-                
-                if (state.fileFormat != "epub" && state.fileFormat != "nvb") {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Box {
-                        ExposedDropdownMenuBox(
-                            expanded = showSplitMethodMenu,
-                            onExpandedChange = {
-                                if (!noSplit) {
-                                    showSplitMethodMenu = !showSplitMethodMenu
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = ChapterSplitter.methods[splitMethod] ?: "",
-                                onValueChange = {},
-                                label = { Text("分章方式") },
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth(),
-                                readOnly = true,
-                                enabled = !noSplit,
-                                trailingIcon = { 
-                                    Icon(
-                                        imageVector = Icons.Outlined.ExpandMore,
-                                        contentDescription = null,
-                                        tint = if (noSplit) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                               else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = showSplitMethodMenu,
-                                onDismissRequest = { showSplitMethodMenu = false },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                ChapterSplitter.methods.forEach { (key, value) ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            Text(
-                                                value,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            ) 
-                                        },
-                                        onClick = {
-                                            splitMethod = key
-                                            showSplitMethodMenu = false
-                                        },
-                                        modifier = Modifier.background(
-                                            if (splitMethod == key) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                                            else Color.Transparent
-                                        )
-                                    )
-                                }
-                            }
+            }
+            
+            if (!noSplit && splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = wordsPerChapterText,
+                    onValueChange = { 
+                        if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                            wordsPerChapterText = it
                         }
-                    }
-                    
-                    if (!noSplit && splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = wordsPerChapterText,
-                            onValueChange = { 
-                                if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                                    wordsPerChapterText = it
-                                }
-                            },
-                            label = { Text("每章字数") },
-                            placeholder = { Text("5000") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            supportingText = { Text("范围: 100 - 50000 字") }
-                        )
-                    }
-                    
-                    if (!noSplit) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) 
-                                    "系统将按指定字数自动分章" 
-                                else 
-                                    "系统将根据所选方式自动识别章节标题并分章",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-                } else {
-                    
-                    if (!noSplit) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = if (state.fileFormat == "epub") "EPUB 格式自带章节信息，将按原有章节导入" else "NVB 格式自带章节信息，将按原有章节导入",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
+                    },
+                    label = { Text("每章字数") },
+                    placeholder = { Text("5000") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    supportingText = { Text("范围: 100 - 50000 字") }
+                )
+            }
+            
+            if (!noSplit) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) 
+                            "系统将按指定字数自动分章" 
+                        else 
+                            "系统将根据所选方式自动识别章节标题并分章",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+        } else {
+            if (!noSplit) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (state.fileFormat == "epub") "EPUB 格式自带章节信息，将按原有章节导入" else "NVB 格式自带章节信息，将按原有章节导入",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
             }
         }
