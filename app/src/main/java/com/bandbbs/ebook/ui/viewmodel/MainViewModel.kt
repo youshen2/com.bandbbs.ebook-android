@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.io.File
 import kotlin.math.min
 
@@ -31,6 +33,11 @@ data class ConnectionState(
     val statusText: String = "手环连接中",
     val descriptionText: String = "请确保小米运动健康后台运行",
     val isConnected: Boolean = false
+)
+
+data class ConnectionErrorState(
+    val deviceName: String? = null,
+    val isUnsupportedDevice: Boolean = false
 )
 
 data class PushState(
@@ -131,6 +138,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _bookForCoverImport = MutableStateFlow<Book?>(null)
     val bookForCoverImport = _bookForCoverImport.asStateFlow()
 
+    private val _connectionErrorState = MutableStateFlow<ConnectionErrorState?>(null)
+    val connectionErrorState = _connectionErrorState.asStateFlow()
+
     init {
         loadBooks()
     }
@@ -151,11 +161,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             try {
-                conn.destroy().await()
-                val deviceName = conn.connect().await().replace(" ", "")
-                conn.auth().await()
-                try {
-                    if (!conn.getAppState().await()) {
+                withTimeout(3000L) {
+                    conn.destroy().await()
+                    val deviceName = conn.connect().await().replace(" ", "")
+
+                    val unsupportedDevices = listOf("小米手环8", "小米手环9", "小米手环10")
+                    val isUnsupported = unsupportedDevices.any { deviceName.contains(it) }
+                    
+                    if (isUnsupported) {
+                        _connectionState.update {
+                            it.copy(
+                                statusText = "设备不受支持",
+                                descriptionText = "$deviceName 不受支持",
+                                isConnected = false
+                            )
+                        }
+                        _connectionErrorState.value = ConnectionErrorState(
+                            deviceName = deviceName,
+                            isUnsupportedDevice = true
+                        )
+                        return@withTimeout
+                    }
+                    
+                    conn.auth().await()
+                    try {
+                        if (!conn.getAppState().await()) {
+                            _connectionState.update {
+                                it.copy(
+                                    statusText = "弦电子书未安装",
+                                    descriptionText = "请在手环上安装小程序",
+                                    isConnected = false
+                                )
+                            }
+                            _connectionErrorState.value = ConnectionErrorState(
+                                deviceName = deviceName,
+                                isUnsupportedDevice = false
+                            )
+                            return@withTimeout
+                        }
+                    } catch (e: Exception) {
                         _connectionState.update {
                             it.copy(
                                 statusText = "弦电子书未安装",
@@ -163,27 +207,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 isConnected = false
                             )
                         }
-                        return@launch
+                        _connectionErrorState.value = ConnectionErrorState(
+                            deviceName = deviceName,
+                            isUnsupportedDevice = false
+                        )
+                        return@withTimeout
                     }
-                } catch (e: Exception) {
+                    conn.openApp().await()
+                    conn.registerListener().await()
                     _connectionState.update {
                         it.copy(
-                            statusText = "弦电子书未安装",
-                            descriptionText = "请在手环上安装小程序",
-                            isConnected = false
+                            statusText = "设备连接成功",
+                            descriptionText = "$deviceName 已连接",
+                            isConnected = true
                         )
                     }
-                    return@launch
                 }
-                conn.openApp().await()
-                conn.registerListener().await()
+            } catch (e: TimeoutCancellationException) {
+                Log.e("MainViewModel", "connect timeout")
                 _connectionState.update {
                     it.copy(
-                        statusText = "设备连接成功",
-                        descriptionText = "$deviceName 已连接",
-                        isConnected = true
+                        statusText = "手环连接失败",
+                        descriptionText = "连接超时",
+                        isConnected = false
                     )
                 }
+                _connectionErrorState.value = ConnectionErrorState(
+                    deviceName = null,
+                    isUnsupportedDevice = false
+                )
             } catch (e: Exception) {
                 Log.e("MainViewModel", "connect fail ${e.message}")
                 _connectionState.update {
@@ -193,8 +245,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isConnected = false
                     )
                 }
+                _connectionErrorState.value = ConnectionErrorState(
+                    deviceName = null,
+                    isUnsupportedDevice = false
+                )
             }
         }
+    }
+    
+    fun dismissConnectionError() {
+        _connectionErrorState.value = null
     }
 
     private fun loadBooks() {

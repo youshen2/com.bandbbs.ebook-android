@@ -53,6 +53,7 @@ import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.ChapterPreviewBottomSheet
+import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.HelpBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
@@ -84,6 +85,7 @@ fun MainScreen(
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
     val bookForCoverImport by viewModel.bookForCoverImport.collectAsState()
+    val connectionErrorState by viewModel.connectionErrorState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -99,6 +101,7 @@ fun MainScreen(
     val importReportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val syncOptionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val overwriteConfirmSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val connectionErrorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     bookToDelete?.let { book ->
         AlertDialog(
@@ -275,6 +278,31 @@ fun MainScreen(
                     scope.launch {
                         overwriteConfirmSheetState.hide()
                         viewModel.confirmOverwrite()
+                    }
+                }
+            )
+        }
+    }
+
+    connectionErrorState?.let { state ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissConnectionError() },
+            sheetState = connectionErrorSheetState
+        ) {
+            ConnectionErrorBottomSheet(
+                deviceName = state.deviceName,
+                isUnsupportedDevice = state.isUnsupportedDevice,
+                onDismiss = {
+                    scope.launch {
+                        connectionErrorSheetState.hide()
+                        viewModel.dismissConnectionError()
+                    }
+                },
+                onRetry = {
+                    scope.launch {
+                        connectionErrorSheetState.hide()
+                        viewModel.dismissConnectionError()
+                        viewModel.reconnect()
                     }
                 }
             )
