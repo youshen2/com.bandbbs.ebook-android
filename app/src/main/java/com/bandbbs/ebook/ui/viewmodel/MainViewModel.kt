@@ -56,6 +56,7 @@ data class PushState(
 data class ImportState(
     val uri: Uri,
     val bookName: String,
+    val fileSize: Long,
     val splitMethod: String = ChapterSplitter.METHOD_DEFAULT,
     val noSplit: Boolean = false,
     val fileFormat: String = "txt",
@@ -288,6 +289,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ImportState(
                         uri = uri, 
                         bookName = sourceFile.nameWithoutExtension,
+                        fileSize = sourceFile.length(),
                         fileFormat = fileFormat
                     )
             }
