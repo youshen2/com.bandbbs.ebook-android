@@ -1,11 +1,15 @@
 package com.bandbbs.ebook.logic
 
 import android.util.Log
+import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.database.ChapterDao
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -18,7 +22,9 @@ class InterconnetFile(private val conn: InterHandshake) {
         encodeDefaults = true
         isLenient = true
     }
-    private var chapters: List<com.bandbbs.ebook.database.Chapter> = emptyList()
+    private var chapterIndices: List<Int> = emptyList()
+    private lateinit var chapterDao: ChapterDao
+    private var bookId: Int = 0
     private var totalChaptersInBook: Int = 0
     private var lastChunkTime: Long = 0
     private lateinit var onError: (message: String, count: Int) -> Unit
@@ -44,7 +50,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     private fun resetTransferState() {
         busy = false
-        chapters = emptyList()
+        chapterIndices = emptyList()
         totalChaptersInBook = 0
         lastChunkTime = 0
         currentChapterChunks = emptyList()
@@ -81,7 +87,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                             sendNextCoverChunk()
                         } else {
                             
-                            sendNextChapter(0)
+                            conn.scope.launch { sendNextChapter(0) }
                         }
                     }
 
@@ -107,7 +113,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                             resetTransferState()
                             return@listener
                         }
-                        sendNextChapter(nextSlicedListIndex)
+                        conn.scope.launch { sendNextChapter(nextSlicedListIndex) }
                     }
 
                     "next_chunk" -> {
@@ -128,11 +134,11 @@ class InterconnetFile(private val conn: InterHandshake) {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.ChapterSaved>(it)
                         Log.d("File", "Chapter saved: ${jsonMessage.syncedCount}/${jsonMessage.totalCount}")
                         val nextSlicedListIndex = currentChapterIndexInSlicedList + 1
-                        if (nextSlicedListIndex >= chapters.size) {
+                        if (nextSlicedListIndex >= chapterIndices.size) {
                             
                             sendTransferComplete()
                         } else {
-                            sendNextChapter(nextSlicedListIndex)
+                            conn.scope.launch { sendNextChapter(nextSlicedListIndex) }
                         }
                     }
                     
@@ -141,7 +147,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                         
                         Log.d("File", "Transfer finished confirmed by watch")
                         onProgress(1.0, "", " --")
-                        onSuccess("传输完成", chapters.size)
+                        onSuccess("传输完成", chapterIndices.size)
                         
                         busy = false
                     }
@@ -226,9 +232,12 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun sentChapters(
         book: Book,
-        chapters: List<com.bandbbs.ebook.database.Chapter>,
+        bookId: Int,
+        chaptersIndicesToSend: List<Int>,
+        chapterDao: ChapterDao,
         totalChaptersInBook: Int,
         startFromIndex: Int,
+        firstChapterName: String,
         coverImagePath: String?,
         onError: (message: String, count: Int) -> Unit,
         onSuccess: (message: String, count: Int) -> Unit,
@@ -239,7 +248,9 @@ class InterconnetFile(private val conn: InterHandshake) {
             onError("连接断开", 0)
             resetTransferState()
         }
-        this.chapters = chapters
+        this.bookId = bookId
+        this.chapterDao = chapterDao
+        this.chapterIndices = chaptersIndicesToSend
         this.totalChaptersInBook = totalChaptersInBook
         this.transferStartChapterIndex = startFromIndex
         this.onError = onError
@@ -247,8 +258,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.onProgress = onProgress
         this.onCoverProgress = onCoverProgress
 
-        this.chapterIndexMap = chapters.mapIndexed { listIndex, chapter -> 
-            chapter.index to listIndex 
+        this.chapterIndexMap = chaptersIndicesToSend.mapIndexed { listIndex, index ->
+            index to listIndex
         }.toMap()
 
         this.currentChapterChunks = emptyList()
@@ -258,10 +269,10 @@ class InterconnetFile(private val conn: InterHandshake) {
 
         busy = true
         isCoverOnlyTransfer = false
-        onProgress(0.0, chapters.firstOrNull()?.name ?: "", " --")
+        onProgress(0.0, firstChapterName, " --")
         delay(200L)
 
-        val chapterIndices = chapters.map { it.index }
+        val chapterIndices = chaptersIndicesToSend
         
         
         val hasCoverImage = coverImagePath?.let { path ->
@@ -293,11 +304,11 @@ class InterconnetFile(private val conn: InterHandshake) {
         Log.d("File", "sentChapters")
     }
 
-    private fun sendNextChapter(chapterIndexInSlicedList: Int) {
-        if (chapterIndexInSlicedList < 0 || chapterIndexInSlicedList >= chapters.size) {
-            if (chapterIndexInSlicedList >= chapters.size) {
+    private suspend fun sendNextChapter(chapterIndexInSlicedList: Int) {
+        if (chapterIndexInSlicedList < 0 || chapterIndexInSlicedList >= chapterIndices.size) {
+            if (chapterIndexInSlicedList >= chapterIndices.size) {
                 onProgress(1.0, "", " --")
-                onSuccess("传输完成", chapters.size)
+                onSuccess("传输完成", chapterIndices.size)
             } else {
                 onError("无效的章节索引: $chapterIndexInSlicedList", currentChapterIndexInBook)
             }
@@ -306,12 +317,75 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
 
         this.currentChapterIndexInSlicedList = chapterIndexInSlicedList
-        val chapter = chapters[chapterIndexInSlicedList]
+        val chapterIndex = chapterIndices[chapterIndexInSlicedList]
+
+        val chapterInfo = withContext(Dispatchers.IO) {
+            chapterDao.getChapterInfoByIndex(bookId, chapterIndex)
+        }
+
+        if (chapterInfo == null) {
+            onError("无法加载章节信息: index $chapterIndex", chapterIndex)
+            resetTransferState()
+            return
+        }
+
+        val chapterContent = withContext(Dispatchers.IO) {
+            loadChapterContent(chapterInfo.id)
+        }
+
+        if (chapterContent == null) {
+            onError("无法加载章节内容: index $chapterIndex", chapterIndex)
+            resetTransferState()
+            return
+        }
+
+        val chapter = Chapter(
+            id = chapterInfo.id,
+            bookId = chapterInfo.bookId,
+            index = chapterInfo.index,
+            name = chapterInfo.name,
+            content = chapterContent,
+            wordCount = chapterInfo.wordCount
+        )
+
         currentChapterForTransfer = chapter
         currentChapterIndexInBook = chapter.index
         currentChapterChunks = chapter.content.chunked(CHUNK_SIZE)
         currentChunkIndex = 0
         sendCurrentChunk()
+    }
+
+    private suspend fun loadChapterContent(chapterId: Int): String? {
+        val contentLength = chapterDao.getChapterContentLength(chapterId) ?: return null
+        if (contentLength == 0) return ""
+
+        val dbChunkSize = 1 * 1024 * 1024 // 1MB chunks
+        val contentBuilder = StringBuilder(contentLength)
+
+        try {
+            var offset = 1 // SQLite SUBSTR is 1-based
+            while (offset <= contentLength) {
+                val chunk = chapterDao.getChapterContentChunk(chapterId, offset, dbChunkSize)
+                if (chunk != null) {
+                    contentBuilder.append(chunk)
+                    offset += dbChunkSize
+                } else {
+                    // Chunk was null, something went wrong.
+                    Log.e("File", "Failed to read content chunk for chapterId $chapterId at offset $offset")
+                    return null
+                }
+            }
+            return contentBuilder.toString()
+        } catch (e: Exception) {
+            Log.e("File", "Exception while loading chapter content for chapterId $chapterId", e)
+            // Fallback for very old/buggy SQLite versions or other issues
+            return try {
+                chapterDao.getChaptersByIndices(bookId, listOf(currentChapterIndexInBook)).firstOrNull()?.content
+            } catch (e2: Exception) {
+                Log.e("File", "Fallback to load full chapter content also failed for chapterId $chapterId", e2)
+                null
+            }
+        }
     }
 
     private fun sendCurrentChunk() {
@@ -349,7 +423,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                 return@launch
             }
 
-            val totalChaptersToSend = chapters.size.coerceAtLeast(1)
+            val totalChaptersToSend = chapterIndices.size.coerceAtLeast(1)
             val progress = (currentChapterIndexInSlicedList.toDouble() + (currentChunkIndex + 1.0) / totalChunks) / totalChaptersToSend
 
             if (lastChunkTime != 0L) {
@@ -490,7 +564,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                     
                     if (!isCoverOnlyTransfer) {
                         
-                        sendNextChapter(0)
+                        conn.scope.launch { sendNextChapter(0) }
                     }
                 } catch (e: Exception) {
                     Log.e("File", "Failed to send cover_transfer_complete", e)
@@ -558,7 +632,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                 Log.e("File", "Failed to send transfer_complete", e)
                 
                 onProgress(1.0, "", " --")
-                onSuccess("传输完成（但未能通知手环）", chapters.size)
+                onSuccess("传输完成（但未能通知手环）", chapterIndices.size)
                 busy = false
             }
         }

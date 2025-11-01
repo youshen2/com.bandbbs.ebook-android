@@ -22,6 +22,15 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE id = :chapterId LIMIT 1")
     suspend fun getChapterById(chapterId: Int): Chapter?
 
+    @Query("SELECT id, bookId, `index`, name, wordCount FROM chapters WHERE bookId = :bookId AND `index` = :index LIMIT 1")
+    suspend fun getChapterInfoByIndex(bookId: Int, index: Int): ChapterInfo?
+
+    @Query("SELECT LENGTH(content) FROM chapters WHERE id = :chapterId")
+    suspend fun getChapterContentLength(chapterId: Int): Int?
+
+    @Query("SELECT SUBSTR(content, :offset, :length) FROM chapters WHERE id = :chapterId")
+    suspend fun getChapterContentChunk(chapterId: Int, offset: Int, length: Int): String?
+
     /**
      * 根据书籍ID和章节索引列表批量获取章节
      * 避免加载所有章节导致CursorWindow溢出

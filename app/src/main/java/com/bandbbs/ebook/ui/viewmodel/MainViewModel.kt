@@ -853,18 +853,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
             
-            
             val sortedIndices = selectedChapterIndices.sorted()
-            val chaptersToSend = db.chapterDao().getChaptersByIndices(bookEntity.id, sortedIndices)
 
-            if (chaptersToSend.isEmpty()) {
+            if (sortedIndices.isEmpty()) {
                 withContext(Dispatchers.Main) {
                     _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true, isTransferring = false) }
                 }
                 return@launch
             }
+            
+            val firstChapterName = if (sortedIndices.isNotEmpty()) {
+                db.chapterDao().getChapterInfoForBook(bookEntity.id)
+                    .find { it.index == sortedIndices.first() }?.name ?: ""
+            } else {
+                ""
+            }
 
-            val startFromIndex = chaptersToSend.firstOrNull()?.index ?: 0
+            val startFromIndex = sortedIndices.first()
             val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
             
             val coverImagePath = if (syncCover && !isCoverAlreadySynced) bookEntity.coverImagePath else null
@@ -872,9 +877,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 fileConn.sentChapters(
                     book = book,
-                    chapters = chaptersToSend,
+                    bookId = bookEntity.id,
+                    chaptersIndicesToSend = sortedIndices,
+                    chapterDao = db.chapterDao(),
                     totalChaptersInBook = totalChaptersInBook,
                     startFromIndex = startFromIndex,
+                    firstChapterName = firstChapterName,
                     coverImagePath = coverImagePath,
                     onError = { error, _ ->
                         _pushState.update {
