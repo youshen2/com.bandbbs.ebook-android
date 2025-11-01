@@ -10,5 +10,9 @@ data class BookEntity(
     val path: String,
     val size: Long,
     val format: String = "txt", 
-    val coverImagePath: String? = null 
+    val coverImagePath: String? = null,
+    val author: String? = null,
+    val summary: String? = null,
+    val bookStatus: String? = null,
+    val category: String? = null
 )

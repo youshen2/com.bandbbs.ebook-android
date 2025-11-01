@@ -239,6 +239,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         startFromIndex: Int,
         firstChapterName: String,
         coverImagePath: String?,
+        bookEntity: com.bandbbs.ebook.database.BookEntity? = null,
         onError: (message: String, count: Int) -> Unit,
         onSuccess: (message: String, count: Int) -> Unit,
         onProgress: (progress: Double, String, status: String) -> Unit,
@@ -288,7 +289,11 @@ class InterconnetFile(private val conn: InterHandshake) {
                     wordCount = book.wordCount,
                     startFrom = startFromIndex,
                     chapterIndices = chapterIndices,
-                    hasCover = hasCoverImage
+                    hasCover = hasCoverImage,
+                    author = bookEntity?.author,
+                    summary = bookEntity?.summary,
+                    bookStatus = bookEntity?.bookStatus,
+                    category = bookEntity?.category
                 )
             )
         ).await()
@@ -730,7 +735,11 @@ class InterconnetFile(private val conn: InterHandshake) {
             val wordCount: Long,
             val startFrom: Int,
             val chapterIndices: List<Int>,
-            val hasCover: Boolean = false
+            val hasCover: Boolean = false,
+            val author: String? = null,
+            val summary: String? = null,
+            val bookStatus: String? = null,
+            val category: String? = null
         ) : FileMessagesToSend()
         
         @Serializable

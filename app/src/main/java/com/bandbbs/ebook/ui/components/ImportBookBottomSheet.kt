@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.utils.ChapterSplitter
+import androidx.compose.foundation.layout.fillMaxWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +94,24 @@ fun ImportBookBottomSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = "支持 EPUB、TXT 和 NVB 格式的书籍",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(12.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = bookName,

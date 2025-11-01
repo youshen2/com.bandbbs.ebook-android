@@ -464,7 +464,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         path = destFile.absolutePath,
                         size = destFile.length(),
                         format = "nvb",
-                        coverImagePath = coverImagePath
+                        coverImagePath = coverImagePath,
+                        author = nvbBook.metadata.author,
+                        summary = nvbBook.metadata.summary,
+                        bookStatus = nvbBook.metadata.bookStatus,
+                        category = nvbBook.metadata.category
                     )
                 )
             }
@@ -570,7 +574,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         path = destFile.absolutePath,
                         size = destFile.length(),
                         format = "epub",
-                        coverImagePath = coverImagePath
+                        coverImagePath = coverImagePath,
+                        author = epubBook.author
                     )
                 )
             }
@@ -892,6 +897,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     startFromIndex = startFromIndex,
                     firstChapterName = firstChapterName,
                     coverImagePath = coverImagePath,
+                    bookEntity = bookEntity,
                     onError = { error, _ ->
                         _pushState.update {
                             it.copy(
