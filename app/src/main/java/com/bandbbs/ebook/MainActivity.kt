@@ -65,8 +65,8 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     viewModel = viewModel,
                     onImportClick = {
-                        
-                        filePickerLauncher.launch(arrayOf("text/plain", "application/octet-stream", "application/epub+zip", "*/*"))
+                        // 只允许 TXT、EPUB 和 NVB 格式
+                        filePickerLauncher.launch(arrayOf("text/plain", "application/epub+zip", "application/octet-stream"))
                     },
                     onImportCoverClick = {
                         

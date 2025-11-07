@@ -22,6 +22,6 @@ data class Chapter(
     val bookId: Int,
     val index: Int,
     var name: String,
-    val content: String,
+    val contentFilePath: String,
     val wordCount: Int = 0
 )

@@ -124,7 +124,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _chaptersForSelectedBook = MutableStateFlow<List<ChapterInfo>>(emptyList())
     val chaptersForSelectedBook = _chaptersForSelectedBook.asStateFlow()
 
-    private val _chapterToPreview = MutableStateFlow<Chapter?>(null)
+    private val _chapterToPreview = MutableStateFlow<com.bandbbs.ebook.ui.model.ChapterWithContent?>(null)
     val chapterToPreview = _chapterToPreview.asStateFlow()
 
     private val _bookToDelete = MutableStateFlow<Book?>(null)
@@ -284,6 +284,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val context = getApplication<Application>().applicationContext
             UritoFile(uri, context)?.let { sourceFile ->
+                // 检查文件扩展名，只允许 txt、epub、nvb 格式
+                val fileName = sourceFile.name.lowercase()
+                val allowedExtensions = listOf(".txt", ".epub", ".nvb")
+                val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
+                
+                if (!hasValidExtension) {
+                    // 不支持的文件格式
+                    withContext(Dispatchers.Main) {
+                        _importingState.value = ImportingState(
+                            bookName = sourceFile.nameWithoutExtension,
+                            statusText = "不支持的文件格式\n仅支持 TXT、EPUB、NVB 格式",
+                            progress = 0f
+                        )
+                    }
+                    delay(3000)
+                    withContext(Dispatchers.Main) {
+                        _importingState.value = null
+                    }
+                    return@launch
+                }
+                
                 val fileFormat = detectFileFormat(context, uri)
                 _importState.value =
                     ImportState(
@@ -373,6 +394,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         File(book.path).delete()
         val bookEntity = db.bookDao().getBookByPath(book.path)
         if (bookEntity != null) {
+            val context = getApplication<Application>().applicationContext
+            com.bandbbs.ebook.utils.ChapterContentManager.deleteBookChapters(context, bookEntity.id)
             db.chapterDao().deleteChaptersByBookId(bookEntity.id)
             db.bookDao().delete(bookEntity)
         }
@@ -486,12 +509,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "${chapter.title}\n\n${chapter.content}"
                 }
                 val totalWordCount = nvbBook.chapters.sumOf { it.wordCount }
+                val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    context, bookId.toInt(), 0, allContent
+                )
                 listOf(
                     Chapter(
                         bookId = bookId.toInt(),
                         index = 0,
                         name = "全文",
-                        content = allContent,
+                        contentFilePath = contentFilePath,
                         wordCount = totalWordCount
                     )
                 )
@@ -503,12 +529,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 nvbBook.chapters.forEach { nvbChapter ->
                     if (existingBook == null || nvbChapter.title !in existingChapterNames) {
+                        val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                            context, bookId.toInt(), currentIndex, nvbChapter.content
+                        )
                         newChapters.add(
                             Chapter(
                                 bookId = bookId.toInt(),
                                 index = currentIndex,
                                 name = nvbChapter.title,
-                                content = nvbChapter.content,
+                                contentFilePath = contentFilePath,
                                 wordCount = nvbChapter.wordCount
                             )
                         )
@@ -593,12 +622,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "${chapter.title}\n\n${chapter.content}"
                 }
                 val totalWordCount = epubBook.chapters.sumOf { it.wordCount }
+                val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    context, bookId.toInt(), 0, allContent
+                )
                 listOf(
                     Chapter(
                         bookId = bookId.toInt(),
                         index = 0,
                         name = "全文",
-                        content = allContent,
+                        contentFilePath = contentFilePath,
                         wordCount = totalWordCount
                     )
                 )
@@ -610,12 +642,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 epubBook.chapters.forEach { epubChapter ->
                     if (existingBook == null || epubChapter.title !in existingChapterNames) {
+                        val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                            context, bookId.toInt(), currentIndex, epubChapter.content
+                        )
                         newChapters.add(
                             Chapter(
                                 bookId = bookId.toInt(),
                                 index = currentIndex,
                                 name = epubChapter.title,
-                                content = epubChapter.content,
+                                contentFilePath = contentFilePath,
                                 wordCount = epubChapter.wordCount
                             )
                         )
@@ -665,15 +700,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val initialChapters = if (noSplit) {
                 _importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.5f) }
                 val content = ChapterSplitter.readTextFromUri(context, uri)
-                if (content.toByteArray().size > 1.8 * 1024 * 1024) {
-                    throw Exception("文件过大（>1.8MB），请分章后再导入")
-                }
+                val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    context, bookId.toInt(), 0, content.trim()
+                )
                 listOf(
                     Chapter(
                         bookId = bookId.toInt(),
                         index = 0,
                         name = "全文",
-                        content = content.trim(),
+                        contentFilePath = contentFilePath,
                         wordCount = content.trim().length
                     )
                 )
@@ -693,19 +728,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val mergedChapterTitles = mutableListOf<String>()
 
             for (chapter in initialChapters) {
-                if (chapter.content.toByteArray().size > 1.8 * 1024 * 1024) {
-                    throw Exception("章节 ${chapter.name} 过大（>1.8MB），请分章后再导入")
-                }
-                if (chapter.wordCount == 0 && chapter.content.isBlank()) {
+                val chapterContent = com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(chapter.contentFilePath)
+                if (chapter.wordCount == 0 && chapterContent.isBlank()) {
                     if (finalChapters.isNotEmpty()) {
                         val lastChapter = finalChapters.last()
-                        val updatedContent = lastChapter.content.trimEnd() + "\n\n" + chapter.name.trim()
+                        val lastContent = com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
+                        val updatedContent = lastContent.trimEnd() + "\n\n" + chapter.name.trim()
+                        com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                            context, bookId.toInt(), lastChapter.index, updatedContent
+                        )
                         finalChapters[finalChapters.size - 1] = lastChapter.copy(
-                            content = updatedContent,
                             wordCount = updatedContent.length
                         )
+                        com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
                         mergedChapterTitles.add(chapter.name)
                     } else {
+                        com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
                         mergedChapterTitles.add("${chapter.name} (因内容为空已被跳过)")
                     }
                 } else {
@@ -751,6 +789,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 File(book.path).delete()
                 val bookEntity = db.bookDao().getBookByPath(book.path)
                 if (bookEntity != null) {
+                    val context = getApplication<Application>().applicationContext
+                    com.bandbbs.ebook.utils.ChapterContentManager.deleteBookChapters(context, bookEntity.id)
                     db.chapterDao().deleteChaptersByBookId(bookEntity.id)
                     db.bookDao().delete(bookEntity)
                 }
@@ -985,8 +1025,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun showChapterPreview(chapterId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             val chapter = db.chapterDao().getChapterById(chapterId)
-            withContext(Dispatchers.Main) {
-                _chapterToPreview.value = chapter
+            if (chapter != null) {
+                val content = com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(chapter.contentFilePath)
+                val chapterWithContent = com.bandbbs.ebook.ui.model.ChapterWithContent(
+                    id = chapter.id,
+                    name = chapter.name,
+                    content = content,
+                    wordCount = chapter.wordCount
+                )
+                withContext(Dispatchers.Main) {
+                    _chapterToPreview.value = chapterWithContent
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    _chapterToPreview.value = null
+                }
             }
         }
     }

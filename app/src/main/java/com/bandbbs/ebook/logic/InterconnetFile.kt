@@ -344,58 +344,29 @@ class InterconnetFile(private val conn: InterHandshake) {
             return
         }
 
-        if (chapterContent.toByteArray().size > 1.8 * 1024 * 1024) {
-            onError("章节过大（>1.8MB），请分章后再同步", chapterIndex)
-            resetTransferState()
-            return
-        }
-
         val chapter = Chapter(
             id = chapterInfo.id,
             bookId = chapterInfo.bookId,
             index = chapterInfo.index,
             name = chapterInfo.name,
-            content = chapterContent,
+            contentFilePath = "",
             wordCount = chapterInfo.wordCount
         )
 
         currentChapterForTransfer = chapter
         currentChapterIndexInBook = chapter.index
-        currentChapterChunks = chapter.content.chunked(CHUNK_SIZE)
+        currentChapterChunks = chapterContent.chunked(CHUNK_SIZE)
         currentChunkIndex = 0
         sendCurrentChunk()
     }
 
     private suspend fun loadChapterContent(chapterId: Int): String? {
-        val contentLength = chapterDao.getChapterContentLength(chapterId) ?: return null
-        if (contentLength == 0) return ""
-
-        val dbChunkSize = 1 * 1024 * 1024 // 1MB chunks
-        val contentBuilder = StringBuilder(contentLength)
-
-        try {
-            var offset = 1 // SQLite SUBSTR is 1-based
-            while (offset <= contentLength) {
-                val chunk = chapterDao.getChapterContentChunk(chapterId, offset, dbChunkSize)
-                if (chunk != null) {
-                    contentBuilder.append(chunk)
-                    offset += dbChunkSize
-                } else {
-                    // Chunk was null, something went wrong.
-                    Log.e("File", "Failed to read content chunk for chapterId $chapterId at offset $offset")
-                    return null
-                }
-            }
-            return contentBuilder.toString()
+        return try {
+            val chapter = chapterDao.getChapterById(chapterId) ?: return null
+            com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(chapter.contentFilePath)
         } catch (e: Exception) {
             Log.e("File", "Exception while loading chapter content for chapterId $chapterId", e)
-            // Fallback for very old/buggy SQLite versions or other issues
-            return try {
-                chapterDao.getChaptersByIndices(bookId, listOf(currentChapterIndexInBook)).firstOrNull()?.content
-            } catch (e2: Exception) {
-                Log.e("File", "Fallback to load full chapter content also failed for chapterId $chapterId", e2)
-                null
-            }
+            null
         }
     }
 

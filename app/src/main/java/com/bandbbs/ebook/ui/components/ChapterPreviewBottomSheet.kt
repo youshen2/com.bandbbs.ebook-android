@@ -23,10 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.ui.model.ChapterWithContent
 
 @Composable
-fun ChapterPreviewBottomSheet(chapter: Chapter) {
+fun ChapterPreviewBottomSheet(chapter: ChapterWithContent) {
     val scrollState = rememberScrollState()
     Column(
         modifier = Modifier

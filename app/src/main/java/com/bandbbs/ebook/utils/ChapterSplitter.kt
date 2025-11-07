@@ -75,23 +75,29 @@ object ChapterSplitter {
             if (regex.matches(line.trim())) {
                 if (currentChapterTitle != null) {
                     val chapterContent = currentChapterContent.toString().trim()
+                    val contentFilePath = ChapterContentManager.saveChapterContent(
+                        context, bookId, chapterIndex, chapterContent
+                    )
                     chapters.add(
                         Chapter(
                             bookId = bookId,
                             index = chapterIndex++,
                             name = currentChapterTitle.trim(),
-                            content = chapterContent,
+                            contentFilePath = contentFilePath,
                             wordCount = chapterContent.length
                         )
                     )
                 } else if (currentChapterContent.toString().trim().isNotEmpty()) {
                     val prologueContent = currentChapterContent.toString().trim()
+                    val contentFilePath = ChapterContentManager.saveChapterContent(
+                        context, bookId, chapterIndex, prologueContent
+                    )
                     chapters.add(
                         Chapter(
                             bookId = bookId,
                             index = chapterIndex++,
                             name = "前言",
-                            content = prologueContent,
+                            contentFilePath = contentFilePath,
                             wordCount = prologueContent.length
                         )
                     )
@@ -105,23 +111,29 @@ object ChapterSplitter {
 
         if (currentChapterTitle != null) {
             val chapterContent = currentChapterContent.toString().trim()
+            val contentFilePath = ChapterContentManager.saveChapterContent(
+                context, bookId, chapterIndex, chapterContent
+            )
             chapters.add(
                 Chapter(
                     bookId = bookId,
                     index = chapterIndex,
                     name = currentChapterTitle.trim(),
-                    content = chapterContent,
+                    contentFilePath = contentFilePath,
                     wordCount = chapterContent.length
                 )
             )
         } else if (chapters.isEmpty() && currentChapterContent.toString().trim().isNotEmpty()) {
             val fullContent = currentChapterContent.toString().trim()
+            val contentFilePath = ChapterContentManager.saveChapterContent(
+                context, bookId, chapterIndex, fullContent
+            )
             chapters.add(
                 Chapter(
                     bookId = bookId,
                     index = chapterIndex,
                     name = "全文",
-                    content = fullContent,
+                    contentFilePath = contentFilePath,
                     wordCount = fullContent.length
                 )
             )
@@ -152,12 +164,15 @@ object ChapterSplitter {
             val chapterContent = content.substring(startIndex, endIndex).trim()
             
             if (chapterContent.isNotEmpty()) {
+                val contentFilePath = ChapterContentManager.saveChapterContent(
+                    context, bookId, chapterIndex, chapterContent
+                )
                 chapters.add(
                     Chapter(
                         bookId = bookId,
                         index = chapterIndex,
                         name = "第 ${chapterIndex + 1} 章",
-                        content = chapterContent,
+                        contentFilePath = contentFilePath,
                         wordCount = chapterContent.length
                     )
                 )
