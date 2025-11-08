@@ -106,7 +106,7 @@ fun ConnectionErrorBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "• 小米手环 8\n• 小米手环 9\n• 小米手环 10\n• 更老的设备",
+                        text = "• 小米手环 8\n• 小米手环 9\n• 更老的设备",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 8.dp)
