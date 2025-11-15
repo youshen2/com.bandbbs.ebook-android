@@ -64,7 +64,7 @@ fun FirstSyncConfirmBottomSheet(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "由于Vela优化问题，同步书籍时手环重启为正常现象，开机后继续同步即可。",
+                    text = "由于Vela优化问题，同步书籍时手环重启为正常现象，开机后继续同步即可。\n首次同步报错为正常现象。\n若某书籍同步一直报错，可删除书籍重新导入再试。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     textAlign = TextAlign.Center

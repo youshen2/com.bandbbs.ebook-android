@@ -164,24 +164,33 @@ fun ImportBookBottomSheet(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = selectedCategory ?: "未分类",
-            onValueChange = {},
-            label = { Text("分类") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onShowCategorySelector() },
-            readOnly = true,
-            trailingIcon = { 
+        Card(
+            onClick = { onShowCategorySelector() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = selectedCategory ?: "未分类",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Icon(
                     imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = null,
+                    contentDescription = "选择分类",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            },
-            shape = RoundedCornerShape(16.dp),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-        )
+            }
+        }
         
         Spacer(modifier = Modifier.height(20.dp))
 
