@@ -44,6 +44,7 @@ data class PushState(
     val book: Book? = null,
     val progress: Double = 0.0,
     val preview: String = "...",
+    val transferLog: List<String> = emptyList(),
     val speed: String = "0 B/s",
     val statusText: String = "等待中...",
     val isFinished: Boolean = false,
@@ -846,16 +847,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun addTransferLog(message: String) {
+        _pushState.update { state ->
+            val newLog = (state.transferLog + message).takeLast(100)
+            state.copy(transferLog = newLog)
+        }
+    }
+
     fun syncCoverOnly(book: Book) {
         if (fileConn.busy || book.coverImagePath == null) return
 
-        _pushState.value = PushState(book = book, preview = "准备传输封面...")
+        val initialLog = listOf("准备传输封面...")
+        _pushState.value = PushState(book = book, preview = "准备传输封面...", transferLog = initialLog)
 
         viewModelScope.launch(Dispatchers.Main) {
             fileConn.sendCoverOnly(
                 book = book,
                 coverImagePath = book.coverImagePath,
                 onError = { error, _ ->
+                    addTransferLog("[错误] 封面同步失败: $error")
                     _pushState.update {
                         it.copy(
                             statusText = "封面同步失败: $error",
@@ -865,6 +875,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 },
                 onSuccess = { _, _ ->
+                    addTransferLog("[成功] 封面同步完成")
                     _pushState.update {
                         it.copy(
                             statusText = "封面同步成功",
@@ -876,6 +887,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 },
                 onCoverProgress = { current, total ->
                     if (total > 0) {
+                        val logMessage = "传输封面分块: $current/$total"
+                        addTransferLog(logMessage)
                         _pushState.update {
                             it.copy(
                                 isSendingCover = true,
@@ -901,7 +914,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        _pushState.value = PushState(book = book, preview = if (syncCover && !isCoverAlreadySynced) "准备传输封面..." else "准备开始传输...", isTransferring = true)
+        val initialMessage = if (syncCover && !isCoverAlreadySynced) "准备传输封面..." else "准备开始传输..."
+        val initialLog = listOf(initialMessage)
+        _pushState.value = PushState(book = book, preview = initialMessage, transferLog = initialLog, isTransferring = true)
 
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
@@ -910,6 +925,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             if (sortedIndices.isEmpty()) {
                 withContext(Dispatchers.Main) {
+                    addTransferLog("[完成] 没有需要同步的章节")
                     _pushState.update { it.copy(statusText = "没有需要同步的章节", isFinished = true, isSuccess = true, isTransferring = false) }
                 }
                 return@launch
@@ -928,6 +944,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val coverImagePath = if (syncCover && !isCoverAlreadySynced) bookEntity.coverImagePath else null
 
             withContext(Dispatchers.Main) {
+                addTransferLog("开始传输，共 ${sortedIndices.size} 章")
+                if (coverImagePath != null) {
+                    addTransferLog("包含封面图片")
+                }
+                
                 fileConn.sentChapters(
                     book = book,
                     bookId = bookEntity.id,
@@ -938,7 +959,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     firstChapterName = firstChapterName,
                     coverImagePath = coverImagePath,
                     bookEntity = bookEntity,
-                    onError = { error, _ ->
+                    onError = { error, count ->
+                        addTransferLog("[错误] 传输失败: $error (章节索引: $count)")
                         _pushState.update {
                             it.copy(
                                 statusText = "传输失败: $error",
@@ -948,7 +970,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
                     },
-                    onSuccess = { _, _ ->
+                    onSuccess = { message, count ->
+                        addTransferLog("[成功] $message，共传输 $count 章")
                         _pushState.update {
                             it.copy(
                                 statusText = "传输成功",
@@ -960,18 +983,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     },
                     onProgress = { p, preview, speed ->
+                        val progressPercent = (p * 100).toInt()
+                        val logMessage = if (preview.isNotEmpty()) {
+                            "[$progressPercent%] $preview"
+                        } else {
+                            "[$progressPercent%] 传输中"
+                        }
+                        addTransferLog(logMessage)
                         _pushState.update {
                             it.copy(
                                 progress = p,
                                 preview = preview,
                                 speed = speed,
-                                statusText = "正在推送 ${(p * 100).toInt()}%",
+                                statusText = "正在推送 $progressPercent%",
                                 isTransferring = true
                             )
                         }
                     },
                     onCoverProgress = { current, total ->
                         if (total > 0) {
+                            val logMessage = "传输封面分块: $current/$total"
+                            addTransferLog(logMessage)
                             _pushState.update {
                                 it.copy(
                                     isSendingCover = true,
