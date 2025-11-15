@@ -88,14 +88,12 @@ fun SyncOptionsBottomSheet(
     LaunchedEffect(state.syncedChapters, state.totalChapters, state.chapters) {
         if (state.chapters.isNotEmpty() && selectedChapters.isEmpty()) {
             val startIndex = state.syncedChapters.coerceIn(0, state.totalChapters)
-            val maxCount = min(400, state.totalChapters - startIndex)
-            val endIndex = (startIndex + maxCount).coerceAtMost(state.totalChapters)
+            val endIndex = state.totalChapters
             selectedChapters = (startIndex until endIndex).toSet()
         }
     }
 
     val selectedCount by remember { derivedStateOf { selectedChapters.size } }
-    val isOverLimit by remember { derivedStateOf { selectedChapters.size > 400 } }
 
     Column(
         modifier = Modifier
@@ -117,11 +115,11 @@ fun SyncOptionsBottomSheet(
             )
             TextButton(
                 onClick = { 
-                    if (!isOverLimit && selectedChapters.isNotEmpty()) {
+                    if (selectedChapters.isNotEmpty()) {
                         onConfirm(selectedChapters, syncCover)
                     }
                 },
-                enabled = !isOverLimit && selectedChapters.isNotEmpty()
+                enabled = selectedChapters.isNotEmpty()
             ) {
                 Text("同步")
             }
@@ -229,8 +227,7 @@ fun SyncOptionsBottomSheet(
                                     text = "$selectedCount 章",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (isOverLimit) MaterialTheme.colorScheme.error 
-                                           else MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
@@ -303,26 +300,6 @@ fun SyncOptionsBottomSheet(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            if (isOverLimit) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "最多选择 400 章（防止手环内存溢出）",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
 
             
             Column(modifier = Modifier.fillMaxWidth()) {

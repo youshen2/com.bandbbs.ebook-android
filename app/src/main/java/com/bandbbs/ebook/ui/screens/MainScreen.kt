@@ -63,6 +63,7 @@ import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.StatusCard
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
+import com.bandbbs.ebook.ui.components.FirstSyncConfirmBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -88,11 +89,13 @@ fun MainScreen(
     val bookForCoverImport by viewModel.bookForCoverImport.collectAsState()
     val connectionErrorState by viewModel.connectionErrorState.collectAsState()
     val categoryState by viewModel.categoryState.collectAsState()
+    val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
     val categorySheetState = rememberModalBottomSheetState()
+    val firstSyncConfirmSheetState = rememberModalBottomSheetState()
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -178,6 +181,28 @@ fun MainScreen(
         }
     }
 
+    firstSyncConfirmState?.let { book ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelFirstSyncConfirm() },
+            sheetState = firstSyncConfirmSheetState
+        ) {
+            FirstSyncConfirmBottomSheet(
+                onConfirm = {
+                    scope.launch {
+                        firstSyncConfirmSheetState.hide()
+                        viewModel.confirmFirstSync()
+                    }
+                },
+                onCancel = {
+                    scope.launch {
+                        firstSyncConfirmSheetState.hide()
+                        viewModel.cancelFirstSyncConfirm()
+                    }
+                }
+            )
+        }
+    }
+
     importState?.let {
         ModalBottomSheet(
             onDismissRequest = { viewModel.cancelImport() },
@@ -192,10 +217,10 @@ fun MainScreen(
                         viewModel.cancelImport()
                     }
                 },
-                onConfirm = { bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory ->
+                onConfirm = { bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern ->
                     scope.launch {
                         importSheetState.hide()
-                        viewModel.confirmImport(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory)
+                        viewModel.confirmImport(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern)
                     }
                 },
                 onShowCategorySelector = {
@@ -328,6 +353,8 @@ fun MainScreen(
                     scope.launch {
                         connectionErrorSheetState.hide()
                         viewModel.dismissConnectionError()
+                        // 等待sheet完全隐藏后再重连，避免状态冲突
+                        kotlinx.coroutines.delay(300)
                         viewModel.reconnect()
                     }
                 }

@@ -63,7 +63,11 @@ data class ImportState(
     val noSplit: Boolean = false,
     val fileFormat: String = "txt",
     val wordsPerChapter: Int = 5000,
-    val selectedCategory: String? = null
+    val selectedCategory: String? = null,
+    val enableChapterMerge: Boolean = false,
+    val mergeMinWords: Int = 500,
+    val enableChapterRename: Boolean = false,
+    val renamePattern: String = ""
 )
 
 data class ImportingState(
@@ -148,8 +152,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _categoryState = MutableStateFlow<CategoryState?>(null)
     val categoryState = _categoryState.asStateFlow()
 
+    private val _firstSyncConfirmState = MutableStateFlow<Book?>(null)
+    val firstSyncConfirmState = _firstSyncConfirmState.asStateFlow()
+
     private val prefs: SharedPreferences = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
     private val CATEGORIES_KEY = "book_categories"
+    private val FIRST_SYNC_CONFIRMED_KEY = "first_sync_confirmed"
 
     data class CategoryState(
         val categories: List<String>,
@@ -308,6 +316,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 isConnected = false
                             )
                         }
+                        // 延迟设置错误状态，确保之前的sheet已经完全隐藏
+                        delay(300)
                         _connectionErrorState.value = ConnectionErrorState(
                             deviceName = deviceName,
                             isUnsupportedDevice = true
@@ -325,6 +335,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     isConnected = false
                                 )
                             }
+                            // 延迟设置错误状态，确保之前的sheet已经完全隐藏
+                            delay(300)
                             _connectionErrorState.value = ConnectionErrorState(
                                 deviceName = deviceName,
                                 isUnsupportedDevice = false
@@ -339,6 +351,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 isConnected = false
                             )
                         }
+                        // 延迟设置错误状态，确保之前的sheet已经完全隐藏
+                        delay(300)
                         _connectionErrorState.value = ConnectionErrorState(
                             deviceName = deviceName,
                             isUnsupportedDevice = false
@@ -364,6 +378,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isConnected = false
                     )
                 }
+                // 延迟设置错误状态，确保之前的sheet已经完全隐藏
+                delay(300)
                 _connectionErrorState.value = ConnectionErrorState(
                     deviceName = null,
                     isUnsupportedDevice = false
@@ -377,6 +393,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isConnected = false
                     )
                 }
+                // 延迟设置错误状态，确保之前的sheet已经完全隐藏
+                delay(300)
                 _connectionErrorState.value = ConnectionErrorState(
                     deviceName = null,
                     isUnsupportedDevice = false
@@ -424,6 +442,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (!hasValidExtension) {
                     
                     withContext(Dispatchers.Main) {
+                        _importState.value = null
                         _importingState.value = ImportingState(
                             bookName = sourceFile.nameWithoutExtension,
                             statusText = "不支持的文件格式\n仅支持 TXT、EPUB、NVB 格式",
@@ -453,7 +472,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importState.value = null
     }
 
-    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String? = null) {
+    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String? = null, enableChapterMerge: Boolean = false, mergeMinWords: Int = 500, enableChapterRename: Boolean = false, renamePattern: String = "") {
         val state = _importState.value ?: return
 
         val finalBookName = bookName.trim()
@@ -477,7 +496,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _importState.value = null
                 }
                 
-                performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory)
+                performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern)
                 return@launch
             }
             
@@ -500,7 +519,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 _importState.value = null
             }
-            performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory)
+            performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern)
         }
     }
 
@@ -544,7 +563,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         noSplit: Boolean,
         isOverwrite: Boolean,
         wordsPerChapter: Int,
-        selectedCategory: String? = null
+        selectedCategory: String? = null,
+        enableChapterMerge: Boolean = false,
+        mergeMinWords: Int = 500,
+        enableChapterRename: Boolean = false,
+        renamePattern: String = ""
     ) {
         _importingState.value = ImportingState(bookName = finalBookName)
         val context = getApplication<Application>().applicationContext
@@ -555,8 +578,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val fileFormat = detectFileFormat(context, uri)
             
             when (fileFormat) {
-                "nvb" -> importNvbFile(context, uri, finalBookName, noSplit, selectedCategory)
-                "epub" -> importEpubFile(context, uri, finalBookName, noSplit, selectedCategory)
+                "nvb" -> importNvbFile(context, uri, finalBookName, noSplit, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern)
+                "epub" -> importEpubFile(context, uri, finalBookName, noSplit, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern)
                 else -> importTxtFile(context, uri, finalBookName, splitMethod, noSplit, wordsPerChapter, selectedCategory)
             }
             
@@ -582,7 +605,81 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun importNvbFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null) {
+    /**
+     * 应用章节重命名规则
+     * 格式: "查找模式 -> 替换文本"
+     * 支持正则表达式，替换文本中可以使用 $1, $2 等引用捕获组
+     */
+    private fun applyRenamePattern(chapterName: String, pattern: String): String {
+        if (pattern.isBlank()) return chapterName
+        
+        try {
+            val parts = pattern.split(" -> ", limit = 2)
+            if (parts.size != 2) return chapterName
+            
+            val findPattern = parts[0].trim()
+            val replaceText = parts[1].trim()
+            
+            val regex = Regex(findPattern)
+            return regex.replace(chapterName) { matchResult ->
+                var result = replaceText
+                matchResult.groupValues.forEachIndexed { index, group ->
+                    if (index > 0) {
+                        result = result.replace("\$$index", group)
+                    }
+                }
+                result
+            }
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Failed to apply rename pattern: ${e.message}")
+            return chapterName
+        }
+    }
+
+    /**
+     * 合并短章节
+     */
+    private suspend fun mergeShortChapters(
+        context: Context,
+        bookId: Int,
+        chapters: List<Chapter>,
+        minWords: Int
+    ): List<Chapter> {
+        if (chapters.isEmpty() || minWords <= 0) return chapters
+        
+        val mergedChapters = mutableListOf<Chapter>()
+        var i = 0
+        
+        while (i < chapters.size) {
+            val currentChapter = chapters[i]
+            
+            if (currentChapter.wordCount < minWords && mergedChapters.isNotEmpty()) {
+                val lastChapter = mergedChapters.last()
+                val lastContent = com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
+                val currentContent = com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(currentChapter.contentFilePath)
+                val mergedContent = lastContent.trimEnd() + "\n\n" + currentChapter.name + "\n\n" + currentContent.trimStart()
+                
+                com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    context, bookId, lastChapter.index, mergedContent
+                )
+                com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(currentChapter.contentFilePath)
+                
+                mergedChapters[mergedChapters.size - 1] = lastChapter.copy(
+                    wordCount = mergedContent.length
+                )
+            } else {
+                mergedChapters.add(currentChapter)
+            }
+            
+            i++
+        }
+        
+        return mergedChapters.mapIndexed { index, chapter ->
+            chapter.copy(index = index)
+        }
+    }
+
+    private suspend fun importNvbFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null, enableChapterMerge: Boolean = false, mergeMinWords: Int = 500, enableChapterRename: Boolean = false, renamePattern: String = "") {
         _importingState.update { it?.copy(statusText = "正在解析 NVB 文件...", progress = 0.1f) }
         val nvbBook = NvbParser.parse(context, uri)
         
@@ -667,6 +764,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 nvbBook.chapters.forEach { nvbChapter ->
                     if (existingBook == null || nvbChapter.title !in existingChapterNames) {
+                        var chapterName = nvbChapter.title
+                        if (enableChapterRename) {
+                            chapterName = applyRenamePattern(chapterName, renamePattern)
+                        }
+                        
                         val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
                             context, bookId.toInt(), currentIndex, nvbChapter.content
                         )
@@ -674,7 +776,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             Chapter(
                                 bookId = bookId.toInt(),
                                 index = currentIndex,
-                                name = nvbChapter.title,
+                                name = chapterName,
                                 contentFilePath = contentFilePath,
                                 wordCount = nvbChapter.wordCount
                             )
@@ -682,24 +784,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         currentIndex++
                     }
                 }
-                newChapters
+                
+                var processedChapters: List<Chapter> = newChapters
+                if (enableChapterMerge && processedChapters.isNotEmpty()) {
+                    _importingState.update { it?.copy(statusText = "正在合并短章节...", progress = 0.85f) }
+                    processedChapters = mergeShortChapters(context, bookId.toInt(), processedChapters, mergeMinWords)
+                }
+                
+                processedChapters
+            }
+            
+            var finalChapters: List<Chapter> = chapters
+            if (enableChapterMerge && !noSplit && finalChapters.isNotEmpty()) {
+                _importingState.update { it?.copy(statusText = "正在合并短章节...", progress = 0.85f) }
+                finalChapters = mergeShortChapters(context, bookId.toInt(), finalChapters, mergeMinWords)
             }
             
             _importingState.update { 
                 it?.copy(
-                    statusText = if (existingBook != null) "正在保存新章节 (${chapters.size} 章)..." else "正在保存章节...", 
+                    statusText = if (existingBook != null) "正在保存新章节 (${finalChapters.size} 章)..." else "正在保存章节...", 
                     progress = 0.9f
                 ) 
             }
-            if (chapters.isNotEmpty()) {
-                db.chapterDao().insertAll(chapters)
+            if (finalChapters.isNotEmpty()) {
+                db.chapterDao().insertAll(finalChapters)
             }
             
             sourceFile.delete()
         }
     }
 
-    private suspend fun importEpubFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null) {
+    private suspend fun importEpubFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null, enableChapterMerge: Boolean = false, mergeMinWords: Int = 500, enableChapterRename: Boolean = false, renamePattern: String = "") {
         _importingState.update { it?.copy(statusText = "正在解析 EPUB 文件...", progress = 0.1f) }
         val epubBook = EpubParser.parse(context, uri)
         
@@ -781,6 +896,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 epubBook.chapters.forEach { epubChapter ->
                     if (existingBook == null || epubChapter.title !in existingChapterNames) {
+                        var chapterName = epubChapter.title
+                        if (enableChapterRename) {
+                            chapterName = applyRenamePattern(chapterName, renamePattern)
+                        }
+                        
                         val contentFilePath = com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
                             context, bookId.toInt(), currentIndex, epubChapter.content
                         )
@@ -788,7 +908,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             Chapter(
                                 bookId = bookId.toInt(),
                                 index = currentIndex,
-                                name = epubChapter.title,
+                                name = chapterName,
                                 contentFilePath = contentFilePath,
                                 wordCount = epubChapter.wordCount
                             )
@@ -796,17 +916,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         currentIndex++
                     }
                 }
-                newChapters
+                
+                var processedChapters: List<Chapter> = newChapters
+                if (enableChapterMerge && processedChapters.isNotEmpty()) {
+                    _importingState.update { it?.copy(statusText = "正在合并短章节...", progress = 0.85f) }
+                    processedChapters = mergeShortChapters(context, bookId.toInt(), processedChapters, mergeMinWords)
+                }
+                
+                processedChapters
+            }
+            
+            var finalChapters: List<Chapter> = chapters
+            if (enableChapterMerge && !noSplit && finalChapters.isNotEmpty()) {
+                _importingState.update { it?.copy(statusText = "正在合并短章节...", progress = 0.85f) }
+                finalChapters = mergeShortChapters(context, bookId.toInt(), finalChapters, mergeMinWords)
             }
             
             _importingState.update { 
                 it?.copy(
-                    statusText = if (existingBook != null) "正在保存新章节 (${chapters.size} 章)..." else "正在保存章节...", 
+                    statusText = if (existingBook != null) "正在保存新章节 (${finalChapters.size} 章)..." else "正在保存章节...", 
                     progress = 0.9f
                 ) 
             }
-            if (chapters.isNotEmpty()) {
-                db.chapterDao().insertAll(chapters)
+            if (finalChapters.isNotEmpty()) {
+                db.chapterDao().insertAll(finalChapters)
             }
             
             sourceFile.delete()
@@ -1046,13 +1179,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var pendingPushBook: Book? = null
+    private var pendingPushChapters: Set<Int>? = null
+    private var pendingSyncCover: Boolean = false
+
     fun confirmPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean = false) {
-        val isCoverAlreadySynced = _syncOptionsState.value?.isCoverSynced ?: false
-        _syncOptionsState.value = null
-        
         if (selectedChapterIndices.isEmpty()) {
             return
         }
+
+        val hasConfirmedFirstSync = prefs.getBoolean(FIRST_SYNC_CONFIRMED_KEY, false)
+        if (!hasConfirmedFirstSync) {
+            pendingPushBook = book
+            pendingPushChapters = selectedChapterIndices
+            pendingSyncCover = syncCover
+            _firstSyncConfirmState.value = book
+            return
+        }
+
+        val isCoverAlreadySynced = _syncOptionsState.value?.isCoverSynced ?: false
+        _syncOptionsState.value = null
+        performPush(book, selectedChapterIndices, syncCover, isCoverAlreadySynced)
+    }
+
+    fun confirmFirstSync() {
+        prefs.edit().putBoolean(FIRST_SYNC_CONFIRMED_KEY, true).apply()
+        _firstSyncConfirmState.value = null
+        
+        val book = pendingPushBook
+        val chapters = pendingPushChapters
+        val syncCover = pendingSyncCover
+        
+        pendingPushBook = null
+        pendingPushChapters = null
+        pendingSyncCover = false
+        
+        if (book != null && chapters != null && chapters.isNotEmpty()) {
+            val isCoverAlreadySynced = _syncOptionsState.value?.isCoverSynced ?: false
+            _syncOptionsState.value = null
+            performPush(book, chapters, syncCover, isCoverAlreadySynced)
+        }
+    }
+
+    fun cancelFirstSyncConfirm() {
+        _firstSyncConfirmState.value = null
+        pendingPushBook = null
+        pendingPushChapters = null
+        pendingSyncCover = false
+    }
+
+    private fun performPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean, isCoverAlreadySynced: Boolean) {
 
         val initialMessage = if (syncCover && !isCoverAlreadySynced) "准备传输封面..." else "准备开始传输..."
         val initialLog = listOf(initialMessage)

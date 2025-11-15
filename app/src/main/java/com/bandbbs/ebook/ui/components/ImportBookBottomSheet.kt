@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -51,13 +53,18 @@ import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.utils.ChapterSplitter
 import androidx.compose.foundation.layout.fillMaxWidth
 
+sealed class RenamePreviewResult {
+    data class Success(val text: String) : RenamePreviewResult()
+    data class Error(val text: String) : RenamePreviewResult()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportBookBottomSheet(
     state: ImportState,
     categories: List<String>,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?) -> Unit,
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String) -> Unit,
     onShowCategorySelector: () -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
@@ -66,7 +73,38 @@ fun ImportBookBottomSheet(
     var noSplit by remember { mutableStateOf(state.noSplit) }
     var wordsPerChapterText by remember { mutableStateOf(state.wordsPerChapter.toString()) }
     var selectedCategory by remember { mutableStateOf(state.selectedCategory) }
+    var enableChapterMerge by remember { mutableStateOf(state.enableChapterMerge) }
+    var mergeMinWordsText by remember { mutableStateOf(state.mergeMinWords.toString()) }
+    var enableChapterRename by remember { mutableStateOf(state.enableChapterRename) }
+    var renamePattern by remember { mutableStateOf(state.renamePattern) }
     
+    val renamePreview = remember(renamePattern) {
+        if (renamePattern.isBlank()) {
+            null
+        } else {
+            val parts = renamePattern.split(" -> ", limit = 2)
+            if (parts.size == 2) {
+                val example = "示例章节标题"
+                try {
+                    val regex = Regex(parts[0].trim())
+                    val result = regex.replace(example) { matchResult ->
+                        var res = parts[1].trim()
+                        matchResult.groupValues.forEachIndexed { index, group ->
+                            if (index > 0) {
+                                res = res.replace("\$$index", group)
+                            }
+                        }
+                        res
+                    }
+                    RenamePreviewResult.Success("预览: \"$example\" -> \"$result\"")
+                } catch (e: Exception) {
+                    RenamePreviewResult.Error("正则表达式格式错误")
+                }
+            } else {
+                null
+            }
+        }
+    }
     
     androidx.compose.runtime.LaunchedEffect(state.selectedCategory) {
         selectedCategory = state.selectedCategory
@@ -75,6 +113,7 @@ fun ImportBookBottomSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Row(
@@ -93,29 +132,13 @@ fun ImportBookBottomSheet(
             TextButton(
                 onClick = { 
                     val wordsPerChapter = wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
-                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory) 
+                    val mergeMinWords = mergeMinWordsText.toIntOrNull()?.coerceIn(100, 10000) ?: 500
+                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern) 
                 },
                 enabled = bookName.isNotBlank()
             ) {
                 Text("导入")
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text(
-                text = "支持 EPUB、TXT 和 NVB 格式的书籍",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(12.dp),
-                textAlign = TextAlign.Center
-            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -149,7 +172,6 @@ fun ImportBookBottomSheet(
                 .fillMaxWidth()
                 .clickable { onShowCategorySelector() },
             readOnly = true,
-            enabled = false,
             trailingIcon = { 
                 Icon(
                     imageVector = Icons.Outlined.ExpandMore,
@@ -305,6 +327,126 @@ fun ImportBookBottomSheet(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(12.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "章节处理",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { enableChapterMerge = !enableChapterMerge },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = enableChapterMerge,
+                        onCheckedChange = { enableChapterMerge = it }
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "合并短章节",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = "将字数少于指定值的章节合并到上一章节",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                if (enableChapterMerge) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = mergeMinWordsText,
+                        onValueChange = { 
+                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                mergeMinWordsText = it
+                            }
+                        },
+                        label = { Text("最小字数") },
+                        placeholder = { Text("500") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        supportingText = { Text("字数少于此值的章节将被合并") }
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { enableChapterRename = !enableChapterRename },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = enableChapterRename,
+                        onCheckedChange = { enableChapterRename = it }
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "重命名章节",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = "使用正则表达式替换章节标题",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                if (enableChapterRename) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = renamePattern,
+                        onValueChange = { renamePattern = it },
+                        label = { Text("替换规则") },
+                        placeholder = { Text("例如: ^第(\\d+)章 -> 第$1章") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false,
+                        minLines = 2,
+                        maxLines = 4,
+                        shape = RoundedCornerShape(16.dp),
+                        supportingText = { 
+                            Column {
+                                Text("格式: 查找模式 -> 替换文本")
+                                Text("支持正则表达式，使用 $1, $2 等引用捕获组", 
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                )
+                                renamePreview?.let { preview ->
+                                    when (preview) {
+                                        is RenamePreviewResult.Success -> {
+                                            Text(
+                                                preview.text,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            )
+                                        }
+                                        is RenamePreviewResult.Error -> {
+                                            Text(
+                                                preview.text,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
             }
