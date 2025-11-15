@@ -2,6 +2,7 @@ package com.bandbbs.ebook.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -61,7 +62,8 @@ data class ImportState(
     val splitMethod: String = ChapterSplitter.METHOD_DEFAULT,
     val noSplit: Boolean = false,
     val fileFormat: String = "txt",
-    val wordsPerChapter: Int = 5000
+    val wordsPerChapter: Int = 5000,
+    val selectedCategory: String? = null
 )
 
 data class ImportingState(
@@ -143,8 +145,136 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _connectionErrorState = MutableStateFlow<ConnectionErrorState?>(null)
     val connectionErrorState = _connectionErrorState.asStateFlow()
 
+    private val _categoryState = MutableStateFlow<CategoryState?>(null)
+    val categoryState = _categoryState.asStateFlow()
+
+    private val prefs: SharedPreferences = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
+    private val CATEGORIES_KEY = "book_categories"
+
+    data class CategoryState(
+        val categories: List<String>,
+        val selectedCategory: String?,
+        val book: Book?
+    )
+
     init {
         loadBooks()
+    }
+
+    fun getCategories(): List<String> {
+        return try {
+            val set = prefs.getStringSet(CATEGORIES_KEY, null)
+            if (set != null) {
+                
+                set.map { it.toString() }.sorted()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            
+            try {
+                prefs.edit().remove(CATEGORIES_KEY).apply()
+            } catch (e2: Exception) {
+                
+            }
+            emptyList()
+        }
+    }
+
+    fun showCategorySelector(book: Book? = null) {
+        val categories = getCategories()
+        val selectedCategory = book?.localCategory ?: _importState.value?.selectedCategory
+        _categoryState.value = CategoryState(
+            categories = categories,
+            selectedCategory = selectedCategory,
+            book = book
+        )
+    }
+
+    fun createCategory(categoryName: String) {
+        try {
+            val currentSet = prefs.getStringSet(CATEGORIES_KEY, null)?.toMutableSet() ?: mutableSetOf()
+            currentSet.add(categoryName)
+            prefs.edit().putStringSet(CATEGORIES_KEY, HashSet(currentSet)).apply()
+            _categoryState.value?.let { state ->
+                _categoryState.value = state.copy(categories = currentSet.toList().sorted())
+            }
+        } catch (e: Exception) {
+            
+            try {
+                prefs.edit().remove(CATEGORIES_KEY).apply()
+                val newSet = hashSetOf(categoryName)
+                prefs.edit().putStringSet(CATEGORIES_KEY, newSet).apply()
+                _categoryState.value?.let { state ->
+                    _categoryState.value = state.copy(categories = listOf(categoryName))
+                }
+            } catch (e2: Exception) {
+                
+            }
+        }
+    }
+
+    fun deleteCategory(categoryName: String) {
+        try {
+            val currentSet = prefs.getStringSet(CATEGORIES_KEY, null)?.toMutableSet() ?: mutableSetOf()
+            currentSet.remove(categoryName)
+            prefs.edit().putStringSet(CATEGORIES_KEY, HashSet(currentSet)).apply()
+            
+            
+            viewModelScope.launch(Dispatchers.IO) {
+                val books = db.bookDao().getAllBooks()
+                books.forEach { bookEntity ->
+                    if (bookEntity.localCategory == categoryName) {
+                        db.bookDao().update(bookEntity.copy(localCategory = null))
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    loadBooks()
+                }
+            }
+            
+            _categoryState.value?.let { state ->
+                _categoryState.value = state.copy(categories = currentSet.toList().sorted())
+            }
+        } catch (e: Exception) {
+            
+            try {
+                prefs.edit().remove(CATEGORIES_KEY).apply()
+                _categoryState.value?.let { state ->
+                    _categoryState.value = state.copy(categories = emptyList())
+                }
+            } catch (e2: Exception) {
+                
+            }
+        }
+    }
+
+    fun selectCategory(category: String?) {
+        _categoryState.value?.let { state ->
+            val book = state.book
+            if (book != null) {
+                
+                viewModelScope.launch(Dispatchers.IO) {
+                    val bookEntity = db.bookDao().getBookByPath(book.path)
+                    if (bookEntity != null) {
+                        db.bookDao().update(bookEntity.copy(localCategory = category))
+                        withContext(Dispatchers.Main) {
+                            loadBooks()
+                        }
+                    }
+                }
+            } else {
+                
+                _importState.value?.let { importState ->
+                    _importState.value = importState.copy(selectedCategory = category)
+                }
+            }
+            _categoryState.value = null
+        }
+    }
+
+    fun dismissCategorySelector() {
+        _categoryState.value = null
     }
 
     fun setConnection(connection: InterHandshake) {
@@ -272,7 +402,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     chapterCount = chapterCount,
                     wordCount = wordCount,
                     syncedChapterCount = 0,
-                    coverImagePath = entity.coverImagePath
+                    coverImagePath = entity.coverImagePath,
+                    localCategory = entity.localCategory
                 )
             }
             withContext(Dispatchers.Main) {
@@ -285,13 +416,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val context = getApplication<Application>().applicationContext
             UritoFile(uri, context)?.let { sourceFile ->
-                // 检查文件扩展名，只允许 txt、epub、nvb 格式
+                
                 val fileName = sourceFile.name.lowercase()
                 val allowedExtensions = listOf(".txt", ".epub", ".nvb")
                 val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
                 
                 if (!hasValidExtension) {
-                    // 不支持的文件格式
+                    
                     withContext(Dispatchers.Main) {
                         _importingState.value = ImportingState(
                             bookName = sourceFile.nameWithoutExtension,
@@ -322,13 +453,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _importState.value = null
     }
 
-    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int) {
+    fun confirmImport(bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String? = null) {
         val state = _importState.value ?: return
 
         val finalBookName = bookName.trim()
         if (finalBookName.isEmpty()) {
             return
         }
+
+        
+        val finalCategory = selectedCategory ?: state.selectedCategory
 
         viewModelScope.launch(Dispatchers.IO) {
             val existingBook = _books.value.find { it.name == finalBookName }
@@ -343,7 +477,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _importState.value = null
                 }
                 
-                performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter)
+                performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory)
                 return@launch
             }
             
@@ -366,7 +500,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 _importState.value = null
             }
-            performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter)
+            performImport(state.uri, finalBookName, splitMethod, noSplit, false, wordsPerChapter, finalCategory)
         }
     }
 
@@ -386,7 +520,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 overwriteState.splitMethod,
                 overwriteState.noSplit,
                 true,
-                overwriteState.wordsPerChapter
+                overwriteState.wordsPerChapter,
+                null
             )
         }
     }
@@ -408,7 +543,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         splitMethod: String,
         noSplit: Boolean,
         isOverwrite: Boolean,
-        wordsPerChapter: Int
+        wordsPerChapter: Int,
+        selectedCategory: String? = null
     ) {
         _importingState.value = ImportingState(bookName = finalBookName)
         val context = getApplication<Application>().applicationContext
@@ -419,9 +555,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val fileFormat = detectFileFormat(context, uri)
             
             when (fileFormat) {
-                "nvb" -> importNvbFile(context, uri, finalBookName, noSplit)
-                "epub" -> importEpubFile(context, uri, finalBookName, noSplit)
-                else -> importTxtFile(context, uri, finalBookName, splitMethod, noSplit, wordsPerChapter)
+                "nvb" -> importNvbFile(context, uri, finalBookName, noSplit, selectedCategory)
+                "epub" -> importEpubFile(context, uri, finalBookName, noSplit, selectedCategory)
+                else -> importTxtFile(context, uri, finalBookName, splitMethod, noSplit, wordsPerChapter, selectedCategory)
             }
             
             withContext(Dispatchers.Main) {
@@ -446,7 +582,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun importNvbFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean) {
+    private suspend fun importNvbFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null) {
         _importingState.update { it?.copy(statusText = "正在解析 NVB 文件...", progress = 0.1f) }
         val nvbBook = NvbParser.parse(context, uri)
         
@@ -492,7 +628,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         author = nvbBook.metadata.author,
                         summary = nvbBook.metadata.summary,
                         bookStatus = nvbBook.metadata.bookStatus,
-                        category = nvbBook.metadata.category
+                        category = nvbBook.metadata.category,
+                        localCategory = selectedCategory
                     )
                 )
             }
@@ -562,7 +699,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun importEpubFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean) {
+    private suspend fun importEpubFile(context: Context, uri: Uri, finalBookName: String, noSplit: Boolean, selectedCategory: String? = null) {
         _importingState.update { it?.copy(statusText = "正在解析 EPUB 文件...", progress = 0.1f) }
         val epubBook = EpubParser.parse(context, uri)
         
@@ -605,7 +742,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         size = destFile.length(),
                         format = "epub",
                         coverImagePath = coverImagePath,
-                        author = epubBook.author
+                        author = epubBook.author,
+                        localCategory = selectedCategory
                     )
                 )
             }
@@ -681,7 +819,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         finalBookName: String,
         splitMethod: String,
         noSplit: Boolean,
-        wordsPerChapter: Int
+        wordsPerChapter: Int,
+        selectedCategory: String? = null
     ) {
         UritoFile(uri, context)?.let { sourceFile ->
             _importingState.update { it?.copy(statusText = "正在复制文件...") }
@@ -694,7 +833,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     name = finalBookName,
                     path = destFile.absolutePath,
                     size = destFile.length(),
-                    format = "txt"
+                    format = "txt",
+                    localCategory = selectedCategory
                 )
             )
 

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [BookEntity::class, Chapter::class], version = 1, exportSchema = false)
+@Database(entities = [BookEntity::class, Chapter::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun bookDao(): BookDao
@@ -24,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ebook_database_v4"
                 )
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

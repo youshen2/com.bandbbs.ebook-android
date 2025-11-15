@@ -14,5 +14,6 @@ data class BookEntity(
     val author: String? = null,
     val summary: String? = null,
     val bookStatus: String? = null,
-    val category: String? = null
+    val category: String? = null,
+    val localCategory: String? = null
 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
@@ -51,6 +52,7 @@ fun BookItem(
     onSyncClick: () -> Unit,
     onCardClick: () -> Unit,
     onImportCoverClick: () -> Unit = {},
+    onCategoryClick: () -> Unit = {},
     isSyncEnabled: Boolean
 ) {
     Card(
@@ -126,6 +128,16 @@ fun BookItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (book.localCategory != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "分类: ${book.localCategory}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -149,6 +161,16 @@ fun BookItem(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("修改分类") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onCategoryClick()
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("导入封面") },
                                 leadingIcon = {

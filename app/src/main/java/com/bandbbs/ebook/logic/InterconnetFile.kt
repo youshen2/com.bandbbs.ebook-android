@@ -293,7 +293,8 @@ class InterconnetFile(private val conn: InterHandshake) {
                     author = bookEntity?.author,
                     summary = bookEntity?.summary,
                     bookStatus = bookEntity?.bookStatus,
-                    category = bookEntity?.category
+                    category = bookEntity?.category,
+                    localCategory = bookEntity?.localCategory
                 )
             )
         ).await()
@@ -710,7 +711,8 @@ class InterconnetFile(private val conn: InterHandshake) {
             val author: String? = null,
             val summary: String? = null,
             val bookStatus: String? = null,
-            val category: String? = null
+            val category: String? = null,
+            val localCategory: String? = null
         ) : FileMessagesToSend()
         
         @Serializable

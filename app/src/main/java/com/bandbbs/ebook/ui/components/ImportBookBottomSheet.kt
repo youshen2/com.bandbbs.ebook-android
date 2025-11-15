@@ -55,14 +55,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 @Composable
 fun ImportBookBottomSheet(
     state: ImportState,
+    categories: List<String>,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int) -> Unit
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?) -> Unit,
+    onShowCategorySelector: () -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
     var splitMethod by remember { mutableStateOf(state.splitMethod) }
     var showSplitMethodMenu by remember { mutableStateOf(false) }
     var noSplit by remember { mutableStateOf(state.noSplit) }
     var wordsPerChapterText by remember { mutableStateOf(state.wordsPerChapter.toString()) }
+    var selectedCategory by remember { mutableStateOf(state.selectedCategory) }
+    
+    
+    androidx.compose.runtime.LaunchedEffect(state.selectedCategory) {
+        selectedCategory = state.selectedCategory
+    }
 
     Column(
         modifier = Modifier
@@ -85,7 +93,7 @@ fun ImportBookBottomSheet(
             TextButton(
                 onClick = { 
                     val wordsPerChapter = wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
-                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter) 
+                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory) 
                 },
                 enabled = bookName.isNotBlank()
             ) {
@@ -120,6 +128,37 @@ fun ImportBookBottomSheet(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(16.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "分类",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = selectedCategory ?: "未分类",
+            onValueChange = {},
+            label = { Text("分类") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onShowCategorySelector() },
+            readOnly = true,
+            enabled = false,
+            trailingIcon = { 
+                Icon(
+                    imageVector = Icons.Outlined.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
         )
         
         Spacer(modifier = Modifier.height(20.dp))
