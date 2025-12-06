@@ -128,6 +128,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val IP_COLLECTION_PERMISSION_KEY = "ip_collection_permission"
     private val IP_COLLECTION_PERMISSION_ASKED_KEY = "ip_collection_permission_asked"
 
+    private var FIRST_AUTO_CHECK = true
+
     private val connectionHandler = ConnectionHandler(
         scope = viewModelScope,
         connectionState = _connectionState,
@@ -135,7 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         versionIncompatibleState = _versionIncompatibleState
     ).apply {
         onBandConnected = { deviceName ->
-            autoCheckUpdates()
+            if (FIRST_AUTO_CHECK) autoCheckUpdates()
         }
         onBandVersionReceived = { bandVersion ->
             checkBandUpdateOnly(bandVersion)
@@ -846,6 +848,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         checkForUpdates(isAutoCheck = true)
+        FIRST_AUTO_CHECK = false
     }
 
     fun onIpCollectionPermissionResult(allowed: Boolean) {
