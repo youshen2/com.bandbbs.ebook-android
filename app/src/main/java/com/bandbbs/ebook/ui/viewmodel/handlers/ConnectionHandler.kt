@@ -23,6 +23,7 @@ class ConnectionHandler(
     private var interHandshake: InterHandshake? = null
     private var fileConnection: InterconnetFile? = null
     var onBandConnected: ((String) -> Unit)? = null
+    var onBandVersionReceived: ((Int) -> Unit)? = null
 
     fun setConnection(connection: InterHandshake) {
         interHandshake = connection
@@ -32,6 +33,9 @@ class ConnectionHandler(
                 currentVersion = currentVersion,
                 requiredVersion = requiredVersion
             )
+        }
+        connection.setOnBandVersionReceived { version ->
+            onBandVersionReceived?.invoke(version)
         }
         reconnect()
     }

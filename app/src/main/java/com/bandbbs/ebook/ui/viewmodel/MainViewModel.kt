@@ -135,9 +135,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         versionIncompatibleState = _versionIncompatibleState
     ).apply {
         onBandConnected = { deviceName ->
-
-
             autoCheckUpdates()
+        }
+        onBandVersionReceived = { bandVersion ->
+            checkBandUpdateOnly(bandVersion)
         }
     }
 
@@ -191,7 +192,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadBooks()
-        checkForUpdates(isAutoCheck = true)
+        performInitialUpdateCheck()
+    }
+
+    private fun performInitialUpdateCheck() {
+        val ipCollectionAllowed = prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false)
+        val hasAskedBefore = prefs.getBoolean(IP_COLLECTION_PERMISSION_ASKED_KEY, false)
+
+        if (hasAskedBefore && ipCollectionAllowed) {
+            performUpdateCheck(isAutoCheck = true)
+        }
     }
 
 
@@ -349,7 +359,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelImportCover() = libraryHandler.cancelImportCover()
 
-    fun importCoverForBook(uri: android.net.Uri) = libraryHandler.importCoverForBook(uri)
+    fun importCoverForBook(uri: Uri) = libraryHandler.importCoverForBook(uri)
 
     fun showEditBookInfo(book: Book) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -866,8 +876,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val deviceName = connectionHandler.getDeviceName()
-            val bandVersion = connectionHandler.getConnectedBandVersion()
-
 
             if (!isAutoCheck) {
                 _updateCheckState.value = UpdateCheckState(
@@ -885,13 +893,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val currentVersionCode = packageInfo.versionCode
 
 
-                val androidResult = VersionChecker.checkUpdate(currentVersionCode, deviceName)
-                val bandResult = if (deviceName != null) {
-                    VersionChecker.checkBandUpdate(deviceName, bandVersion)
-                } else {
-                    null
-                }
-
+                val androidResult = VersionChecker.checkUpdate(currentVersionCode)
                 val updateInfoList = mutableListOf<VersionChecker.UpdateInfo>()
                 var errorMsg: String? = null
 
@@ -906,23 +908,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         errorMsg = "检查手机更新失败: ${error.message}"
                     }
                 )
-
-
-                bandResult?.fold(
-                    onSuccess = { bandUpdateInfo ->
-                        if (bandUpdateInfo.hasUpdate && bandUpdateInfo.deviceType == "band") {
-                            updateInfoList.add(bandUpdateInfo)
-                        }
-                    },
-                    onFailure = { error ->
-                        if (errorMsg == null) {
-                            errorMsg = "检查手环更新失败: ${error.message}"
-                        } else {
-                            errorMsg += "\n检查手环更新失败: ${error.message}"
-                        }
-                    }
-                )
-
 
                 withContext(Dispatchers.Main) {
                     val hasUpdates = updateInfoList.isNotEmpty()
@@ -953,6 +938,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissUpdateCheck() {
         _updateCheckState.value = UpdateCheckState()
+    }
+
+    private fun checkBandUpdateOnly(bandVersion: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val deviceName = connectionHandler.getDeviceName()
+            if (deviceName == null) {
+                Log.w("MainViewModel", "设备名称为空，无法检查手环更新")
+                return@launch
+            }
+
+            try {
+                val bandResult = VersionChecker.checkBandUpdate(deviceName, bandVersion)
+
+                bandResult.fold(
+                    onSuccess = { bandUpdateInfo ->
+                        if (bandUpdateInfo.hasUpdate && bandUpdateInfo.deviceType == "band") {
+                            withContext(Dispatchers.Main) {
+                                _updateCheckState.value = UpdateCheckState(
+                                    isChecking = false,
+                                    updateInfo = bandUpdateInfo,
+                                    updateInfoList = listOf(bandUpdateInfo),
+                                    deviceName = deviceName,
+                                    showSheet = true,
+                                    isAutoCheck = true
+                                )
+                            }
+                        }
+                    },
+                    onFailure = { error ->
+                        Log.e("MainViewModel", "检查手环更新失败", error)
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "检查手环更新异常", e)
+            }
+        }
     }
 
     private val json = kotlinx.serialization.json.Json {

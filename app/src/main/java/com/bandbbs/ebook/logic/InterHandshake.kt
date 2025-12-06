@@ -54,11 +54,15 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
 
             connectedBandVersion = bandVersion
 
-            if (bandVersion != null && bandVersion < MIN_BAND_VERSION_CODE) {
-                Log.w("Handshake", "Band version $bandVersion is incompatible, required: $MIN_BAND_VERSION_CODE")
-                onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
-                return@addListener
-            } else if (bandVersion == null) {
+            if (bandVersion != null) {
+                onBandVersionReceived.invoke(bandVersion)
+
+                if (bandVersion < MIN_BAND_VERSION_CODE){
+                    Log.w("Handshake", "Band version $bandVersion is incompatible, required: $MIN_BAND_VERSION_CODE")
+                    onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
+                    return@addListener
+                }
+            } else {
                 Log.w("Handshake", "Band version is incompatible, required: $MIN_BAND_VERSION_CODE")
                 onVersionIncompatible.invoke(0, MIN_BAND_VERSION_CODE)
             }
@@ -153,5 +157,10 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit = { _, _ -> }
     fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
         onVersionIncompatible = callback
+    }
+
+    private var onBandVersionReceived: (version: Int) -> Unit = { }
+    fun setOnBandVersionReceived(callback: (version: Int) -> Unit) {
+        onBandVersionReceived = callback
     }
 }

@@ -36,17 +36,14 @@ object VersionChecker {
         val deviceType: String
     )
 
-    suspend fun checkUpdate(
-        currentVersionCode: Int,
-        currentDeviceName: String? = null
-    ): Result<UpdateInfo> {
+    private suspend fun fetchVersionResponse(): Result<VersionResponse> {
         return try {
             val url = URL(API_URL)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "SineVela-Android")
+            connection.setRequestProperty("User-Agent", "Sine-Android")
 
             val responseCode = connection.responseCode
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -57,7 +54,21 @@ object VersionChecker {
             connection.disconnect()
 
             val versionResponse = json.decodeFromString<VersionResponse>(responseBody)
+            Result.success(versionResponse)
+        } catch (e: Exception) {
+            Log.e(TAG, "获取版本信息失败", e)
+            return Result.failure(e)
+        }
+    }
 
+    suspend fun checkUpdate(
+        currentVersionCode: Int
+    ): Result<UpdateInfo> {
+        return try {
+            val versionResponseResult = fetchVersionResponse()
+            val versionResponse = versionResponseResult.getOrElse {
+                return Result.failure(it)
+            }
 
             val androidUpdate = versionResponse.device.find { it.type == "android" }
             val androidUpdateInfo = androidUpdate?.let {
@@ -84,7 +95,6 @@ object VersionChecker {
             if (androidUpdateInfo != null) {
                 Result.success(androidUpdateInfo)
             } else {
-
                 Result.success(
                     UpdateInfo(
                         hasUpdate = false,
@@ -106,23 +116,10 @@ object VersionChecker {
         currentVersionCode: Int? = null
     ): Result<UpdateInfo> {
         return try {
-            val url = URL(API_URL)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "SineVela-Android")
-
-            val responseCode = connection.responseCode
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                return Result.failure(Exception("HTTP错误: $responseCode"))
+            val versionResponseResult = fetchVersionResponse()
+            val versionResponse = versionResponseResult.getOrElse {
+                return Result.failure(it)
             }
-
-            val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
-
-            val versionResponse = json.decodeFromString<VersionResponse>(responseBody)
-
 
             val bandUpdate = versionResponse.device.find { device ->
                 device.type != "android" && device.device_name.isNotEmpty() &&
