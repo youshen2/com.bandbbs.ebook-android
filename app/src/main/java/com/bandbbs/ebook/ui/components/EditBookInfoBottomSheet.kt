@@ -30,7 +30,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,13 +49,15 @@ fun EditBookInfoBottomSheet(
     onSave: (BookEntity) -> Unit,
     onShowCategorySelector: () -> Unit,
     onResyncInfo: () -> Unit,
-    isResyncing: Boolean = false
+    isResyncing: Boolean = false,
+    onSaveBeforeResync: (suspend (BookEntity) -> Unit)? = null
 ) {
     var bookName by remember { mutableStateOf(book.name) }
     var author by remember { mutableStateOf(book.author ?: "") }
     var summary by remember { mutableStateOf(book.summary ?: "") }
     var bookStatus by remember { mutableStateOf(book.bookStatus ?: "") }
     var category by remember { mutableStateOf(book.category ?: "") }
+    val scope = rememberCoroutineScope()
 
     
     LaunchedEffect(book) {
@@ -202,7 +206,29 @@ fun EditBookInfoBottomSheet(
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = onResyncInfo,
+            onClick = {
+                scope.launch {
+                    
+                    if (bookName.isNotBlank()) {
+                        val updatedBook = book.copy(
+                            name = bookName.trim(),
+                            author = author.takeIf { it.isNotBlank() },
+                            summary = summary.takeIf { it.isNotBlank() },
+                            bookStatus = bookStatus.takeIf { it.isNotBlank() },
+                            category = category.takeIf { it.isNotBlank() },
+                            localCategory = localCategory.takeIf { it.isNotBlank() }
+                        )
+                        
+                        if (onSaveBeforeResync != null) {
+                            onSaveBeforeResync(updatedBook)
+                        } else {
+                            onSave(updatedBook)
+                        }
+                    }
+                    
+                    onResyncInfo()
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isResyncing
         ) {

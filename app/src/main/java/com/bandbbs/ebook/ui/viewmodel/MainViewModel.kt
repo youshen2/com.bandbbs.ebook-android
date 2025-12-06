@@ -357,6 +357,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun saveBookInfoWithoutDismiss(bookEntity: com.bandbbs.ebook.database.BookEntity) {
+        withContext(Dispatchers.IO) {
+            db.bookDao().update(bookEntity)
+            loadBooks()
+        }
+        
+        withContext(Dispatchers.Main) {
+            _editBookInfoState.value?.let { currentState ->
+                _editBookInfoState.value = currentState.copy(book = bookEntity)
+            }
+        }
+    }
+
     fun resyncBookCategory(book: Book) {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path)

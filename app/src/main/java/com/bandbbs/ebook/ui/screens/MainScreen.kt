@@ -64,7 +64,7 @@ import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
-import com.bandbbs.ebook.ui.components.FirstSyncConfirmBottomSheet
+import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
@@ -124,7 +124,6 @@ fun MainScreen(
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
     val categorySheetState = rememberModalBottomSheetState()
-    val firstSyncConfirmSheetState = rememberModalBottomSheetState()
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val importSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -275,25 +274,14 @@ fun MainScreen(
     }
 
     firstSyncConfirmState?.let { book ->
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.cancelFirstSyncConfirm() },
-            sheetState = firstSyncConfirmSheetState
-        ) {
-            FirstSyncConfirmBottomSheet(
-                onConfirm = {
-                    scope.launch {
-                        firstSyncConfirmSheetState.hide()
-                        viewModel.confirmFirstSync()
-                    }
-                },
-                onCancel = {
-                    scope.launch {
-                        firstSyncConfirmSheetState.hide()
-                        viewModel.cancelFirstSyncConfirm()
-                    }
-                }
-            )
-        }
+        FirstSyncConfirmDialog(
+            onConfirm = {
+                viewModel.confirmFirstSync()
+            },
+            onCancel = {
+                viewModel.cancelFirstSyncConfirm()
+            }
+        )
     }
 
     importState?.let {
@@ -486,7 +474,12 @@ fun MainScreen(
                         viewModel.resyncBookInfo(book)
                     }
                 },
-                isResyncing = state.isResyncing
+                isResyncing = state.isResyncing,
+                onSaveBeforeResync = { updatedBook ->
+                    scope.launch {
+                        viewModel.saveBookInfoWithoutDismiss(updatedBook)
+                    }
+                }
             )
         }
     }
