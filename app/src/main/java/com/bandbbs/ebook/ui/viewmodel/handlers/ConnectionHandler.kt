@@ -56,6 +56,10 @@ class ConnectionHandler(
         return connectionState.value.deviceName
     }
 
+    fun getConnectedBandVersion(): Int? {
+        return interHandshake?.connectedBandVersion
+    }
+
     fun reconnect() {
         val connection = interHandshake ?: return
         scope.launch {
@@ -95,21 +99,21 @@ class ConnectionHandler(
                     connection.auth().await()
                     try {
                         if (!connection.getAppState().await()) {
-                        connectionState.update {
-                            it.copy(
-                                statusText = "弦电子书未安装",
-                                descriptionText = "请在手环上安装小程序",
-                                isConnected = false,
-                                deviceName = deviceName
+                            connectionState.update {
+                                it.copy(
+                                    statusText = "弦电子书未安装",
+                                    descriptionText = "请在手环上安装小程序",
+                                    isConnected = false,
+                                    deviceName = deviceName
+                                )
+                            }
+                            delay(300)
+                            connectionErrorState.value = ConnectionErrorState(
+                                deviceName = deviceName,
+                                isUnsupportedDevice = false
                             )
+                            return@withTimeout
                         }
-                        delay(300)
-                        connectionErrorState.value = ConnectionErrorState(
-                            deviceName = deviceName,
-                            isUnsupportedDevice = false
-                        )
-                        return@withTimeout
-                    }
                     } catch (_: Exception) {
                         connectionState.update {
                             it.copy(
@@ -136,7 +140,7 @@ class ConnectionHandler(
                             deviceName = deviceName
                         )
                     }
-                    
+
                     onBandConnected?.invoke(deviceName)
                 }
             } catch (_: TimeoutCancellationException) {
@@ -173,4 +177,3 @@ class ConnectionHandler(
         }
     }
 }
-

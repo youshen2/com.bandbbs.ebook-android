@@ -28,6 +28,9 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
 
+    var connectedBandVersion: Int? = null
+        private set
+
     override val onMessageListener = OnMessageReceivedListener { _, message ->
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
@@ -48,6 +51,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             val data: HandshakePayload = json.decodeFromString(payload)
             val currentCount = data.count
             val bandVersion = data.version
+
+            connectedBandVersion = bandVersion
 
             if (bandVersion != null && bandVersion < MIN_BAND_VERSION_CODE) {
                 Log.w("Handshake", "Band version $bandVersion is incompatible, required: $MIN_BAND_VERSION_CODE")

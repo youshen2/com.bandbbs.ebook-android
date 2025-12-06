@@ -58,7 +58,7 @@ object VersionChecker {
 
             val versionResponse = json.decodeFromString<VersionResponse>(responseBody)
 
-            
+
             val androidUpdate = versionResponse.device.find { it.type == "android" }
             val androidUpdateInfo = androidUpdate?.let {
                 if (it.version_code > currentVersionCode) {
@@ -80,11 +80,11 @@ object VersionChecker {
                 }
             }
 
-            
+
             if (androidUpdateInfo != null) {
                 Result.success(androidUpdateInfo)
             } else {
-                
+
                 Result.success(
                     UpdateInfo(
                         hasUpdate = false,
@@ -123,14 +123,14 @@ object VersionChecker {
 
             val versionResponse = json.decodeFromString<VersionResponse>(responseBody)
 
-            
+
             val bandUpdate = versionResponse.device.find { device ->
-                device.type != "android" && device.device_name.isNotEmpty() && 
-                currentDeviceName.matches(Regex(device.device_name))
+                device.type != "android" && device.device_name.isNotEmpty() &&
+                        currentDeviceName.matches(Regex(device.device_name))
             }
 
             if (bandUpdate != null) {
-                val hasUpdate = currentVersionCode == null || bandUpdate.version_code > currentVersionCode
+                val hasUpdate = currentVersionCode != null && bandUpdate.version_code > currentVersionCode
                 Result.success(
                     UpdateInfo(
                         hasUpdate = hasUpdate,
@@ -157,4 +157,3 @@ object VersionChecker {
         }
     }
 }
-

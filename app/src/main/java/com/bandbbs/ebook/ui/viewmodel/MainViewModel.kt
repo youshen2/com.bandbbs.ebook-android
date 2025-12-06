@@ -136,7 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ).apply {
         onBandConnected = { deviceName ->
 
-            
+
             autoCheckUpdates()
         }
     }
@@ -834,7 +834,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!ipCollectionAllowed) {
             return
         }
-        
+
         checkForUpdates(isAutoCheck = true)
     }
 
@@ -866,8 +866,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val deviceName = connectionHandler.getDeviceName()
+            val bandVersion = connectionHandler.getConnectedBandVersion()
 
-            
+
             if (!isAutoCheck) {
                 _updateCheckState.value = UpdateCheckState(
                     isChecking = true,
@@ -883,10 +884,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 @Suppress("DEPRECATION")
                 val currentVersionCode = packageInfo.versionCode
 
-                
+
                 val androidResult = VersionChecker.checkUpdate(currentVersionCode, deviceName)
                 val bandResult = if (deviceName != null) {
-                    VersionChecker.checkBandUpdate(deviceName)
+                    VersionChecker.checkBandUpdate(deviceName, bandVersion)
                 } else {
                     null
                 }
@@ -894,7 +895,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val updateInfoList = mutableListOf<VersionChecker.UpdateInfo>()
                 var errorMsg: String? = null
 
-                
+
                 androidResult.fold(
                     onSuccess = { androidUpdateInfo ->
                         if (androidUpdateInfo.hasUpdate && androidUpdateInfo.deviceType == "android") {
@@ -906,7 +907,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 )
 
-                
+
                 bandResult?.fold(
                     onSuccess = { bandUpdateInfo ->
                         if (bandUpdateInfo.hasUpdate && bandUpdateInfo.deviceType == "band") {
@@ -922,7 +923,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 )
 
-                
+
                 withContext(Dispatchers.Main) {
                     val hasUpdates = updateInfoList.isNotEmpty()
                     _updateCheckState.value = UpdateCheckState(
