@@ -17,6 +17,7 @@ class ConnectionHandler(
     private val scope: CoroutineScope,
     private val connectionState: MutableStateFlow<ConnectionState>,
     private val connectionErrorState: MutableStateFlow<ConnectionErrorState?>,
+    private val versionIncompatibleState: MutableStateFlow<com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState?>,
 ) {
 
     private var interHandshake: InterHandshake? = null
@@ -25,6 +26,12 @@ class ConnectionHandler(
     fun setConnection(connection: InterHandshake) {
         interHandshake = connection
         fileConnection = InterconnetFile(connection)
+        connection.setOnVersionIncompatible { currentVersion, requiredVersion ->
+            versionIncompatibleState.value = com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState(
+                currentVersion = currentVersion,
+                requiredVersion = requiredVersion
+            )
+        }
         reconnect()
     }
 

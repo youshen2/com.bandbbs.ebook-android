@@ -95,3 +95,8 @@ data class SyncReadingDataState(
     val syncedBooks: Int = 0
 )
 
+data class VersionIncompatibleState(
+    val currentVersion: Int,
+    val requiredVersion: Int
+)
+

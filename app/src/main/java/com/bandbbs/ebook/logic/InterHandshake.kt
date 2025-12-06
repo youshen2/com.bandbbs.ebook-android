@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.bandbbs.ebook.BuildConfig
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +18,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     companion object {
         private const val TYPE = "__hs__"
         private const val TIMEOUT = 10000L
+        private const val PHONE_VERSION_CODE = 40600
+        private const val MIN_BAND_VERSION_CODE = 251206
     }
 
     private var promise: Deferred<Unit>? = null
@@ -28,7 +29,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private var timeoutRunnable: Runnable? = null
 
     override val onMessageListener = OnMessageReceivedListener { _, message ->
-        //重置计时器
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
             promise = null
@@ -47,6 +47,16 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         addListener(TYPE) { payload ->
             val data: HandshakePayload = json.decodeFromString(payload)
             val currentCount = data.count
+            val bandVersion = data.version
+
+            if (bandVersion != null && bandVersion < MIN_BAND_VERSION_CODE) {
+                Log.w("Handshake", "Band version $bandVersion is incompatible, required: $MIN_BAND_VERSION_CODE")
+                onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
+                return@addListener
+            } else if (bandVersion == null) {
+                Log.w("Handshake", "Band version is incompatible, required: $MIN_BAND_VERSION_CODE")
+                onVersionIncompatible.invoke(0, MIN_BAND_VERSION_CODE)
+            }
 
             if (currentCount > 0) {
                 if (promise != null) {
@@ -63,7 +73,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             if (newCount < 3) {
                 scope.launch {
                     try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":${BuildConfig.VERSION_CODE}}")
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":$PHONE_VERSION_CODE}")
                             .await()
                     } catch (e: Exception) {
                         Log.e("Handshake", "Failed to send handshake reply", e)
@@ -104,7 +114,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             connected = true
                         }
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":${BuildConfig.VERSION_CODE}}")
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
                                 .await()
                             handshakePromise.await()
                         } catch (e: Exception) {
@@ -133,5 +143,10 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private var onDisconnected = {}
     fun setOnDisconnected(callback: () -> Unit) {
         onDisconnected = callback
+    }
+
+    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit = { _, _ -> }
+    fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
+        onVersionIncompatible = callback
     }
 }

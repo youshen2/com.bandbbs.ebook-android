@@ -46,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +71,8 @@ import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
+import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
+import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -112,7 +115,7 @@ fun MainScreen(
     val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
-
+    val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
@@ -132,6 +135,8 @@ fun MainScreen(
     val overwriteConfirmSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val connectionErrorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val editBookInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val versionIncompatibleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val syncReadingDataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     bookToDelete?.let { book ->
         AlertDialog(
@@ -153,42 +158,60 @@ fun MainScreen(
 
     
     if (syncReadingDataState.isSyncing || (syncReadingDataState.statusText.isNotEmpty() && !syncReadingDataState.isSyncing)) {
-        AlertDialog(
-            onDismissRequest = { 
-                if (!syncReadingDataState.isSyncing) {
-                    
-                    viewModel.clearSyncReadingDataState()
-                }
-            },
-            title = { Text("同步阅读数据") },
-            text = {
-                Column {
-                    Text(syncReadingDataState.statusText)
-                    if (syncReadingDataState.isSyncing && syncReadingDataState.totalBooks > 0) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "正在同步: ${syncReadingDataState.currentBook}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "进度: ${syncReadingDataState.syncedBooks}/${syncReadingDataState.totalBooks}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (!syncReadingDataState.isSyncing) {
-                    TextButton(onClick = { 
-                        viewModel.clearSyncReadingDataState()
-                    }) {
-                        Text("确定")
-                    }
-                }
+        LaunchedEffect(syncReadingDataState.isSyncing, syncReadingDataState.statusText) {
+            if (syncReadingDataState.isSyncing || syncReadingDataState.statusText.isNotEmpty()) {
+                syncReadingDataSheetState.show()
             }
-        )
+        }
+        ModalBottomSheet(
+            onDismissRequest = {
+                if (!syncReadingDataState.isSyncing) {
+                    scope.launch {
+                        syncReadingDataSheetState.hide()
+                        viewModel.clearSyncReadingDataState()
+                    }
+                }
+            },
+            sheetState = syncReadingDataSheetState
+        ) {
+            SyncReadingDataBottomSheet(
+                state = syncReadingDataState,
+                onDismiss = {
+                    if (!syncReadingDataState.isSyncing) {
+                        scope.launch {
+                            syncReadingDataSheetState.hide()
+                            viewModel.clearSyncReadingDataState()
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    versionIncompatibleState?.let { state ->
+        LaunchedEffect(state) {
+            versionIncompatibleSheetState.show()
+        }
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch {
+                    versionIncompatibleSheetState.hide()
+                    viewModel.dismissVersionIncompatible()
+                }
+            },
+            sheetState = versionIncompatibleSheetState
+        ) {
+            VersionIncompatibleBottomSheet(
+                currentVersion = state.currentVersion,
+                requiredVersion = state.requiredVersion,
+                onDismiss = {
+                    scope.launch {
+                        versionIncompatibleSheetState.hide()
+                        viewModel.dismissVersionIncompatible()
+                    }
+                }
+            )
+        }
     }
 
     if (pushState.book != null) {

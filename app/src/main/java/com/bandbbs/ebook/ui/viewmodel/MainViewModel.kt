@@ -111,10 +111,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _syncReadingDataState = MutableStateFlow(SyncReadingDataState())
     val syncReadingDataState = _syncReadingDataState.asStateFlow()
 
+    private val _versionIncompatibleState = MutableStateFlow<VersionIncompatibleState?>(null)
+    val versionIncompatibleState = _versionIncompatibleState.asStateFlow()
+
     private val connectionHandler = ConnectionHandler(
         scope = viewModelScope,
         connectionState = _connectionState,
-        connectionErrorState = _connectionErrorState
+        connectionErrorState = _connectionErrorState,
+        versionIncompatibleState = _versionIncompatibleState
     )
 
     private val categoryHandler = CategoryHandler(
@@ -722,6 +726,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSyncReadingDataState() {
         _syncReadingDataState.value = SyncReadingDataState()
+    }
+
+    fun dismissVersionIncompatible() {
+        _versionIncompatibleState.value = null
     }
 
     private val json = kotlinx.serialization.json.Json {
