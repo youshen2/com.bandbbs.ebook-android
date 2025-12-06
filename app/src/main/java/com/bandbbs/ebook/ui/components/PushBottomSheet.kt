@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bandbbs.ebook.ui.viewmodel.PushState
@@ -78,13 +77,13 @@ fun PushBottomSheet(
             } else {
                 pushState.transferLog
             }
-            
+
             LaunchedEffect(logEntries.size) {
                 if (logEntries.isNotEmpty()) {
                     listState.animateScrollToItem(logEntries.size - 1)
                 }
             }
-            
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -129,8 +128,8 @@ fun PushBottomSheet(
             modifier = Modifier.fillMaxWidth(),
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )
-        
-        
+
+
         if (pushState.isSendingCover && pushState.coverProgress.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(

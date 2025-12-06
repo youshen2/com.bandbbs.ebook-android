@@ -1,14 +1,25 @@
 package com.bandbbs.ebook.database
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 
 @Dao
 interface ChapterDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(chapters: List<Chapter>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChapter(chapter: Chapter): Long
+
+    @Update
+    suspend fun updateChapter(chapter: Chapter)
+
+    @Delete
+    suspend fun deleteChapters(chapters: List<Chapter>)
 
     @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY `index` ASC")
     suspend fun getChaptersForBook(bookId: Int): List<Chapter>
@@ -25,11 +36,20 @@ interface ChapterDao {
     @Query("SELECT id, bookId, `index`, name, wordCount FROM chapters WHERE bookId = :bookId AND `index` = :index LIMIT 1")
     suspend fun getChapterInfoByIndex(bookId: Int, index: Int): ChapterInfo?
 
+    @Query("SELECT * FROM chapters WHERE bookId = :bookId AND `index` = :index LIMIT 1")
+    suspend fun getChapterByBookAndIndex(bookId: Int, index: Int): Chapter?
+
     /**
      * 根据书籍ID和章节索引列表批量获取章节
      */
     @Query("SELECT * FROM chapters WHERE bookId = :bookId AND `index` IN (:indices) ORDER BY `index` ASC")
     suspend fun getChaptersByIndices(bookId: Int, indices: List<Int>): List<Chapter>
+
+    @Query("SELECT * FROM chapters WHERE id IN (:chapterIds) ORDER BY `index` ASC")
+    suspend fun getChaptersByIds(chapterIds: List<Int>): List<Chapter>
+
+    @Query("DELETE FROM chapters WHERE id IN (:chapterIds)")
+    suspend fun deleteChaptersByIds(chapterIds: List<Int>)
 
     @Query("SELECT COUNT(id) FROM chapters WHERE bookId = :bookId")
     suspend fun getChapterCountForBook(bookId: Int): Int

@@ -2,7 +2,6 @@ package com.bandbbs.ebook.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -94,7 +93,7 @@ fun AboutBottomSheet() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 Column {
                     Text(
                         "《喵喵电子书》开发人员",
@@ -108,7 +107,7 @@ fun AboutBottomSheet() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 Column {
                     Text(
                         "QQ交流群",
@@ -122,7 +121,7 @@ fun AboutBottomSheet() {
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                
+
                 Column {
                     Text(
                         "更多资源请访问",

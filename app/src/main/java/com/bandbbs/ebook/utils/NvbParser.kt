@@ -2,12 +2,12 @@ package com.bandbbs.ebook.utils
 
 import android.content.Context
 import android.net.Uri
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.GZIPInputStream
-import org.json.JSONObject
 
 /**
  * NVB 格式解析器
@@ -18,7 +18,7 @@ object NvbParser {
     private const val MAGIC_NUMBER = 0x114514AAu
     private const val VERSION = 1u
 
-    
+
     private val OBFUSCATION_KEY = byteArrayOf(
         0x11, 0x45, 0x14, 0xAA.toByte(), 0x5E, 0x7B, 0x9C.toByte(), 0x3F,
         0xE2.toByte(), 0x8D.toByte(), 0x6A, 0xF1.toByte(), 0x42, 0xB8.toByte(), 0x2D, 0xC9.toByte()
@@ -65,21 +65,27 @@ object NvbParser {
         val allBytes = inputStream.readBytes()
         var offset = 0
 
-        
+
         val magic = readUInt32(allBytes, offset)
         offset += 4
         if (magic != MAGIC_NUMBER) {
-            throw IllegalArgumentException("无效的NVB文件：魔数不匹配 (期望: ${MAGIC_NUMBER.toString(16)}, 实际: ${magic.toString(16)})")
+            throw IllegalArgumentException(
+                "无效的NVB文件：魔数不匹配 (期望: ${
+                    MAGIC_NUMBER.toString(
+                        16
+                    )
+                }, 实际: ${magic.toString(16)})"
+            )
         }
 
-        
+
         val version = readUInt32(allBytes, offset)
         offset += 4
         if (version != VERSION) {
             throw IllegalArgumentException("不支持的版本：$version")
         }
 
-        
+
         val metadataOriginalLen = readUInt32(allBytes, offset).toInt()
         offset += 4
         val metadataCompressedLen = readUInt32(allBytes, offset).toInt()
@@ -92,7 +98,7 @@ object NvbParser {
         val metadataJson = JSONObject(String(decompressedMetadata, Charsets.UTF_8))
         val metadata = parseMetadata(metadataJson)
 
-        
+
         val coverOriginalLen = readUInt32(allBytes, offset).toInt()
         offset += 4
         val coverCompressedLen = readUInt32(allBytes, offset).toInt()
@@ -106,28 +112,28 @@ object NvbParser {
             null
         }
 
-        
+
         val chapterCount = readUInt32(allBytes, offset).toInt()
         offset += 4
 
-        
+
         val chapters = mutableListOf<NvbChapter>()
         for (i in 0 until chapterCount) {
-            
+
             val titleLen = readUInt32(allBytes, offset).toInt()
             offset += 4
             val titleBytes = allBytes.copyOfRange(offset, offset + titleLen)
             offset += titleLen
             val title = String(titleBytes, Charsets.UTF_8)
 
-            
+
             val idLen = readUInt16(allBytes, offset).toInt()
             offset += 2
             val idBytes = allBytes.copyOfRange(offset, offset + idLen)
             offset += idLen
             val chapterId = String(idBytes, Charsets.UTF_8)
 
-            
+
             val originalLen = readUInt32(allBytes, offset).toInt()
             offset += 4
             val compressedLen = readUInt32(allBytes, offset).toInt()
@@ -135,7 +141,7 @@ object NvbParser {
             val wordCount = readUInt32(allBytes, offset).toInt()
             offset += 4
 
-            
+
             val compressedBytes = allBytes.copyOfRange(offset, offset + compressedLen)
             offset += compressedLen
             val deobfuscatedContent = deobfuscate(compressedBytes)
@@ -171,7 +177,8 @@ object NvbParser {
     private fun deobfuscate(data: ByteArray): ByteArray {
         val result = data.copyOf()
         for (i in result.indices) {
-            result[i] = (result[i].toInt() xor OBFUSCATION_KEY[i % OBFUSCATION_KEY.size].toInt()).toByte()
+            result[i] =
+                (result[i].toInt() xor OBFUSCATION_KEY[i % OBFUSCATION_KEY.size].toInt()).toByte()
         }
         return result
     }

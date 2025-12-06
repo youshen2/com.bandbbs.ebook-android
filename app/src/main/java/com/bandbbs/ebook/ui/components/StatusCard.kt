@@ -34,12 +34,12 @@ fun StatusCard(
     onClick: () -> Unit
 ) {
     val containerColor by animateColorAsState(
-        targetValue = if (isConnected) MaterialTheme.colorScheme.primaryContainer 
-                     else MaterialTheme.colorScheme.errorContainer,
+        targetValue = if (isConnected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.errorContainer,
         label = "StatusCardColor"
     )
-    val contentColor = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer 
-                      else MaterialTheme.colorScheme.onErrorContainer
+    val contentColor = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer
+    else MaterialTheme.colorScheme.onErrorContainer
     val icon: ImageVector = if (isConnected) Icons.Default.CheckCircle else Icons.Default.Error
 
     Card(

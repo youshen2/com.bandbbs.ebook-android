@@ -90,17 +90,17 @@ fun OverwriteConfirmBottomSheet(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 Text(
                     text = "已存在名为「$newBookName」的书籍",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface

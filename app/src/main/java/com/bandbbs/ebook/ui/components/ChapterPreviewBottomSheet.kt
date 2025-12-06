@@ -56,7 +56,7 @@ fun ChapterPreviewBottomSheet(chapter: ChapterWithContent) {
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -76,7 +76,7 @@ fun ChapterPreviewBottomSheet(chapter: ChapterWithContent) {
                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight.times(1.6f)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }

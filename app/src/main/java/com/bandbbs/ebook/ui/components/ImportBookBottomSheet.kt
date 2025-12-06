@@ -1,7 +1,6 @@
 package com.bandbbs.ebook.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,17 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -34,7 +28,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,14 +37,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.utils.ChapterSplitter
-import androidx.compose.foundation.layout.fillMaxWidth
 
 sealed class RenamePreviewResult {
     data class Success(val text: String) : RenamePreviewResult()
@@ -64,7 +54,7 @@ fun ImportBookBottomSheet(
     state: ImportState,
     categories: List<String>,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String) -> Unit,
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String, customRegex: String) -> Unit,
     onShowCategorySelector: () -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
@@ -77,7 +67,8 @@ fun ImportBookBottomSheet(
     var mergeMinWordsText by remember { mutableStateOf(state.mergeMinWords.toString()) }
     var enableChapterRename by remember { mutableStateOf(state.enableChapterRename) }
     var renamePattern by remember { mutableStateOf(state.renamePattern) }
-    
+    var customRegex by remember { mutableStateOf(state.customRegex) }
+
     val renamePreview = remember(renamePattern) {
         if (renamePattern.isBlank()) {
             null
@@ -105,7 +96,7 @@ fun ImportBookBottomSheet(
             }
         }
     }
-    
+
     androidx.compose.runtime.LaunchedEffect(state.selectedCategory) {
         selectedCategory = state.selectedCategory
     }
@@ -130,10 +121,22 @@ fun ImportBookBottomSheet(
                 fontWeight = FontWeight.SemiBold
             )
             TextButton(
-                onClick = { 
-                    val wordsPerChapter = wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
+                onClick = {
+                    val wordsPerChapter =
+                        wordsPerChapterText.toIntOrNull()?.coerceIn(100, 50000) ?: 5000
                     val mergeMinWords = mergeMinWordsText.toIntOrNull()?.coerceIn(100, 10000) ?: 500
-                    onConfirm(bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern) 
+                    onConfirm(
+                        bookName,
+                        splitMethod,
+                        noSplit,
+                        wordsPerChapter,
+                        selectedCategory,
+                        enableChapterMerge,
+                        mergeMinWords,
+                        enableChapterRename,
+                        renamePattern,
+                        customRegex
+                    )
                 },
                 enabled = bookName.isNotBlank()
             ) {
@@ -152,7 +155,7 @@ fun ImportBookBottomSheet(
             singleLine = true,
             shape = RoundedCornerShape(16.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
@@ -191,7 +194,7 @@ fun ImportBookBottomSheet(
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
@@ -204,7 +207,9 @@ fun ImportBookBottomSheet(
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { noSplit = !noSplit },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { noSplit = !noSplit },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -247,12 +252,12 @@ fun ImportBookBottomSheet(
                             .fillMaxWidth(),
                         readOnly = true,
                         enabled = !noSplit,
-                        trailingIcon = { 
+                        trailingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.ExpandMore,
                                 contentDescription = null,
                                 tint = if (noSplit) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         shape = RoundedCornerShape(16.dp),
@@ -265,18 +270,20 @@ fun ImportBookBottomSheet(
                     ) {
                         ChapterSplitter.methods.forEach { (key, value) ->
                             DropdownMenuItem(
-                                text = { 
+                                text = {
                                     Text(
                                         value,
                                         style = MaterialTheme.typography.bodyMedium
-                                    ) 
+                                    )
                                 },
                                 onClick = {
                                     splitMethod = key
                                     showSplitMethodMenu = false
                                 },
                                 modifier = Modifier.background(
-                                    if (splitMethod == key) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                                    if (splitMethod == key) MaterialTheme.colorScheme.secondaryContainer.copy(
+                                        alpha = 0.3f
+                                    )
                                     else Color.Transparent
                                 )
                             )
@@ -284,12 +291,12 @@ fun ImportBookBottomSheet(
                     }
                 }
             }
-            
+
             if (!noSplit && splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = wordsPerChapterText,
-                    onValueChange = { 
+                    onValueChange = {
                         if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                             wordsPerChapterText = it
                         }
@@ -302,7 +309,54 @@ fun ImportBookBottomSheet(
                     supportingText = { Text("范围: 100 - 50000 字") }
                 )
             }
-            
+
+            if (!noSplit && splitMethod == ChapterSplitter.METHOD_CUSTOM) {
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.runtime.LaunchedEffect(splitMethod) {
+                    if (splitMethod == ChapterSplitter.METHOD_CUSTOM && customRegex.isBlank()) {
+                        customRegex = """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$"""
+                    }
+                }
+                var regexError by remember { mutableStateOf<String?>(null) }
+                OutlinedTextField(
+                    value = customRegex,
+                    onValueChange = {
+                        customRegex = it
+                        regexError = try {
+                            if (it.isNotBlank()) {
+                                Regex(it)
+                                null
+                            } else {
+                                null
+                            }
+                        } catch (e: Exception) {
+                            "正则表达式格式错误: ${e.message}"
+                        }
+                    },
+                    label = { Text("自定义正则表达式") },
+                    placeholder = { Text("请输入正则表达式") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(16.dp),
+                    supportingText = {
+                        Column {
+                            Text("用于匹配章节标题的正则表达式")
+                            if (regexError != null) {
+                                Text(
+                                    regexError!!,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    isError = regexError != null
+                )
+            }
+
             if (!noSplit) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
@@ -312,10 +366,11 @@ fun ImportBookBottomSheet(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) 
-                            "系统将按指定字数自动分章" 
-                        else 
-                            "系统将根据所选方式自动识别章节标题并分章",
+                        text = when {
+                            splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT -> "系统将按指定字数自动分章"
+                            splitMethod == ChapterSplitter.METHOD_CUSTOM -> "系统将使用自定义正则表达式识别章节标题并分章"
+                            else -> "系统将根据所选方式自动识别章节标题并分章"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(12.dp)
@@ -338,20 +393,22 @@ fun ImportBookBottomSheet(
                         modifier = Modifier.padding(12.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 Text(
                     text = "章节处理",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { enableChapterMerge = !enableChapterMerge },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { enableChapterMerge = !enableChapterMerge },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -371,12 +428,12 @@ fun ImportBookBottomSheet(
                         )
                     }
                 }
-                
+
                 if (enableChapterMerge) {
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = mergeMinWordsText,
-                        onValueChange = { 
+                        onValueChange = {
                             if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                                 mergeMinWordsText = it
                             }
@@ -389,11 +446,13 @@ fun ImportBookBottomSheet(
                         supportingText = { Text("字数少于此值的章节将被合并") }
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { enableChapterRename = !enableChapterRename },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { enableChapterRename = !enableChapterRename },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -413,7 +472,7 @@ fun ImportBookBottomSheet(
                         )
                     }
                 }
-                
+
                 if (enableChapterRename) {
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -426,12 +485,15 @@ fun ImportBookBottomSheet(
                         minLines = 2,
                         maxLines = 4,
                         shape = RoundedCornerShape(16.dp),
-                        supportingText = { 
+                        supportingText = {
                             Column {
                                 Text("格式: 查找模式 -> 替换文本")
-                                Text("支持正则表达式，使用 $1, $2 等引用捕获组", 
+                                Text(
+                                    "支持正则表达式，使用 $1, $2 等引用捕获组",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.7f
+                                        )
                                     )
                                 )
                                 renamePreview?.let { preview ->
@@ -444,6 +506,7 @@ fun ImportBookBottomSheet(
                                                 )
                                             )
                                         }
+
                                         is RenamePreviewResult.Error -> {
                                             Text(
                                                 preview.text,

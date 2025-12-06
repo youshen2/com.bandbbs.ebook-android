@@ -40,8 +40,8 @@ object EpubParser {
      */
     private fun parseFromInputStream(inputStream: InputStream): EpubBook {
         val zipEntries = mutableMapOf<String, ByteArray>()
-        
-        
+
+
         ZipInputStream(inputStream).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {
@@ -54,24 +54,24 @@ object EpubParser {
             }
         }
 
-        
+
         val containerXml = zipEntries["META-INF/container.xml"]
             ?: throw IllegalArgumentException("无效的EPUB文件：缺少container.xml")
         val opfPath = parseContainerXml(containerXml)
 
-        
+
         val opfContent = zipEntries[opfPath]
             ?: throw IllegalArgumentException("无效的EPUB文件：找不到$opfPath")
         val opfDir = opfPath.substringBeforeLast('/', "")
         val (metadata, spine, coverItemId) = parseOpf(opfContent)
 
-        
+
         val coverImage = coverItemId?.let { itemId ->
             val coverPath = if (opfDir.isNotEmpty()) "$opfDir/$itemId" else itemId
             zipEntries[coverPath]
         }
 
-        
+
         val chapters = spine.mapNotNull { itemId ->
             val itemPath = if (opfDir.isNotEmpty()) "$opfDir/$itemId" else itemId
             zipEntries[itemPath]?.let { content ->
@@ -117,9 +117,9 @@ object EpubParser {
         parser.setInput(opfBytes.inputStream(), "UTF-8")
 
         val metadata = mutableMapOf<String, String>()
-        val manifest = mutableMapOf<String, String>() 
-        val manifestProperties = mutableMapOf<String, String>() 
-        val spine = mutableListOf<String>() 
+        val manifest = mutableMapOf<String, String>()
+        val manifestProperties = mutableMapOf<String, String>()
+        val spine = mutableListOf<String>()
         var coverItemId: String? = null
 
         var eventType = parser.eventType
@@ -142,6 +142,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "dc:creator", "creator" -> {
                             if (inMetadata) {
                                 parser.next()
@@ -150,6 +151,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "meta" -> {
                             if (inMetadata) {
                                 val name = parser.getAttributeValue(null, "name")
@@ -159,6 +161,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "item" -> {
                             if (inManifest) {
                                 val id = parser.getAttributeValue(null, "id")
@@ -168,7 +171,7 @@ object EpubParser {
                                     manifest[id] = href
                                     if (properties != null) {
                                         manifestProperties[id] = properties
-                                        
+
                                         if (properties.contains("cover-image")) {
                                             coverItemId = id
                                         }
@@ -176,6 +179,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "itemref" -> {
                             if (inSpine) {
                                 val idref = parser.getAttributeValue(null, "idref")
@@ -188,6 +192,7 @@ object EpubParser {
                         }
                     }
                 }
+
                 XmlPullParser.END_TAG -> {
                     when (parser.name) {
                         "metadata" -> inMetadata = false
@@ -199,13 +204,13 @@ object EpubParser {
             eventType = parser.next()
         }
 
-        
+
         if (coverItemId == null) {
             coverItemId = manifest.entries.find { (id, href) ->
-                href.contains("cover", ignoreCase = true) && 
-                (href.endsWith(".jpg", ignoreCase = true) || 
-                 href.endsWith(".jpeg", ignoreCase = true) || 
-                 href.endsWith(".png", ignoreCase = true))
+                href.contains("cover", ignoreCase = true) &&
+                        (href.endsWith(".jpg", ignoreCase = true) ||
+                                href.endsWith(".jpeg", ignoreCase = true) ||
+                                href.endsWith(".png", ignoreCase = true))
             }?.key
         }
 
@@ -218,34 +223,112 @@ object EpubParser {
      */
     private fun parseHtmlChapter(htmlBytes: ByteArray): EpubChapter {
         val htmlContent = String(htmlBytes, Charsets.UTF_8)
-        
-        
+
+
         val title = extractTitle(htmlContent)
+
+
+        var content = extractTextContent(htmlContent)
         
         
-        val content = extractTextContent(htmlContent)
+        content = removeTitleFromContent(content, title)
+        
+        
+        content = normalizeContentStart(content)
+        
         val wordCount = content.length
 
         return EpubChapter(title, content, wordCount)
+    }
+    
+    /**
+     * 从内容中删除前三行可能存在的章节标题
+     */
+    private fun removeTitleFromContent(content: String, title: String): String {
+        if (title == "未命名章节" || title.isBlank()) {
+            return content
+        }
+        
+        val lines = content.lines()
+        if (lines.isEmpty()) {
+            return content
+        }
+        
+        
+        val titleTrimmed = title.trim()
+        val titleNormalized = titleTrimmed.replace(Regex("\\s+"), " ")
+        
+        val filteredLines = mutableListOf<String>()
+        var removedCount = 0
+        
+        
+        for (i in lines.indices) {
+            if (i < 3 && removedCount < 3) {
+                val line = lines[i].trim()
+                
+                
+                if (line.isEmpty()) {
+                    filteredLines.add(lines[i])
+                    continue
+                }
+                
+                
+                val isTitleLine = line == titleTrimmed || 
+                                 line == titleNormalized ||
+                                 line.contains(titleTrimmed, ignoreCase = true) ||
+                                 titleTrimmed.contains(line, ignoreCase = true) ||
+                                 
+                                 (line.length > 3 && titleTrimmed.length > 3 && 
+                                  (line.substring(0, minOf(10, line.length)) == titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) ||
+                                   titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) == line.substring(0, minOf(10, line.length))))
+                
+                if (isTitleLine) {
+                    removedCount++
+                    continue
+                }
+            }
+            filteredLines.add(lines[i])
+        }
+        
+        return filteredLines.joinToString("\n")
+    }
+    
+    /**
+     * 规范化内容开头，确保只有一个换行
+     */
+    private fun normalizeContentStart(content: String): String {
+        if (content.isBlank()) {
+            return content
+        }
+        
+        
+        val trimmed = content.trimStart()
+        
+        
+        return if (trimmed.isNotEmpty()) {
+            "\n$trimmed"
+        } else {
+            trimmed
+        }
     }
 
     /**
      * 提取标题
      */
     private fun extractTitle(html: String): String {
-        
+
         val titleRegex = Regex("<title[^>]*>([^<]+)</title>", RegexOption.IGNORE_CASE)
         titleRegex.find(html)?.let {
             return it.groupValues[1].trim()
         }
 
-        
+
         val h1Regex = Regex("<h1[^>]*>([^<]+)</h1>", RegexOption.IGNORE_CASE)
         h1Regex.find(html)?.let {
             return it.groupValues[1].trim()
         }
 
-        
+
         val h2Regex = Regex("<h2[^>]*>([^<]+)</h2>", RegexOption.IGNORE_CASE)
         h2Regex.find(html)?.let {
             return it.groupValues[1].trim()
@@ -258,25 +341,35 @@ object EpubParser {
      * 提取文本内容（移除 HTML 标签）
      */
     private fun extractTextContent(html: String): String {
-        
-        var text = html.replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
-        text = text.replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
-        
-        
+
+        var text = html.replace(
+            Regex(
+                "<script[^>]*>.*?</script>",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            ), ""
+        )
+        text = text.replace(
+            Regex(
+                "<style[^>]*>.*?</style>",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            ), ""
+        )
+
+
         text = text.replace(Regex("<[^>]+>"), " ")
-        
-        
+
+
         text = text.replace("&nbsp;", " ")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
-        
-        
+
+
         text = text.replace(Regex("[ \\t]+"), " ")
         text = text.replace(Regex("\\n\\s*\\n+"), "\n\n")
-        
+
         return text.trim()
     }
 

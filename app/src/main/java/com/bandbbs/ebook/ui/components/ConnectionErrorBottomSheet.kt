@@ -42,7 +42,7 @@ fun ConnectionErrorBottomSheet(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (isUnsupportedDevice) {
-            
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -120,7 +120,7 @@ fun ConnectionErrorBottomSheet(
                 }
             }
         } else {
-            
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -235,9 +235,9 @@ private fun CheckItem(
     ) {
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = if (isImportant) 
-                    MaterialTheme.colorScheme.error 
-                else 
+                containerColor = if (isImportant)
+                    MaterialTheme.colorScheme.error
+                else
                     MaterialTheme.colorScheme.primary
             ),
             shape = RoundedCornerShape(12.dp)

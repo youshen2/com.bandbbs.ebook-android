@@ -9,7 +9,7 @@ data class BookEntity(
     val name: String,
     val path: String,
     val size: Long,
-    val format: String = "txt", 
+    val format: String = "txt",
     val coverImagePath: String? = null,
     val author: String? = null,
     val summary: String? = null,

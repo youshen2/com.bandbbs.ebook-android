@@ -63,7 +63,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             if (newCount < 3) {
                 scope.launch {
                     try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":${BuildConfig.VERSION_CODE}}").await()
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":${BuildConfig.VERSION_CODE}}")
+                            .await()
                     } catch (e: Exception) {
                         Log.e("Handshake", "Failed to send handshake reply", e)
                     }
@@ -103,7 +104,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             connected = true
                         }
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":${BuildConfig.VERSION_CODE}}").await()
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":${BuildConfig.VERSION_CODE}}")
+                                .await()
                             handshakePromise.await()
                         } catch (e: Exception) {
                             cpe(e)

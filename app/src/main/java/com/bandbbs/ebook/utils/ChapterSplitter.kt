@@ -14,6 +14,7 @@ object ChapterSplitter {
     const val METHOD_ZH_NUM_DOT = "METHOD_ZH_NUM_DOT"
     const val METHOD_DIGIT_DOT = "METHOD_DIGIT_DOT"
     const val METHOD_BY_WORD_COUNT = "METHOD_BY_WORD_COUNT"
+    const val METHOD_CUSTOM = "METHOD_CUSTOM"
 
     val methods = mapOf(
         METHOD_DEFAULT to "默认 (第X章/卷/节/部/篇/回/番外…)",
@@ -21,7 +22,8 @@ object ChapterSplitter {
         METHOD_CHAPTER to "英文 (Chapter X)",
         METHOD_ZH_NUM_DOT to "中文数字 (一、 二.)",
         METHOD_DIGIT_DOT to "阿拉伯数字 (1. 2、)",
-        METHOD_BY_WORD_COUNT to "按字数分章"
+        METHOD_BY_WORD_COUNT to "按字数分章",
+        METHOD_CUSTOM to "自定义正则表达式"
     )
 
     private val regexDefault =
@@ -38,18 +40,32 @@ object ChapterSplitter {
         bookId: Int,
         method: String,
         onProgress: (progress: Float, status: String) -> Unit,
-        wordsPerChapter: Int = 5000
+        wordsPerChapter: Int = 5000,
+        customRegex: String? = null
     ): List<Chapter> {
-        
+
         if (method == METHOD_BY_WORD_COUNT) {
             return splitByWordCount(context, uri, bookId, onProgress, wordsPerChapter)
         }
-        
+
         val regex = when (method) {
             METHOD_CHAPTER -> regexChapter
             METHOD_DEFAULT_LOOSE -> regexDefaultLoose
             METHOD_ZH_NUM_DOT -> regexZhNumDot
             METHOD_DIGIT_DOT -> regexDigitDot
+            METHOD_CUSTOM -> {
+                if (customRegex != null && customRegex.isNotBlank()) {
+                    try {
+                        Regex(customRegex)
+                    } catch (e: Exception) {
+                        onProgress(0f, "自定义正则表达式格式错误，使用默认表达式")
+                        regexDefault
+                    }
+                } else {
+                    onProgress(0f, "未提供自定义正则表达式，使用默认表达式")
+                    regexDefault
+                }
+            }
             else -> regexDefault
         }
 
@@ -142,7 +158,7 @@ object ChapterSplitter {
         onProgress(0.95f, "分章完成, 共 ${chapters.size} 章")
         return chapters
     }
-    
+
     private fun splitByWordCount(
         context: Context,
         uri: Uri,
@@ -153,16 +169,16 @@ object ChapterSplitter {
         onProgress(0f, "正在读取文件...")
         val content = readTextFromUri(context, uri)
         onProgress(0.2f, "正在按字数分章...")
-        
+
         val chapters = mutableListOf<Chapter>()
         val totalLength = content.length
         var chapterIndex = 0
         var startIndex = 0
-        
+
         while (startIndex < totalLength) {
             val endIndex = (startIndex + wordsPerChapter).coerceAtMost(totalLength)
             val chapterContent = content.substring(startIndex, endIndex).trim()
-            
+
             if (chapterContent.isNotEmpty()) {
                 val contentFilePath = ChapterContentManager.saveChapterContent(
                     context, bookId, chapterIndex, chapterContent
@@ -178,15 +194,15 @@ object ChapterSplitter {
                 )
                 chapterIndex++
             }
-            
+
             startIndex = endIndex
-            
+
             onProgress(
                 0.2f + 0.75f * (startIndex.toFloat() / totalLength),
                 "正在分章: ${chapterIndex} 章"
             )
         }
-        
+
         onProgress(0.95f, "分章完成, 共 ${chapters.size} 章")
         return chapters
     }

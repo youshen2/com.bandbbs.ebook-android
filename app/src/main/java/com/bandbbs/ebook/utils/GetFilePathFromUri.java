@@ -85,8 +85,7 @@ public class GetFilePathFromUri {
             } else {
                 return getDataColumn(context, imageUri, null, null);
             }
-        }
-        else if ("file".equalsIgnoreCase(imageUri.getScheme())) {
+        } else if ("file".equalsIgnoreCase(imageUri.getScheme())) {
             return imageUri.getPath();
         }
         return null;

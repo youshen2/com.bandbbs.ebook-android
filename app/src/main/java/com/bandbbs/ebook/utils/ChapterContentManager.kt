@@ -2,20 +2,21 @@ package com.bandbbs.ebook.utils
 
 import android.content.Context
 import java.io.File
+import java.util.UUID
 
 /**
  * 章节内容管理器
  * 负责章节内容的文件存储和读取,避免数据库CursorWindow 2MB限制
  */
 object ChapterContentManager {
-    
+
     /**
      * 获取章节内容存储目录
      */
     fun getChaptersDir(context: Context): File {
         return File(context.filesDir, "chapters").apply { mkdirs() }
     }
-    
+
     /**
      * 保存章节内容到文件
      * @param context 上下文
@@ -24,14 +25,32 @@ object ChapterContentManager {
      * @param content 章节内容
      * @return 章节内容文件路径
      */
-    fun saveChapterContent(context: Context, bookId: Int, chapterIndex: Int, content: String): String {
+    fun saveChapterContent(
+        context: Context,
+        bookId: Int,
+        chapterIndex: Int,
+        content: String
+    ): String {
         val chaptersDir = getChaptersDir(context)
         val bookDir = File(chaptersDir, "book_$bookId").apply { mkdirs() }
-        val chapterFile = File(bookDir, "chapter_$chapterIndex.txt")
+        val chapterFile = generateChapterFile(bookDir, chapterIndex)
         chapterFile.writeText(content)
         return chapterFile.absolutePath
     }
-    
+
+    private fun generateChapterFile(bookDir: File, chapterIndex: Int): File {
+        var suffix = ""
+        var attempt = 0
+        var candidate: File
+        do {
+            val uniqueSegment = if (attempt == 0) "" else "_${UUID.randomUUID()}"
+            candidate = File(bookDir, "chapter_${chapterIndex}${suffix}${uniqueSegment}.txt")
+            attempt++
+            suffix = "_$attempt"
+        } while (candidate.exists())
+        return candidate
+    }
+
     /**
      * 读取章节内容
      * @param filePath 章节内容文件路径
@@ -45,7 +64,7 @@ object ChapterContentManager {
             ""
         }
     }
-    
+
     /**
      * 删除书籍的所有章节内容文件
      * @param context 上下文
@@ -58,7 +77,7 @@ object ChapterContentManager {
             bookDir.deleteRecursively()
         }
     }
-    
+
     /**
      * 删除单个章节内容文件
      * @param filePath 章节内容文件路径

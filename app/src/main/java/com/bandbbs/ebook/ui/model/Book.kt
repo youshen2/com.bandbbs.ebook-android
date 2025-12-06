@@ -1,6 +1,7 @@
 package com.bandbbs.ebook.ui.model
 
 data class Book(
+    val id: Int, 
     val name: String,
     val path: String,
     val size: Long,
@@ -8,5 +9,6 @@ data class Book(
     val syncedChapterCount: Int = 0,
     val wordCount: Long = 0,
     val coverImagePath: String? = null,
-    val localCategory: String? = null
+    val localCategory: String? = null,
+    val lastReadInfo: String? = null 
 )
