@@ -22,6 +22,7 @@ class ConnectionHandler(
 
     private var interHandshake: InterHandshake? = null
     private var fileConnection: InterconnetFile? = null
+    var onBandConnected: ((String) -> Unit)? = null
 
     fun setConnection(connection: InterHandshake) {
         interHandshake = connection
@@ -51,6 +52,10 @@ class ConnectionHandler(
         return connectionState.value.isConnected
     }
 
+    fun getDeviceName(): String? {
+        return connectionState.value.deviceName
+    }
+
     fun reconnect() {
         val connection = interHandshake ?: return
         scope.launch {
@@ -58,7 +63,8 @@ class ConnectionHandler(
                 it.copy(
                     statusText = "手环连接中",
                     descriptionText = "请确保小米运动健康后台运行",
-                    isConnected = false
+                    isConnected = false,
+                    deviceName = null
                 )
             }
             try {
@@ -74,7 +80,8 @@ class ConnectionHandler(
                             it.copy(
                                 statusText = "设备不受支持",
                                 descriptionText = "$deviceName 不受支持",
-                                isConnected = false
+                                isConnected = false,
+                                deviceName = deviceName
                             )
                         }
                         delay(300)
@@ -88,26 +95,28 @@ class ConnectionHandler(
                     connection.auth().await()
                     try {
                         if (!connection.getAppState().await()) {
-                            connectionState.update {
-                                it.copy(
-                                    statusText = "弦电子书未安装",
-                                    descriptionText = "请在手环上安装小程序",
-                                    isConnected = false
-                                )
-                            }
-                            delay(300)
-                            connectionErrorState.value = ConnectionErrorState(
-                                deviceName = deviceName,
-                                isUnsupportedDevice = false
+                        connectionState.update {
+                            it.copy(
+                                statusText = "弦电子书未安装",
+                                descriptionText = "请在手环上安装小程序",
+                                isConnected = false,
+                                deviceName = deviceName
                             )
-                            return@withTimeout
                         }
+                        delay(300)
+                        connectionErrorState.value = ConnectionErrorState(
+                            deviceName = deviceName,
+                            isUnsupportedDevice = false
+                        )
+                        return@withTimeout
+                    }
                     } catch (_: Exception) {
                         connectionState.update {
                             it.copy(
                                 statusText = "弦电子书未安装",
                                 descriptionText = "请在手环上安装小程序",
-                                isConnected = false
+                                isConnected = false,
+                                deviceName = deviceName
                             )
                         }
                         delay(300)
@@ -123,9 +132,12 @@ class ConnectionHandler(
                         it.copy(
                             statusText = "设备连接成功",
                             descriptionText = "$deviceName 已连接",
-                            isConnected = true
+                            isConnected = true,
+                            deviceName = deviceName
                         )
                     }
+                    
+                    onBandConnected?.invoke(deviceName)
                 }
             } catch (_: TimeoutCancellationException) {
                 Log.e("MainViewModel", "connect timeout")
@@ -133,7 +145,8 @@ class ConnectionHandler(
                     it.copy(
                         statusText = "手环连接失败",
                         descriptionText = "连接超时",
-                        isConnected = false
+                        isConnected = false,
+                        deviceName = null
                     )
                 }
                 delay(300)
@@ -147,7 +160,8 @@ class ConnectionHandler(
                     it.copy(
                         statusText = "手环连接失败",
                         descriptionText = e.message ?: "未知错误",
-                        isConnected = false
+                        isConnected = false,
+                        deviceName = null
                     )
                 }
                 delay(300)

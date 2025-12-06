@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
         (application as App).conn = conn
         viewModel.setConnection(conn)
 
+        
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 val chapterListSheetState = rememberModalBottomSheetState()
 
-                
+
                 val isReaderOpen = chapterToPreview != null
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -98,7 +99,7 @@ class MainActivity : ComponentActivity() {
                         targetState = isReaderOpen,
                         transitionSpec = {
                             if (targetState) {
-                                
+
                                 slideInHorizontally(
                                     initialOffsetX = { it },
                                     animationSpec = tween(300)
@@ -108,7 +109,7 @@ class MainActivity : ComponentActivity() {
                                             animationSpec = tween(300)
                                         ) + fadeOut(animationSpec = tween(300))
                             } else {
-                                
+
                                 slideInHorizontally(
                                     initialOffsetX = { -it / 3 },
                                     animationSpec = tween(300)
@@ -131,11 +132,11 @@ class MainActivity : ComponentActivity() {
                                     viewModel.showChapterPreview(chapterId)
                                 },
                                 onTableOfContents = {
-                                    
+
                                     val currentChapter = viewModel.chapterToPreview.value
                                     if (currentChapter != null) {
-                                        
-                                        
+
+
                                         val bookId =
                                             viewModel.chaptersForPreview.value.firstOrNull()?.bookId
                                         if (bookId != null) {
@@ -177,9 +178,9 @@ class MainActivity : ComponentActivity() {
                             ChapterListBottomSheet(
                                 book = book,
                                 chapters = chaptersForSelectedBook,
-                                readOnly = isReaderOpen, 
+                                readOnly = isReaderOpen,
                                 onPreviewChapter = { chapterId ->
-                                    
+
                                     scope.launch {
                                         chapterListSheetState.hide()
                                         viewModel.closeChapterList()

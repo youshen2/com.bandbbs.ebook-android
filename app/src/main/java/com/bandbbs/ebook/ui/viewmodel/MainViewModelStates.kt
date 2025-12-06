@@ -7,7 +7,8 @@ import com.bandbbs.ebook.ui.model.Book
 data class ConnectionState(
     val statusText: String = "手环连接中",
     val descriptionText: String = "请确保小米运动健康后台运行",
-    val isConnected: Boolean = false
+    val isConnected: Boolean = false,
+    val deviceName: String? = null
 )
 
 data class ConnectionErrorState(
@@ -100,3 +101,17 @@ data class VersionIncompatibleState(
     val requiredVersion: Int
 )
 
+data class UpdateCheckState(
+    val isChecking: Boolean = false,
+    val updateInfo: com.bandbbs.ebook.utils.VersionChecker.UpdateInfo? = null,
+    val updateInfoList: List<com.bandbbs.ebook.utils.VersionChecker.UpdateInfo> = emptyList(),
+    val errorMessage: String? = null,
+    val deviceName: String? = null,
+    val showSheet: Boolean = false,
+    val isAutoCheck: Boolean = false
+)
+
+data class IpCollectionPermissionState(
+    val showSheet: Boolean = false,
+    val isFirstTime: Boolean = true
+)
