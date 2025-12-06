@@ -165,11 +165,13 @@ fun MainScreen(
         }
         ModalBottomSheet(
             onDismissRequest = {
-                if (!syncReadingDataState.isSyncing) {
-                    scope.launch {
-                        syncReadingDataSheetState.hide()
-                        viewModel.clearSyncReadingDataState()
-                    }
+                if (syncReadingDataState.isSyncing) {
+                    
+                    viewModel.cancelSyncReadingData()
+                }
+                scope.launch {
+                    syncReadingDataSheetState.hide()
+                    viewModel.clearSyncReadingDataState()
                 }
             },
             sheetState = syncReadingDataSheetState
@@ -177,11 +179,13 @@ fun MainScreen(
             SyncReadingDataBottomSheet(
                 state = syncReadingDataState,
                 onDismiss = {
-                    if (!syncReadingDataState.isSyncing) {
-                        scope.launch {
-                            syncReadingDataSheetState.hide()
-                            viewModel.clearSyncReadingDataState()
-                        }
+                    if (syncReadingDataState.isSyncing) {
+                        
+                        viewModel.cancelSyncReadingData()
+                    }
+                    scope.launch {
+                        syncReadingDataSheetState.hide()
+                        viewModel.clearSyncReadingDataState()
                     }
                 }
             )

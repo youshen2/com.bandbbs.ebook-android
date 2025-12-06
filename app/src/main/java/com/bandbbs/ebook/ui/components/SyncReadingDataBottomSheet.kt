@@ -20,11 +20,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,12 +47,11 @@ fun SyncReadingDataBottomSheet(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = if (state.isSyncing)
-                    MaterialTheme.colorScheme.primaryContainer
-                else if (state.statusText.contains("失败", ignoreCase = true))
-                    MaterialTheme.colorScheme.errorContainer
-                else
-                    MaterialTheme.colorScheme.primaryContainer
+                containerColor = when {
+                    state.isSyncing -> MaterialTheme.colorScheme.primaryContainer
+                    state.statusText.contains("失败", ignoreCase = true) -> MaterialTheme.colorScheme.errorContainer
+                    else -> MaterialTheme.colorScheme.primaryContainer
+                }
             ),
             shape = RoundedCornerShape(20.dp)
         ) {
@@ -62,25 +61,29 @@ fun SyncReadingDataBottomSheet(
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (state.isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                } else if (state.statusText.contains("失败", ignoreCase = true)) {
-                    Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                when {
+                    state.isSyncing -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    state.statusText.contains("失败", ignoreCase = true) -> {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier.padding(start = 16.dp)
@@ -89,18 +92,20 @@ fun SyncReadingDataBottomSheet(
                         text = "同步阅读数据",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Medium,
-                        color = if (state.statusText.contains("失败", ignoreCase = true))
-                            MaterialTheme.colorScheme.onErrorContainer
-                        else
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                        color = when {
+                            state.statusText.contains("失败", ignoreCase = true) -> 
+                                MaterialTheme.colorScheme.onErrorContainer
+                            else -> MaterialTheme.colorScheme.onPrimaryContainer
+                        }
                     )
                     Text(
                         text = if (state.isSyncing) "正在同步中..." else state.statusText,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (state.statusText.contains("失败", ignoreCase = true))
-                            MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                        else
-                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        color = when {
+                            state.statusText.contains("失败", ignoreCase = true) -> 
+                                MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                            else -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        }
                     )
                 }
             }
@@ -213,24 +218,26 @@ fun SyncReadingDataBottomSheet(
                 }
             }
         }
-
         
         if (!state.isSyncing) {
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("确定")
             }
         } else {
-            TextButton(
+            FilledTonalButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("取消")
             }
         }
-
+        
+        Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }

@@ -24,10 +24,12 @@ import com.bandbbs.ebook.utils.NvbParser
 import android.net.Uri
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -110,6 +112,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _syncReadingDataState = MutableStateFlow(SyncReadingDataState())
     val syncReadingDataState = _syncReadingDataState.asStateFlow()
+    
+    private var syncReadingDataJob: Job? = null
 
     private val _versionIncompatibleState = MutableStateFlow<VersionIncompatibleState?>(null)
     val versionIncompatibleState = _versionIncompatibleState.asStateFlow()
@@ -502,7 +506,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        
+        syncReadingDataJob?.cancel()
+        
+        syncReadingDataJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val allBooks = _books.value
                 if (allBooks.isEmpty()) {
@@ -530,6 +537,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 var syncedCount = 0
 
                 for ((index, book) in allBooks.withIndex()) {
+                    
+                    if (!isActive) {
+                        withContext(Dispatchers.Main) {
+                            _syncReadingDataState.value = SyncReadingDataState(
+                                isSyncing = false,
+                                statusText = "同步已取消",
+                                progress = 0f
+                            )
+                        }
+                        return@launch
+                    }
+                    
                     withContext(Dispatchers.Main) {
                         _syncReadingDataState.value = _syncReadingDataState.value.copy(
                             currentBook = book.name,
@@ -712,16 +731,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to sync reading data", e)
-                withContext(Dispatchers.Main) {
-                    _syncReadingDataState.value = SyncReadingDataState(
-                        isSyncing = false,
-                        statusText = "同步失败: ${e.message}",
-                        progress = 0f
-                    )
+                if (e is kotlinx.coroutines.CancellationException) {
+                    
+                    withContext(Dispatchers.Main) {
+                        _syncReadingDataState.value = SyncReadingDataState(
+                            isSyncing = false,
+                            statusText = "同步已取消",
+                            progress = 0f
+                        )
+                    }
+                } else {
+                    Log.e("MainViewModel", "Failed to sync reading data", e)
+                    withContext(Dispatchers.Main) {
+                        _syncReadingDataState.value = SyncReadingDataState(
+                            isSyncing = false,
+                            statusText = "同步失败: ${e.message}",
+                            progress = 0f
+                        )
+                    }
                 }
+            } finally {
+                syncReadingDataJob = null
             }
         }
+    }
+
+    fun cancelSyncReadingData() {
+        syncReadingDataJob?.cancel()
+        syncReadingDataJob = null
     }
 
     fun clearSyncReadingDataState() {
