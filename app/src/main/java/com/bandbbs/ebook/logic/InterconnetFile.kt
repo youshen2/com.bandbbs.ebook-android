@@ -16,6 +16,11 @@ import kotlinx.serialization.json.Json
 
 data class BookStatusResult(val syncedChapters: List<Int>, val hasCover: Boolean)
 
+data class ReadingDataResult(
+    val progress: String? = null,
+    val readingTime: String? = null
+)
+
 class InterconnetFile(private val conn: InterHandshake) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -40,6 +45,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var currentChapterIndexInBook: Int = 0
     private var currentChapterIndexInSlicedList: Int = 0
     private var bookStatusCompleter: CompletableDeferred<BookStatusResult>? = null
+    private var readingDataCompleter: CompletableDeferred<FileMessagesFromDevice.ReadingData>? = null
     private var transferStartChapterIndex: Int = 0
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()
@@ -60,6 +66,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         currentChapterIndexInSlicedList = 0
         bookStatusCompleter?.cancel()
         bookStatusCompleter = null
+        readingDataCompleter?.cancel()
+        readingDataCompleter = null
         transferStartChapterIndex = 0
         chapterIndexMap = emptyMap()
         coverImageChunks = emptyList()
@@ -194,6 +202,13 @@ class InterconnetFile(private val conn: InterHandshake) {
                         bookStatusCompleter = null
                     }
 
+                    "reading_data" -> {
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.ReadingData>(it)
+                        readingDataCompleter?.complete(jsonMessage)
+                        readingDataCompleter = null
+                    }
+
                     "usuage" -> TODO()
                 }
             } catch (e: Exception) {
@@ -211,6 +226,36 @@ class InterconnetFile(private val conn: InterHandshake) {
         val result = bookStatusCompleter!!.await()
         bookStatusCompleter = null
         return result
+    }
+
+    suspend fun getReadingData(bookName: String): ReadingDataResult {
+        conn.init()
+        delay(500L)
+        readingDataCompleter = CompletableDeferred()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetReadingData(filename = bookName)))
+            .await()
+        val result = readingDataCompleter!!.await()
+        readingDataCompleter = null
+        return ReadingDataResult(
+            progress = result.progress,
+            readingTime = result.readingTime
+        )
+    }
+
+    suspend fun setReadingData(
+        bookName: String,
+        progress: String?,
+        readingTime: String?
+    ) {
+        conn.sendMessage(
+            json.encodeToString(
+                FileMessagesToSend.SetReadingData(
+                    filename = bookName,
+                    progress = progress,
+                    readingTime = readingTime
+                )
+            )
+        ).await()
     }
 
     suspend fun sendCoverOnly(
@@ -742,6 +787,13 @@ class InterconnetFile(private val conn: InterHandshake) {
             val totalCount: Int,
             val progress: Double
         ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class ReadingData(
+            val type: String = "reading_data",
+            val progress: String? = null,
+            val readingTime: String? = null
+        ) : FileMessagesFromDevice()
     }
 
     @Serializable
@@ -835,6 +887,22 @@ class InterconnetFile(private val conn: InterHandshake) {
             val bookStatus: String? = null,
             val category: String? = null,
             val localCategory: String? = null
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class GetReadingData(
+            val tag: String = "file",
+            val stat: String = "get_reading_data",
+            val filename: String
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class SetReadingData(
+            val tag: String = "file",
+            val stat: String = "set_reading_data",
+            val filename: String,
+            val progress: String? = null,
+            val readingTime: String? = null
         ) : FileMessagesToSend()
     }
 }

@@ -86,3 +86,12 @@ data class EditBookInfoState(
     val isResyncing: Boolean = false
 )
 
+data class SyncReadingDataState(
+    val isSyncing: Boolean = false,
+    val statusText: String = "",
+    val progress: Float = 0f,
+    val currentBook: String = "",
+    val totalBooks: Int = 0,
+    val syncedBooks: Int = 0
+)
+

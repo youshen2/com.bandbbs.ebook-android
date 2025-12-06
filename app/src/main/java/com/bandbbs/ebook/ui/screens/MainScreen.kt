@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Info
@@ -110,6 +111,7 @@ fun MainScreen(
     val categoryState by viewModel.categoryState.collectAsState()
     val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
+    val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
 
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
@@ -144,6 +146,46 @@ fun MainScreen(
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelDeleteBook() }) {
                     Text("取消")
+                }
+            }
+        )
+    }
+
+    
+    if (syncReadingDataState.isSyncing || (syncReadingDataState.statusText.isNotEmpty() && !syncReadingDataState.isSyncing)) {
+        AlertDialog(
+            onDismissRequest = { 
+                if (!syncReadingDataState.isSyncing) {
+                    
+                    viewModel.clearSyncReadingDataState()
+                }
+            },
+            title = { Text("同步阅读数据") },
+            text = {
+                Column {
+                    Text(syncReadingDataState.statusText)
+                    if (syncReadingDataState.isSyncing && syncReadingDataState.totalBooks > 0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "正在同步: ${syncReadingDataState.currentBook}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "进度: ${syncReadingDataState.syncedBooks}/${syncReadingDataState.totalBooks}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (!syncReadingDataState.isSyncing) {
+                    TextButton(onClick = { 
+                        viewModel.clearSyncReadingDataState()
+                    }) {
+                        Text("确定")
+                    }
                 }
             }
         )
@@ -441,6 +483,17 @@ fun MainScreen(
                         }
                     },
                     actions = {
+                        val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
+                        IconButton(
+                            onClick = { viewModel.syncAllReadingData() },
+                            enabled = connectionState.isConnected && !syncReadingDataState.isSyncing
+                        ) {
+                            Icon(
+                                Icons.Default.Sync,
+                                contentDescription = "同步阅读数据",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
                         }

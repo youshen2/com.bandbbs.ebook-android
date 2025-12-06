@@ -10,5 +10,9 @@ data class Book(
     val wordCount: Long = 0,
     val coverImagePath: String? = null,
     val localCategory: String? = null,
-    val lastReadInfo: String? = null 
+    val lastReadInfo: String? = null,
+    val readingTimeSeconds: Long = 0,
+    val lastReadTimestamp: Long = 0,
+    val chapterIndex: Int? = null,
+    val chapterProgressPercent: Float = 0f
 )
