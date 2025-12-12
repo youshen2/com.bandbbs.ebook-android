@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -64,7 +65,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.R
-import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
 import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
@@ -111,6 +111,9 @@ fun MainScreen(
     val books by viewModel.books.collectAsState()
     val recentBook by viewModel.recentBook.collectAsState()
     val recentUpdatedBook by viewModel.recentUpdatedBook.collectAsState()
+    val showRecentImport by viewModel.showRecentImport.collectAsState()
+    val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
+    val showSearchBar by viewModel.showSearchBar.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
@@ -134,8 +137,6 @@ fun MainScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    val aboutSheetState = rememberModalBottomSheetState()
-    var showAboutSheet by remember { mutableStateOf(false) }
     val categorySheetState = rememberModalBottomSheetState()
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -274,23 +275,6 @@ fun MainScreen(
                         viewModel.cancelPush()
                         viewModel.syncCoverOnly(it.book)
                     }
-                }
-            )
-        }
-    }
-
-    if (showAboutSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showAboutSheet = false },
-            sheetState = aboutSheetState
-        ) {
-            AboutBottomSheet(
-                onCheckUpdate = {
-                    scope.launch {
-                        aboutSheetState.hide()
-                        showAboutSheet = false
-                    }
-                    viewModel.checkForUpdates()
                 }
             )
         }
@@ -616,16 +600,6 @@ fun MainScreen(
                                     Icon(Icons.Outlined.Refresh, contentDescription = null)
                                 }
                             )
-                            DropdownMenuItem(
-                                text = { Text("关于") },
-                                onClick = {
-                                    showMenu = false
-                                    showAboutSheet = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Info, contentDescription = null)
-                                }
-                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -647,8 +621,8 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // 搜索框
-                if (books.isNotEmpty()) {
+                
+                if (books.isNotEmpty() && showSearchBar) {
                     TextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -752,14 +726,14 @@ fun MainScreen(
                             .sortedBy { if (it.first == "未分类") "\uFFFF" else it.first }
                     }
 
-                    val listItems = remember(booksByCategory, expandedCategories, recentBook, recentUpdatedBook, searchQuery) {
+                    val listItems = remember(booksByCategory, expandedCategories, recentBook, recentUpdatedBook, searchQuery, showRecentImport, showRecentUpdate) {
                         buildList {
-                            if (recentBook != null && searchQuery.isBlank()) {
+                            if (showRecentImport && recentBook != null && searchQuery.isBlank()) {
                                 add(ListItem(ItemType.RECENT_HEADER))
                                 add(ListItem(ItemType.RECENT_BOOK, book = recentBook))
                             }
 
-                            if (recentUpdatedBook != null && searchQuery.isBlank() && recentUpdatedBook != recentBook) {
+                            if (showRecentUpdate && recentUpdatedBook != null && searchQuery.isBlank() && recentUpdatedBook != recentBook) {
                                 add(ListItem(ItemType.RECENT_UPDATE_HEADER))
                                 add(ListItem(ItemType.RECENT_UPDATE_BOOK, book = recentUpdatedBook))
                             }
@@ -776,12 +750,17 @@ fun MainScreen(
                     }
 
                     LazyColumn(
-                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 8.dp,
+                            end = 16.dp,
+                            bottom = 80.dp 
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(
+                        itemsIndexed(
                             items = listItems,
-                            key = { item ->
+                            key = { _, item ->
                                 when (item.type) {
                                     ItemType.RECENT_HEADER -> "header_recent"
                                     ItemType.RECENT_BOOK -> "recent_${item.book!!.id}"
@@ -791,7 +770,8 @@ fun MainScreen(
                                     ItemType.BOOK -> item.book!!.path
                                 }
                             }
-                        ) { item ->
+                        ) { index, item ->
+                            val isLastItem = index == listItems.size - 1
                             when (item.type) {
                                 ItemType.RECENT_HEADER -> {
                                     Row(
@@ -842,25 +822,31 @@ fun MainScreen(
                                         enter = scaleIn() + expandVertically(),
                                         exit = scaleOut()
                                     ) {
-                                        BookItem(
-                                            book = book,
-                                            isExpanded = expandedBookPath == book.path,
-                                            onExpandClick = {
-                                                viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
-                                            },
-                                            onDeleteClick = { viewModel.requestDeleteBook(book) },
-                                            onSyncClick = { viewModel.startPush(book) },
-                                            onChapterListClick = { viewModel.showChapterList(book) },
-                                            onContinueReadingClick = { viewModel.continueReading(book) },
-                                            onImportCoverClick = {
-                                                viewModel.requestImportCover(book)
-                                                onImportCoverClick()
-                                            },
-                                            onEditInfoClick = {
-                                                viewModel.showEditBookInfo(book)
-                                            },
-                                            isSyncEnabled = connectionState.isConnected
-                                        )
+                                        Box(
+                                            modifier = Modifier.padding(
+                                                bottom = if (isLastItem) 16.dp else 0.dp
+                                            )
+                                        ) {
+                                            BookItem(
+                                                book = book,
+                                                isExpanded = expandedBookPath == book.path,
+                                                onExpandClick = {
+                                                    viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                },
+                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                onSyncClick = { viewModel.startPush(book) },
+                                                onChapterListClick = { viewModel.showChapterList(book) },
+                                                onContinueReadingClick = { viewModel.continueReading(book) },
+                                                onImportCoverClick = {
+                                                    viewModel.requestImportCover(book)
+                                                    onImportCoverClick()
+                                                },
+                                                onEditInfoClick = {
+                                                    viewModel.showEditBookInfo(book)
+                                                },
+                                                isSyncEnabled = connectionState.isConnected
+                                            )
+                                        }
                                     }
                                 }
 

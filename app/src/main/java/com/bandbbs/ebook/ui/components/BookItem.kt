@@ -57,22 +57,6 @@ import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
 import java.io.File
 
-private fun formatReadingTime(seconds: Long): String {
-    if (seconds < 60) {
-        return "${seconds}秒"
-    }
-    val minutes = seconds / 60
-    if (minutes < 60) {
-        return "${minutes}分钟"
-    }
-    val hours = minutes / 60
-    val remainingMinutes = minutes % 60
-    return if (remainingMinutes > 0) {
-        "${hours}小时${remainingMinutes}分钟"
-    } else {
-        "${hours}小时"
-    }
-}
 
 @Composable
 fun BookItem(
@@ -179,26 +163,13 @@ fun BookItem(
                         )
                     }
 
-                    if (book.readingTimeSeconds > 0 || book.chapterProgressPercent > 0) {
+                    if (book.chapterProgressPercent > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (book.readingTimeSeconds > 0) {
-                                Text(
-                                    text = formatReadingTime(book.readingTimeSeconds),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                            if (book.chapterProgressPercent > 0) {
-                                Text(
-                                    text = "进度: ${String.format("%.1f", book.chapterProgressPercent)}%",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                        }
+                        Text(
+                            text = "进度: ${String.format("%.1f", book.chapterProgressPercent)}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
                     }
                 }
@@ -262,40 +233,19 @@ fun BookItem(
                         )
                     }
 
-                    if (book.readingTimeSeconds > 0 || book.chapterProgressPercent > 0) {
+                    if (book.chapterProgressPercent > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            if (book.readingTimeSeconds > 0) {
-                                Column {
-                                    Text(
-                                        text = "阅读时长",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = formatReadingTime(book.readingTimeSeconds),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                            if (book.chapterProgressPercent > 0) {
-                                Column {
-                                    Text(
-                                        text = "阅读进度",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${String.format("%.1f", book.chapterProgressPercent)}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
+                        Column {
+                            Text(
+                                text = "阅读进度",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${String.format("%.1f", book.chapterProgressPercent)}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 

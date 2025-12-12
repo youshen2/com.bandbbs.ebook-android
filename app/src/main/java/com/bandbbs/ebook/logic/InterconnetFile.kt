@@ -17,8 +17,7 @@ import kotlinx.serialization.json.Json
 data class BookStatusResult(val syncedChapters: List<Int>, val hasCover: Boolean)
 
 data class ReadingDataResult(
-    val progress: String? = null,
-    val readingTime: String? = null
+    val progress: String? = null
 )
 
 class InterconnetFile(private val conn: InterHandshake) {
@@ -237,22 +236,19 @@ class InterconnetFile(private val conn: InterHandshake) {
         val result = readingDataCompleter!!.await()
         readingDataCompleter = null
         return ReadingDataResult(
-            progress = result.progress,
-            readingTime = result.readingTime
+            progress = result.progress
         )
     }
 
     suspend fun setReadingData(
         bookName: String,
-        progress: String?,
-        readingTime: String?
+        progress: String?
     ) {
         conn.sendMessage(
             json.encodeToString(
                 FileMessagesToSend.SetReadingData(
                     filename = bookName,
-                    progress = progress,
-                    readingTime = readingTime
+                    progress = progress
                 )
             )
         ).await()
@@ -791,8 +787,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         @Serializable
         data class ReadingData(
             val type: String = "reading_data",
-            val progress: String? = null,
-            val readingTime: String? = null
+            val progress: String? = null
         ) : FileMessagesFromDevice()
     }
 
@@ -901,8 +896,7 @@ class InterconnetFile(private val conn: InterHandshake) {
             val tag: String = "file",
             val stat: String = "set_reading_data",
             val filename: String,
-            val progress: String? = null,
-            val readingTime: String? = null
+            val progress: String? = null
         ) : FileMessagesToSend()
     }
 }

@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -17,6 +18,7 @@ class ConnectionHandler(
     private val scope: CoroutineScope,
     private val connectionState: MutableStateFlow<ConnectionState>,
     private val connectionErrorState: MutableStateFlow<ConnectionErrorState?>,
+    private val showConnectionError: StateFlow<Boolean>,
     private val versionIncompatibleState: MutableStateFlow<com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState?>,
 ) {
 
@@ -93,10 +95,12 @@ class ConnectionHandler(
                             )
                         }
                         delay(300)
-                        connectionErrorState.value = ConnectionErrorState(
-                            deviceName = deviceName,
-                            isUnsupportedDevice = true
-                        )
+                        if (showConnectionError.value) {
+                            connectionErrorState.value = ConnectionErrorState(
+                                deviceName = deviceName,
+                                isUnsupportedDevice = true
+                            )
+                        }
                         return@withTimeout
                     }
 
@@ -112,10 +116,12 @@ class ConnectionHandler(
                                 )
                             }
                             delay(300)
-                            connectionErrorState.value = ConnectionErrorState(
-                                deviceName = deviceName,
-                                isUnsupportedDevice = false
-                            )
+                            if (showConnectionError.value) {
+                                connectionErrorState.value = ConnectionErrorState(
+                                    deviceName = deviceName,
+                                    isUnsupportedDevice = false
+                                )
+                            }
                             return@withTimeout
                         }
                     } catch (_: Exception) {
@@ -158,10 +164,12 @@ class ConnectionHandler(
                     )
                 }
                 delay(300)
-                connectionErrorState.value = ConnectionErrorState(
-                    deviceName = null,
-                    isUnsupportedDevice = false
-                )
+                if (showConnectionError.value) {
+                    connectionErrorState.value = ConnectionErrorState(
+                        deviceName = null,
+                        isUnsupportedDevice = false
+                    )
+                }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "connect fail ${e.message}")
                 connectionState.update {
@@ -173,10 +181,12 @@ class ConnectionHandler(
                     )
                 }
                 delay(300)
-                connectionErrorState.value = ConnectionErrorState(
-                    deviceName = null,
-                    isUnsupportedDevice = false
-                )
+                if (showConnectionError.value) {
+                    connectionErrorState.value = ConnectionErrorState(
+                        deviceName = null,
+                        isUnsupportedDevice = false
+                    )
+                }
             }
         }
     }

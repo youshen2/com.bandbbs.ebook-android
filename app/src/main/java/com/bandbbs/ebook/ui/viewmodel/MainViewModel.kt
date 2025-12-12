@@ -130,13 +130,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val IP_COLLECTION_PERMISSION_KEY = "ip_collection_permission"
     private val IP_COLLECTION_PERMISSION_ASKED_KEY = "ip_collection_permission_asked"
+    private val SHOW_RECENT_IMPORT_KEY = "show_recent_import"
+    private val SHOW_RECENT_UPDATE_KEY = "show_recent_update"
+    private val AUTO_CHECK_UPDATES_KEY = "auto_check_updates"
+    private val SHOW_CONNECTION_ERROR_KEY = "show_connection_error"
+    private val SHOW_SEARCH_BAR_KEY = "show_search_bar"
 
     private var FIRST_AUTO_CHECK = true
+
+    
+    private val _showRecentImport = MutableStateFlow(prefs.getBoolean(SHOW_RECENT_IMPORT_KEY, true))
+    val showRecentImport = _showRecentImport.asStateFlow()
+
+    private val _showRecentUpdate = MutableStateFlow(prefs.getBoolean(SHOW_RECENT_UPDATE_KEY, true))
+    val showRecentUpdate = _showRecentUpdate.asStateFlow()
+
+    private val _autoCheckUpdates = MutableStateFlow(prefs.getBoolean(AUTO_CHECK_UPDATES_KEY, true))
+    val autoCheckUpdates = _autoCheckUpdates.asStateFlow()
+
+    private val _ipCollectionAllowed = MutableStateFlow(prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false))
+    val ipCollectionAllowed = _ipCollectionAllowed.asStateFlow()
+
+    private val _showConnectionError = MutableStateFlow(prefs.getBoolean(SHOW_CONNECTION_ERROR_KEY, true))
+    val showConnectionError = _showConnectionError.asStateFlow()
+
+    private val _showSearchBar = MutableStateFlow(prefs.getBoolean(SHOW_SEARCH_BAR_KEY, true))
+    val showSearchBar = _showSearchBar.asStateFlow()
 
     private val connectionHandler = ConnectionHandler(
         scope = viewModelScope,
         connectionState = _connectionState,
         connectionErrorState = _connectionErrorState,
+        showConnectionError = _showConnectionError,
         versionIncompatibleState = _versionIncompatibleState
     ).apply {
         onBandConnected = { deviceName ->
@@ -614,11 +639,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
                         val phoneProgress = getPhoneReadingProgress(book)
-                        val phoneReadingTime = getPhoneReadingTime(book.name)
-
-
                         var bandProgress: Map<String, Any>? = null
-                        var bandReadingTime: Map<String, Any>? = null
                         if (bandReadingData != null) {
                             try {
                                 if (bandReadingData.progress != null) {
@@ -680,26 +701,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                         Log.d("MainViewModel", "Band progress has no valid chapterIndex, ignoring")
                                     }
                                 }
-                                if (bandReadingData.readingTime != null) {
-                                    val readingTimeMap = org.json.JSONObject(bandReadingData.readingTime)
-                                    val tempMap = mutableMapOf<String, Any>()
-                                    val keys = readingTimeMap.keys()
-                                    while (keys.hasNext()) {
-                                        val key = keys.next()
-                                        val value = readingTimeMap.get(key)
-                                        tempMap[key] = when (value) {
-                                            is org.json.JSONObject -> value.toString()
-                                            is org.json.JSONArray -> value.toString()
-                                            is Boolean -> value
-                                            is Int -> value
-                                            is Long -> value
-                                            is Double -> value
-                                            is String -> value
-                                            else -> value.toString()
-                                        }
-                                    }
-                                    bandReadingTime = tempMap
-                                }
                             } catch (e: Exception) {
                                 Log.e("MainViewModel", "Failed to parse band reading data", e)
                             }
@@ -707,24 +708,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
                         val mergedProgress = mergeProgress(phoneProgress, bandProgress)
-                        val mergedReadingTime = mergeReadingTime(phoneReadingTime, bandReadingTime)
-
-
 
                         savePhoneReadingProgress(book, mergedProgress)
-                        savePhoneReadingTime(book.name, mergedReadingTime)
 
-
-                        if (mergedReadingTime != null) {
-                            val totalSeconds = (mergedReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
-                            if (totalSeconds > 0L) {
-                                Log.d("MainViewModel", "Saved reading time for ${book.name}: $totalSeconds seconds")
-                            }
-                        }
-
-
-                        if (mergedProgress != null || mergedReadingTime != null) {
-                            val progressJson = mergedProgress?.let {
+                        if (mergedProgress != null) {
+                            val progressJson = mergedProgress.let {
                                 try {
                                     org.json.JSONObject(it).toString()
                                 } catch (e: Exception) {
@@ -732,26 +720,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     null
                                 }
                             }
-                            val readingTimeJson = mergedReadingTime?.let {
-                                try {
-                                    val jsonObj = org.json.JSONObject()
-                                    it.forEach { (key, value) ->
-                                        when (value) {
-                                            is org.json.JSONArray -> jsonObj.put(key, value)
-                                            is org.json.JSONObject -> jsonObj.put(key, value)
-                                            is Number -> jsonObj.put(key, value)
-                                            is Boolean -> jsonObj.put(key, value)
-                                            is String -> jsonObj.put(key, value)
-                                            else -> jsonObj.put(key, value.toString())
-                                        }
-                                    }
-                                    jsonObj.toString()
-                                } catch (e: Exception) {
-                                    Log.e("MainViewModel", "Failed to serialize reading time", e)
-                                    null
-                                }
-                            }
-                            fileConn.setReadingData(book.name, progressJson, readingTimeJson)
+                            fileConn.setReadingData(book.name, progressJson)
                         }
 
                         syncedCount++
@@ -879,6 +848,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissIpCollectionPermissionSheet() {
         _ipCollectionPermissionState.value = IpCollectionPermissionState(showSheet = false)
+    }
+
+    
+    fun setShowRecentImport(show: Boolean) {
+        prefs.edit().putBoolean(SHOW_RECENT_IMPORT_KEY, show).apply()
+        _showRecentImport.value = show
+    }
+
+    fun setShowRecentUpdate(show: Boolean) {
+        prefs.edit().putBoolean(SHOW_RECENT_UPDATE_KEY, show).apply()
+        _showRecentUpdate.value = show
+    }
+
+    fun setAutoCheckUpdates(enabled: Boolean) {
+        prefs.edit().putBoolean(AUTO_CHECK_UPDATES_KEY, enabled).apply()
+        _autoCheckUpdates.value = enabled
+    }
+
+    fun setIpCollectionAllowed(allowed: Boolean) {
+        prefs.edit().putBoolean(IP_COLLECTION_PERMISSION_KEY, allowed).apply()
+        _ipCollectionAllowed.value = allowed
+    }
+
+    fun setShowConnectionError(show: Boolean) {
+        prefs.edit().putBoolean(SHOW_CONNECTION_ERROR_KEY, show).apply()
+        _showConnectionError.value = show
+    }
+
+    fun setShowSearchBar(show: Boolean) {
+        prefs.edit().putBoolean(SHOW_SEARCH_BAR_KEY, show).apply()
+        _showSearchBar.value = show
     }
 
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {
@@ -1011,34 +1011,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun getPhoneReadingTime(bookName: String): Map<String, Any>? {
-        val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
-        val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
-        if (totalSeconds == 0L) return null
-
-        val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
-        val sessions = if (sessionsJson != null) {
-            try {
-                org.json.JSONArray(sessionsJson)
-            } catch (e: Exception) {
-                org.json.JSONArray()
-            }
-        } else {
-            org.json.JSONArray()
-        }
-
-        val result = mutableMapOf<String, Any>(
-            "totalSeconds" to totalSeconds,
-            "lastReadDate" to (readingTimePrefs.getString("${bookName}_last_read_date", null) ?: ""),
-            "firstReadDate" to (readingTimePrefs.getString("${bookName}_first_read_date", null) ?: "")
-        )
-
-        if (sessions.length() > 0) {
-            result["sessions"] = sessions
-        }
-
-        return result
-    }
 
     private fun mergeProgress(
         phoneProgress: Map<String, Any>?,
@@ -1104,101 +1076,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return result
     }
 
-    private fun mergeReadingTime(
-        phoneReadingTime: Map<String, Any>?,
-        bandReadingTime: Map<String, Any>?
-    ): Map<String, Any>? {
-        if (phoneReadingTime == null && bandReadingTime == null) return null
-        if (phoneReadingTime == null) return bandReadingTime
-        if (bandReadingTime == null) return phoneReadingTime
-
-        val phoneTotal = (phoneReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
-        val bandTotal = (bandReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
-
-
-        val mergedTotal = maxOf(phoneTotal, bandTotal)
-
-        val phoneLastDate = phoneReadingTime["lastReadDate"] as? String ?: ""
-        val bandLastDate = bandReadingTime["lastReadDate"] as? String ?: ""
-
-
-        val phoneSessions = try {
-            when (val sessions = phoneReadingTime["sessions"]) {
-                is org.json.JSONArray -> sessions
-                is String -> org.json.JSONArray(sessions)
-                else -> org.json.JSONArray()
-            }
-        } catch (e: Exception) {
-            org.json.JSONArray()
-        }
-
-        val bandSessions = try {
-            when (val sessions = bandReadingTime["sessions"]) {
-                is org.json.JSONArray -> sessions
-                is String -> org.json.JSONArray(sessions)
-                else -> org.json.JSONArray()
-            }
-        } catch (e: Exception) {
-            org.json.JSONArray()
-        }
-
-
-        val mergedSessionsMap = mutableMapOf<Long, org.json.JSONObject>()
-
-
-        for (i in 0 until phoneSessions.length()) {
-            try {
-                val session = phoneSessions.getJSONObject(i)
-                val startTime = session.getLong("startTime")
-                mergedSessionsMap[startTime] = session
-            } catch (e: Exception) {
-
-            }
-        }
-
-
-        for (i in 0 until bandSessions.length()) {
-            try {
-                val session = bandSessions.getJSONObject(i)
-                val startTime = session.getLong("startTime")
-                val sessionDuration = (session.optLong("duration", 0L))
-                val existingSession = mergedSessionsMap[startTime]
-                val existingDuration = existingSession?.optLong("duration", 0L) ?: 0L
-
-
-                if (!mergedSessionsMap.containsKey(startTime) || sessionDuration > existingDuration) {
-                    mergedSessionsMap[startTime] = session
-                }
-            } catch (e: Exception) {
-
-            }
-        }
-
-
-        val mergedSessions = org.json.JSONArray()
-        mergedSessionsMap.values.sortedBy { it.getLong("startTime") }.forEach { session ->
-            mergedSessions.put(session)
-        }
-
-
-        val finalSessions = org.json.JSONArray()
-        val startIndex = maxOf(0, mergedSessions.length() - 100)
-        for (i in startIndex until mergedSessions.length()) {
-            finalSessions.put(mergedSessions.get(i))
-        }
-
-        val result = mutableMapOf<String, Any>(
-            "totalSeconds" to mergedTotal,
-            "lastReadDate" to if (phoneLastDate > bandLastDate) phoneLastDate else bandLastDate,
-            "firstReadDate" to (phoneReadingTime["firstReadDate"] as? String ?: bandReadingTime["firstReadDate"] as? String ?: "")
-        )
-
-        if (finalSessions.length() > 0) {
-            result["sessions"] = finalSessions
-        }
-
-        return result
-    }
 
     private suspend fun savePhoneReadingProgress(book: Book, progress: Map<String, Any>?) {
         if (progress == null) return
@@ -1231,44 +1108,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun savePhoneReadingTime(bookName: String, readingTime: Map<String, Any>?) {
-        if (readingTime == null) return
-
-        val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
-        val totalSeconds = (readingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
-        val lastReadDate = readingTime["lastReadDate"] as? String ?: ""
-        val firstReadDate = readingTime["firstReadDate"] as? String ?: ""
-
-        val editor = readingTimePrefs.edit()
-            .putLong("${bookName}_total_seconds", totalSeconds)
-            .putString("${bookName}_last_read_date", lastReadDate)
-            .putString("${bookName}_first_read_date", firstReadDate)
-
-
-        val sessions = readingTime["sessions"]
-        if (sessions != null) {
-            try {
-                val sessionsJson = when (sessions) {
-                    is org.json.JSONArray -> sessions.toString()
-                    is String -> sessions
-                    else -> null
-                }
-                if (sessionsJson != null) {
-                    editor.putString("${bookName}_sessions", sessionsJson)
-                }
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to save sessions for $bookName", e)
-            }
-        }
-
-
-        editor.commit()
-    }
 
     private fun loadBooks() {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntities = db.bookDao().getAllBooks()
-            val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
 
             val bookUiModels = bookEntities.map { entity ->
                 val chapterCount = db.chapterDao().getChapterCountForBook(entity.id)
@@ -1294,7 +1137,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     lastReadInfo = "未读"
                 }
 
-                val readingTimeSeconds = readingTimePrefs.getLong("${entity.name}_total_seconds", 0L)
                 val lastReadTimestamp = readerPrefs.getLong("last_read_timestamp_${entity.id}", 0L)
 
                 Book(
@@ -1308,13 +1150,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     coverImagePath = entity.coverImagePath,
                     localCategory = entity.localCategory,
                     lastReadInfo = lastReadInfo,
-                    readingTimeSeconds = readingTimeSeconds,
                     lastReadTimestamp = lastReadTimestamp,
                     chapterIndex = chapterIndex,
                     chapterProgressPercent = chapterProgressPercent
                 )
             }
-            // 获取最近更新的书籍（基于文件修改时间）
+            
             val recentUpdatedBook = bookUiModels.maxByOrNull { book ->
                 try {
                     File(book.path).lastModified()

@@ -65,7 +65,7 @@ class ImportHandler(
                             )
                         )
                     } else {
-                        // 对于无效文件，显示错误但不阻止其他文件导入
+                        
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
@@ -120,7 +120,7 @@ class ImportHandler(
             val finalCategory = selectedCategory ?: state.selectedCategory
 
             if (state.isMultipleFiles) {
-                // 批量导入：使用文件名作为书名，统一应用设置
+                
                 state.files.forEach { fileInfo ->
                     val finalBookName = fileInfo.bookName.trim()
                     if (finalBookName.isNotEmpty()) {
@@ -129,7 +129,7 @@ class ImportHandler(
                         val fileFormat = detectFileFormat(context, fileInfo.uri)
 
                         if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
-                            // EPUB/NVB 格式直接更新
+                            
                             performImport(
                                 fileInfo.uri,
                                 finalBookName,
@@ -145,7 +145,7 @@ class ImportHandler(
                                 customRegex
                             )
                         } else if (existingBook == null) {
-                            // 新书直接导入
+                            
                             performImport(
                                 fileInfo.uri,
                                 finalBookName,
@@ -161,11 +161,11 @@ class ImportHandler(
                                 customRegex
                             )
                         }
-                        // 如果存在同名书籍且不是 EPUB/NVB，跳过（避免覆盖确认弹窗打断批量导入）
+                        
                     }
                 }
             } else {
-                // 单文件导入：保持原有逻辑
+                
                 val finalBookName = bookName.trim()
                 if (finalBookName.isEmpty()) {
                     return@launch

@@ -12,13 +12,12 @@ import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.with
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -34,9 +33,22 @@ import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
+import com.bandbbs.ebook.ui.screens.SettingsScreen
+import com.bandbbs.ebook.ui.screens.StatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
 
@@ -47,10 +59,10 @@ class MainActivity : ComponentActivity() {
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             if (uris.size == 1) {
-                // 单文件导入，保持原有行为
+                
                 viewModel.startImport(uris[0])
             } else {
-                // 多文件批量导入
+                
                 viewModel.startImportBatch(uris)
             }
         }
@@ -72,7 +84,7 @@ class MainActivity : ComponentActivity() {
         (application as App).conn = conn
         viewModel.setConnection(conn)
 
-        
+
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -97,144 +109,233 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 val chapterListSheetState = rememberModalBottomSheetState()
 
-
+                var currentScreen by remember { mutableStateOf("home") }
                 val isReaderOpen = chapterToPreview != null
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AnimatedContent(
-                        targetState = isReaderOpen,
-                        transitionSpec = {
-                            if (targetState) {
-
-                                slideInHorizontally(
-                                    initialOffsetX = { it },
-                                    animationSpec = tween(300)
-                                ) + fadeIn(animationSpec = tween(300)) with
-                                        slideOutHorizontally(
-                                            targetOffsetX = { -it / 3 },
+                Scaffold(
+                    bottomBar = {
+                        if (!isReaderOpen) {
+                            NavigationBar {
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            Icons.Filled.Home,
+                                            contentDescription = "主页"
+                                        )
+                                    },
+                                    label = { androidx.compose.material3.Text("主页") },
+                                    selected = currentScreen == "home",
+                                    onClick = { currentScreen = "home" }
+                                )
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            Icons.Filled.BarChart,
+                                            contentDescription = "统计"
+                                        )
+                                    },
+                                    label = { androidx.compose.material3.Text("统计") },
+                                    selected = currentScreen == "statistics",
+                                    onClick = { currentScreen = "statistics" }
+                                )
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            Icons.Filled.Settings,
+                                            contentDescription = "设置"
+                                        )
+                                    },
+                                    label = { androidx.compose.material3.Text("设置") },
+                                    selected = currentScreen == "settings",
+                                    onClick = { currentScreen = "settings" }
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AnimatedContent(
+                            targetState = if (isReaderOpen) "reader" else currentScreen,
+                            transitionSpec = {
+                                val isEnteringReader = targetState == "reader"
+                                val isExitingReader = initialState == "reader"
+                                
+                                if (isEnteringReader) {
+                                    
+                                    slideInHorizontally(
+                                        initialOffsetX = { it },
+                                        animationSpec = tween(300)
+                                    ) with
+                                    
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -it },
+                                        animationSpec = tween(300)
+                                    )
+                                } else if (isExitingReader) {
+                                    
+                                    
+                                    slideInHorizontally(
+                                        initialOffsetX = { -it },
+                                        animationSpec = tween(300)
+                                    ) with
+                                    slideOutHorizontally(
+                                        targetOffsetX = { it },
+                                        animationSpec = tween(300)
+                                    )
+                                } else {
+                                    
+                                    val screenOrder = listOf("home", "statistics", "settings")
+                                    val currentIndex = screenOrder.indexOf(initialState)
+                                    val targetIndex = screenOrder.indexOf(targetState)
+                                    
+                                    if (targetIndex > currentIndex) {
+                                        
+                                        slideInHorizontally(
+                                            initialOffsetX = { it },
                                             animationSpec = tween(300)
-                                        ) + fadeOut(animationSpec = tween(300))
-                            } else {
-
-                                slideInHorizontally(
-                                    initialOffsetX = { -it / 3 },
-                                    animationSpec = tween(300)
-                                ) + fadeIn(animationSpec = tween(300)) with
+                                        ) with
+                                        slideOutHorizontally(
+                                            targetOffsetX = { -it },
+                                            animationSpec = tween(300)
+                                        )
+                                    } else {
+                                        
+                                        slideInHorizontally(
+                                            initialOffsetX = { -it },
+                                            animationSpec = tween(300)
+                                        ) with
                                         slideOutHorizontally(
                                             targetOffsetX = { it },
                                             animationSpec = tween(300)
-                                        ) + fadeOut(animationSpec = tween(300))
-                            }
-                        },
-                        label = "ReaderTransition"
-                    ) { readerOpen ->
-                        if (readerOpen) {
-                            ReaderScreen(
-                                viewModel = viewModel,
-                                onClose = {
-                                    viewModel.closeChapterPreview()
-                                },
-                                onChapterChange = { chapterId ->
-                                    viewModel.showChapterPreview(chapterId)
-                                },
-                                onTableOfContents = {
-
-                                    val currentChapter = viewModel.chapterToPreview.value
-                                    if (currentChapter != null) {
-
-
-                                        val bookId =
-                                            viewModel.chaptersForPreview.value.firstOrNull()?.bookId
-                                        if (bookId != null) {
-                                            val currentBook =
-                                                viewModel.books.value.find { it.id == bookId }
-                                            if (currentBook != null) {
-                                                viewModel.showChapterList(currentBook)
-                                            }
-                                        }
-                                    }
-                                },
-                                loadChapterContent = viewModel::loadChapterContent
-                            )
-                        } else {
-                            MainScreen(
-                                viewModel = viewModel,
-                                onImportClick = {
-                                    filePickerLauncher.launch(
-                                        arrayOf(
-                                            "text/plain",
-                                            "application/epub+zip",
-                                            "application/octet-stream"
                                         )
-                                    )
-                                },
-                                onImportCoverClick = {
-                                    coverPickerLauncher.launch(arrayOf("image/*"))
-                                }
-                            )
-                        }
-                    }
-
-
-                    selectedBookForChapters?.let { book ->
-                        ModalBottomSheet(
-                            onDismissRequest = { viewModel.closeChapterList() },
-                            sheetState = chapterListSheetState
-                        ) {
-                            ChapterListBottomSheet(
-                                book = book,
-                                chapters = chaptersForSelectedBook,
-                                readOnly = isReaderOpen,
-                                onPreviewChapter = { chapterId ->
-
-                                    scope.launch {
-                                        chapterListSheetState.hide()
-                                        viewModel.closeChapterList()
-                                        viewModel.showChapterPreview(chapterId)
                                     }
-                                },
-                                onEditContent = { chapterId ->
-                                    viewModel.openChapterEditor(chapterId)
-                                },
-                                onSaveChapterContent = { chapterId, title, content ->
-                                    viewModel.saveChapterContent(chapterId, title, content)
-                                },
-                                onRenameChapter = { chapterId, title ->
-                                    viewModel.renameChapter(chapterId, title)
-                                },
-                                onAddChapter = { index, title, content ->
-                                    viewModel.addChapter(index, title, content)
-                                },
-                                onMergeChapters = { ids, title, insertBlank ->
-                                    viewModel.mergeChapters(ids, title, insertBlank)
-                                },
-                                onBatchRename = { ids, prefix, suffix, startNumber, padding ->
-                                    viewModel.batchRenameChapters(
-                                        ids,
-                                        prefix,
-                                        suffix,
-                                        startNumber,
-                                        padding
+                                }
+                            },
+                            label = "ScreenTransition"
+                        ) { screen ->
+                            when (screen) {
+                                "reader" -> {
+                                    ReaderScreen(
+                                        viewModel = viewModel,
+                                        onClose = {
+                                            viewModel.closeChapterPreview()
+                                        },
+                                        onChapterChange = { chapterId ->
+                                            viewModel.showChapterPreview(chapterId)
+                                        },
+                                        onTableOfContents = {
+
+                                            val currentChapter = viewModel.chapterToPreview.value
+                                            if (currentChapter != null) {
+
+
+                                                val bookId =
+                                                    viewModel.chaptersForPreview.value.firstOrNull()?.bookId
+                                                if (bookId != null) {
+                                                    val currentBook =
+                                                        viewModel.books.value.find { it.id == bookId }
+                                                    if (currentBook != null) {
+                                                        viewModel.showChapterList(currentBook)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        loadChapterContent = viewModel::loadChapterContent
                                     )
+                                }
+
+                                "home" -> {
+                                    MainScreen(
+                                        viewModel = viewModel,
+                                        onImportClick = {
+                                            filePickerLauncher.launch(
+                                                arrayOf(
+                                                    "text/plain",
+                                                    "application/epub+zip",
+                                                    "application/octet-stream"
+                                                )
+                                            )
+                                        },
+                                        onImportCoverClick = {
+                                            coverPickerLauncher.launch(arrayOf("image/*"))
+                                        }
+                                    )
+                                }
+
+                                "statistics" -> {
+                                    StatisticsScreen(
+                                        onBackClick = { currentScreen = "home" }
+                                    )
+                                }
+                                "settings" -> {
+                                    SettingsScreen(
+                                        viewModel = viewModel,
+                                        onBackClick = { currentScreen = "home" }
+                                    )
+                                }
+                            }
+                        }
+
+                        selectedBookForChapters?.let { book ->
+                            ModalBottomSheet(
+                                onDismissRequest = { viewModel.closeChapterList() },
+                                sheetState = chapterListSheetState
+                            ) {
+                                ChapterListBottomSheet(
+                                    book = book,
+                                    chapters = chaptersForSelectedBook,
+                                    readOnly = isReaderOpen,
+                                    onPreviewChapter = { chapterId ->
+
+                                        scope.launch {
+                                            chapterListSheetState.hide()
+                                            viewModel.closeChapterList()
+                                            viewModel.showChapterPreview(chapterId)
+                                        }
+                                    },
+                                    onEditContent = { chapterId ->
+                                        viewModel.openChapterEditor(chapterId)
+                                    },
+                                    onSaveChapterContent = { chapterId, title, content ->
+                                        viewModel.saveChapterContent(chapterId, title, content)
+                                    },
+                                    onRenameChapter = { chapterId, title ->
+                                        viewModel.renameChapter(chapterId, title)
+                                    },
+                                    onAddChapter = { index, title, content ->
+                                        viewModel.addChapter(index, title, content)
+                                    },
+                                    onMergeChapters = { ids, title, insertBlank ->
+                                        viewModel.mergeChapters(ids, title, insertBlank)
+                                    },
+                                    onBatchRename = { ids, prefix, suffix, startNumber, padding ->
+                                        viewModel.batchRenameChapters(
+                                            ids,
+                                            prefix,
+                                            suffix,
+                                            startNumber,
+                                            padding
+                                        )
+                                    },
+                                    loadChapterContent = { chapterId ->
+                                        viewModel.loadChapterContent(chapterId)
+                                    }
+                                )
+                            }
+                        }
+
+                        chapterEditorContent?.let { editorState ->
+                            ChapterContentEditorPanel(
+                                state = editorState,
+                                onDismiss = { viewModel.closeChapterEditor() },
+                                onSave = { title, content ->
+                                    viewModel.saveChapterContent(editorState.id, title, content)
                                 },
-                                loadChapterContent = { chapterId ->
-                                    viewModel.loadChapterContent(chapterId)
+                                onSplit = { segments ->
+                                    viewModel.splitChapter(editorState.id, segments)
                                 }
                             )
                         }
-                    }
-
-                    chapterEditorContent?.let { editorState ->
-                        ChapterContentEditorPanel(
-                            state = editorState,
-                            onDismiss = { viewModel.closeChapterEditor() },
-                            onSave = { title, content ->
-                                viewModel.saveChapterContent(editorState.id, title, content)
-                            },
-                            onSplit = { segments ->
-                                viewModel.splitChapter(editorState.id, segments)
-                            }
-                        )
                     }
                 }
             }

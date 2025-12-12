@@ -72,12 +72,12 @@ fun ImportBookBottomSheet(
     
     val isMultipleFiles = state.isMultipleFiles
     
-    // 检查是否有 EPUB 或 NVB 格式的文件
+    
     val hasEpubOrNvb = remember(state.files) {
         state.files.any { it.fileFormat == "epub" || it.fileFormat == "nvb" }
     }
     
-    // 检查是否有 TXT 格式的文件
+    
     val hasTxt = remember(state.files) {
         state.files.any { it.fileFormat == "txt" }
     }
@@ -164,7 +164,7 @@ fun ImportBookBottomSheet(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isMultipleFiles) {
-            // 多文件导入：显示文件列表，禁用书名输入
+            
             Text(
                 text = "待导入文件 (${state.files.size} 个)",
                 style = MaterialTheme.typography.titleSmall,
@@ -206,7 +206,7 @@ fun ImportBookBottomSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            // 单文件导入：显示书名输入框
+            
             OutlinedTextField(
                 value = bookName,
                 onValueChange = { bookName = it },

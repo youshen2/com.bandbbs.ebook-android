@@ -50,7 +50,7 @@ data class ImportState(
     val renamePattern: String = "",
     val customRegex: String = ""
 ) {
-    // 兼容单文件导入的旧代码
+    
     val uri: Uri get() = uris.first()
     val bookName: String get() = files.first().bookName
     val fileSize: Long get() = files.first().fileSize
