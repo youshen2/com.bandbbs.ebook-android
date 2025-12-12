@@ -43,10 +43,16 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     private val filePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.startImport(it)
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            if (uris.size == 1) {
+                // 单文件导入，保持原有行为
+                viewModel.startImport(uris[0])
+            } else {
+                // 多文件批量导入
+                viewModel.startImportBatch(uris)
+            }
         }
     }
 

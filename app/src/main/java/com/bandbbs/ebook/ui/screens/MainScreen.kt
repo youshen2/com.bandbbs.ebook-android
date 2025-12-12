@@ -24,11 +24,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +45,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -82,6 +87,8 @@ import kotlinx.coroutines.launch
 private enum class ItemType {
     RECENT_HEADER,
     RECENT_BOOK,
+    RECENT_UPDATE_HEADER,
+    RECENT_UPDATE_BOOK,
     CATEGORY_HEADER,
     BOOK
 }
@@ -103,6 +110,7 @@ fun MainScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val books by viewModel.books.collectAsState()
     val recentBook by viewModel.recentBook.collectAsState()
+    val recentUpdatedBook by viewModel.recentUpdatedBook.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
@@ -124,6 +132,7 @@ fun MainScreen(
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
 
+    var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
@@ -368,6 +377,7 @@ fun MainScreen(
             ImportBookBottomSheet(
                 state = it,
                 categories = viewModel.getCategories(),
+                existingBookNames = books.map { book -> book.name },
                 onCancel = {
                     scope.launch {
                         importSheetState.hide()
@@ -637,7 +647,75 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (books.isEmpty()) {
+                // 搜索框
+                if (books.isNotEmpty()) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        placeholder = { Text("搜索书籍...") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Search, contentDescription = "搜索")
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Outlined.Close, contentDescription = "清除")
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                val filteredBooks = remember(books, searchQuery) {
+                    if (searchQuery.isBlank()) {
+                        books
+                    } else {
+                        books.filter { book ->
+                            book.name.contains(searchQuery, ignoreCase = true) ||
+                            book.localCategory?.contains(searchQuery, ignoreCase = true) == true
+                        }
+                    }
+                }
+
+                if (filteredBooks.isEmpty() && books.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = "未找到匹配的书籍",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "请尝试其他关键词",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                } else if (books.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -666,19 +744,24 @@ fun MainScreen(
                             )
                         }
                     }
-                } else {
+                } else if (filteredBooks.isNotEmpty()) {
 
-                    val booksByCategory = remember(books) {
-                        books.groupBy { it.localCategory ?: "未分类" }
+                    val booksByCategory = remember(filteredBooks) {
+                        filteredBooks.groupBy { it.localCategory ?: "未分类" }
                             .toList()
                             .sortedBy { if (it.first == "未分类") "\uFFFF" else it.first }
                     }
 
-                    val listItems = remember(booksByCategory, expandedCategories, recentBook) {
+                    val listItems = remember(booksByCategory, expandedCategories, recentBook, recentUpdatedBook, searchQuery) {
                         buildList {
-                            if (recentBook != null) {
+                            if (recentBook != null && searchQuery.isBlank()) {
                                 add(ListItem(ItemType.RECENT_HEADER))
                                 add(ListItem(ItemType.RECENT_BOOK, book = recentBook))
+                            }
+
+                            if (recentUpdatedBook != null && searchQuery.isBlank() && recentUpdatedBook != recentBook) {
+                                add(ListItem(ItemType.RECENT_UPDATE_HEADER))
+                                add(ListItem(ItemType.RECENT_UPDATE_BOOK, book = recentUpdatedBook))
                             }
 
                             booksByCategory.forEach { (category, categoryBooks) ->
@@ -702,6 +785,8 @@ fun MainScreen(
                                 when (item.type) {
                                     ItemType.RECENT_HEADER -> "header_recent"
                                     ItemType.RECENT_BOOK -> "recent_${item.book!!.id}"
+                                    ItemType.RECENT_UPDATE_HEADER -> "header_recent_update"
+                                    ItemType.RECENT_UPDATE_BOOK -> "recent_update_${item.book!!.id}"
                                     ItemType.CATEGORY_HEADER -> "category_${item.category}"
                                     ItemType.BOOK -> item.book!!.path
                                 }
@@ -729,7 +814,28 @@ fun MainScreen(
                                     }
                                 }
 
-                                ItemType.RECENT_BOOK, ItemType.BOOK -> {
+                                ItemType.RECENT_UPDATE_HEADER -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Update,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.size(8.dp))
+                                        Text(
+                                            text = "最近更新",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                ItemType.RECENT_BOOK, ItemType.RECENT_UPDATE_BOOK, ItemType.BOOK -> {
                                     val book = item.book!!
                                     AnimatedVisibility(
                                         visible = true,

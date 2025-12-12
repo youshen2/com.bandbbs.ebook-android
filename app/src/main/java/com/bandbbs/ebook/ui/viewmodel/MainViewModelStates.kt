@@ -30,13 +30,18 @@ data class PushState(
     val isTransferring: Boolean = false
 )
 
-data class ImportState(
+data class ImportFileInfo(
     val uri: Uri,
     val bookName: String,
     val fileSize: Long,
+    val fileFormat: String
+)
+
+data class ImportState(
+    val uris: List<Uri>,
+    val files: List<ImportFileInfo>,
     val splitMethod: String = com.bandbbs.ebook.utils.ChapterSplitter.METHOD_DEFAULT,
     val noSplit: Boolean = false,
-    val fileFormat: String = "txt",
     val wordsPerChapter: Int = 5000,
     val selectedCategory: String? = null,
     val enableChapterMerge: Boolean = false,
@@ -44,7 +49,15 @@ data class ImportState(
     val enableChapterRename: Boolean = false,
     val renamePattern: String = "",
     val customRegex: String = ""
-)
+) {
+    // 兼容单文件导入的旧代码
+    val uri: Uri get() = uris.first()
+    val bookName: String get() = files.first().bookName
+    val fileSize: Long get() = files.first().fileSize
+    val fileFormat: String get() = files.first().fileFormat
+    
+    val isMultipleFiles: Boolean get() = uris.size > 1
+}
 
 data class ImportingState(
     val bookName: String,

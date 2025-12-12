@@ -52,6 +52,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _recentBook = MutableStateFlow<Book?>(null)
     val recentBook = _recentBook.asStateFlow()
 
+    private val _recentUpdatedBook = MutableStateFlow<Book?>(null)
+    val recentUpdatedBook = _recentUpdatedBook.asStateFlow()
+
 
     private val _expandedBookPath = MutableStateFlow<String?>(null)
     val expandedBookPath = _expandedBookPath.asStateFlow()
@@ -246,6 +249,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissConnectionError() = connectionHandler.dismissConnectionError()
 
     fun startImport(uri: android.net.Uri) = importHandler.startImport(uri)
+    
+    fun startImportBatch(uris: List<android.net.Uri>) = importHandler.startImportBatch(uris)
 
     fun cancelImport() = importHandler.cancelImport()
 
@@ -1309,10 +1314,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     chapterProgressPercent = chapterProgressPercent
                 )
             }
+            // 获取最近更新的书籍（基于文件修改时间）
+            val recentUpdatedBook = bookUiModels.maxByOrNull { book ->
+                try {
+                    File(book.path).lastModified()
+                } catch (e: Exception) {
+                    0L
+                }
+            }
+
             withContext(Dispatchers.Main) {
                 _books.value = bookUiModels.sortedByDescending { it.name }
 
                 _recentBook.value = bookUiModels.maxByOrNull { it.id }
+                _recentUpdatedBook.value = recentUpdatedBook
             }
         }
     }

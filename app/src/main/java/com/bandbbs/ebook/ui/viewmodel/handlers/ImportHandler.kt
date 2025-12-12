@@ -40,35 +40,56 @@ class ImportHandler(
 ) {
 
     fun startImport(uri: Uri) {
+        startImportBatch(listOf(uri))
+    }
+
+    fun startImportBatch(uris: List<Uri>) {
         scope.launch {
             val context = application.applicationContext
-            UritoFile(uri, context)?.let { sourceFile ->
-                val fileName = sourceFile.name.lowercase()
-                val allowedExtensions = listOf(".txt", ".epub", ".nvb")
-                val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
+            val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
+            val allowedExtensions = listOf(".txt", ".epub", ".nvb")
+            
+            uris.forEach { uri ->
+                UritoFile(uri, context)?.let { sourceFile ->
+                    val fileName = sourceFile.name.lowercase()
+                    val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
 
-                if (!hasValidExtension) {
-                    withContext(Dispatchers.Main) {
-                        importState.value = null
-                        importingState.value = ImportingState(
-                            bookName = sourceFile.nameWithoutExtension,
-                            statusText = "不支持的文件格式\n仅支持 TXT、EPUB、NVB 格式",
-                            progress = 0f
+                    if (hasValidExtension) {
+                        val fileFormat = detectFileFormat(context, uri)
+                        validFiles.add(
+                            com.bandbbs.ebook.ui.viewmodel.ImportFileInfo(
+                                uri = uri,
+                                bookName = sourceFile.nameWithoutExtension,
+                                fileSize = sourceFile.length(),
+                                fileFormat = fileFormat
+                            )
                         )
+                    } else {
+                        // 对于无效文件，显示错误但不阻止其他文件导入
+                        withContext(Dispatchers.Main) {
+                            importingState.value = ImportingState(
+                                bookName = sourceFile.nameWithoutExtension,
+                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB 格式",
+                                progress = 0f
+                            )
+                        }
+                        delay(2000)
                     }
-                    delay(3000)
-                    withContext(Dispatchers.Main) {
-                        importingState.value = null
-                    }
-                    return@launch
                 }
+            }
 
-                val fileFormat = detectFileFormat(context, uri)
-                importState.value = ImportState(
-                    uri = uri,
-                    bookName = sourceFile.nameWithoutExtension,
-                    fileSize = sourceFile.length(),
-                    fileFormat = fileFormat
+            if (validFiles.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    importState.value = null
+                    importingState.value = null
+                }
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
+                importState.value = com.bandbbs.ebook.ui.viewmodel.ImportState(
+                    uris = validFiles.map { it.uri },
+                    files = validFiles
                 )
             }
         }
@@ -92,22 +113,98 @@ class ImportHandler(
     ) {
         val state = importState.value ?: return
 
-        val finalBookName = bookName.trim()
-        if (finalBookName.isEmpty()) {
-            return
-        }
-
-        val finalCategory = selectedCategory ?: state.selectedCategory
-
         scope.launch(Dispatchers.IO) {
-            val existingBook = booksState.value.find { it.name == finalBookName }
+            withContext(Dispatchers.Main) {
+                importState.value = null
+            }
+            val finalCategory = selectedCategory ?: state.selectedCategory
 
-            val context = application.applicationContext
-            val fileFormat = detectFileFormat(context, state.uri)
+            if (state.isMultipleFiles) {
+                // 批量导入：使用文件名作为书名，统一应用设置
+                state.files.forEach { fileInfo ->
+                    val finalBookName = fileInfo.bookName.trim()
+                    if (finalBookName.isNotEmpty()) {
+                        val existingBook = booksState.value.find { it.name == finalBookName }
+                        val context = application.applicationContext
+                        val fileFormat = detectFileFormat(context, fileInfo.uri)
 
-            if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
-                withContext(Dispatchers.Main) {
-                    importState.value = null
+                        if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
+                            // EPUB/NVB 格式直接更新
+                            performImport(
+                                fileInfo.uri,
+                                finalBookName,
+                                splitMethod,
+                                noSplit,
+                                false,
+                                wordsPerChapter,
+                                finalCategory,
+                                enableChapterMerge,
+                                mergeMinWords,
+                                enableChapterRename,
+                                renamePattern,
+                                customRegex
+                            )
+                        } else if (existingBook == null) {
+                            // 新书直接导入
+                            performImport(
+                                fileInfo.uri,
+                                finalBookName,
+                                splitMethod,
+                                noSplit,
+                                false,
+                                wordsPerChapter,
+                                finalCategory,
+                                enableChapterMerge,
+                                mergeMinWords,
+                                enableChapterRename,
+                                renamePattern,
+                                customRegex
+                            )
+                        }
+                        // 如果存在同名书籍且不是 EPUB/NVB，跳过（避免覆盖确认弹窗打断批量导入）
+                    }
+                }
+            } else {
+                // 单文件导入：保持原有逻辑
+                val finalBookName = bookName.trim()
+                if (finalBookName.isEmpty()) {
+                    return@launch
+                }
+
+                val existingBook = booksState.value.find { it.name == finalBookName }
+                val context = application.applicationContext
+                val fileFormat = detectFileFormat(context, state.uri)
+
+                if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
+                    performImport(
+                        state.uri,
+                        finalBookName,
+                        splitMethod,
+                        noSplit,
+                        false,
+                        wordsPerChapter,
+                        finalCategory,
+                        enableChapterMerge,
+                        mergeMinWords,
+                        enableChapterRename,
+                        renamePattern,
+                        customRegex
+                    )
+                    return@launch
+                }
+
+                if (existingBook != null) {
+                    withContext(Dispatchers.Main) {
+                        overwriteConfirmState.value = OverwriteConfirmState(
+                            existingBook = existingBook,
+                            uri = state.uri,
+                            newBookName = finalBookName,
+                            splitMethod = splitMethod,
+                            noSplit = noSplit,
+                            wordsPerChapter = wordsPerChapter
+                        )
+                    }
+                    return@launch
                 }
 
                 performImport(
@@ -124,41 +221,7 @@ class ImportHandler(
                     renamePattern,
                     customRegex
                 )
-                return@launch
             }
-
-            if (existingBook != null) {
-                withContext(Dispatchers.Main) {
-                    importState.value = null
-                    overwriteConfirmState.value = OverwriteConfirmState(
-                        existingBook = existingBook,
-                        uri = state.uri,
-                        newBookName = finalBookName,
-                        splitMethod = splitMethod,
-                        noSplit = noSplit,
-                        wordsPerChapter = wordsPerChapter
-                    )
-                }
-                return@launch
-            }
-
-            withContext(Dispatchers.Main) {
-                importState.value = null
-            }
-            performImport(
-                state.uri,
-                finalBookName,
-                splitMethod,
-                noSplit,
-                false,
-                wordsPerChapter,
-                finalCategory,
-                enableChapterMerge,
-                mergeMinWords,
-                enableChapterRename,
-                renamePattern,
-                customRegex
-            )
         }
     }
 

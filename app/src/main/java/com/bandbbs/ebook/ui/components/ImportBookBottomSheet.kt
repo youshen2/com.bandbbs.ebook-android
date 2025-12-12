@@ -53,6 +53,7 @@ sealed class RenamePreviewResult {
 fun ImportBookBottomSheet(
     state: ImportState,
     categories: List<String>,
+    existingBookNames: List<String>,
     onCancel: () -> Unit,
     onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String, customRegex: String) -> Unit,
     onShowCategorySelector: () -> Unit
@@ -68,6 +69,22 @@ fun ImportBookBottomSheet(
     var enableChapterRename by remember { mutableStateOf(state.enableChapterRename) }
     var renamePattern by remember { mutableStateOf(state.renamePattern) }
     var customRegex by remember { mutableStateOf(state.customRegex) }
+    
+    val isMultipleFiles = state.isMultipleFiles
+    
+    // 检查是否有 EPUB 或 NVB 格式的文件
+    val hasEpubOrNvb = remember(state.files) {
+        state.files.any { it.fileFormat == "epub" || it.fileFormat == "nvb" }
+    }
+    
+    // 检查是否有 TXT 格式的文件
+    val hasTxt = remember(state.files) {
+        state.files.any { it.fileFormat == "txt" }
+    }
+    
+    val isBookNameExists = remember(bookName, existingBookNames) {
+        !isMultipleFiles && bookName.trim().isNotEmpty() && existingBookNames.contains(bookName.trim())
+    }
 
     val renamePreview = remember(renamePattern) {
         if (renamePattern.isBlank()) {
@@ -116,7 +133,7 @@ fun ImportBookBottomSheet(
                 Text("取消")
             }
             Text(
-                "导入书籍",
+                if (isMultipleFiles) "批量导入书籍 (${state.files.size})" else "导入书籍",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -138,67 +155,116 @@ fun ImportBookBottomSheet(
                         customRegex
                     )
                 },
-                enabled = bookName.isNotBlank()
+                enabled = if (isMultipleFiles) true else bookName.isNotBlank()
             ) {
-                Text("导入")
+                Text(if (isMultipleFiles) "批量导入" else "导入")
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = bookName,
-            onValueChange = { bookName = it },
-            label = { Text("书名") },
-            placeholder = { Text("请输入书籍名称") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp)
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "分类",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            onClick = { onShowCategorySelector() },
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        if (isMultipleFiles) {
+            // 多文件导入：显示文件列表，禁用书名输入
+            Text(
+                text = "待导入文件 (${state.files.size} 个)",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = selectedCategory ?: "未分类",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = "选择分类",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    state.files.take(5).forEach { fileInfo ->
+                        Text(
+                            text = "• ${fileInfo.bookName} (${fileInfo.fileFormat.uppercase()})",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    if (state.files.size > 5) {
+                        Text(
+                            text = "... 还有 ${state.files.size - 5} 个文件",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "将使用文件名作为书名，以下设置将统一应用到所有文件",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            // 单文件导入：显示书名输入框
+            OutlinedTextField(
+                value = bookName,
+                onValueChange = { bookName = it },
+                label = { Text("书名") },
+                placeholder = { Text("请输入书籍名称") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                supportingText = if (isBookNameExists) {
+                    { Text("检测到同名书籍，将根据已有内容覆盖", color = MaterialTheme.colorScheme.primary) }
+                } else null
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        if (!isBookNameExists || isMultipleFiles) {
+            Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = "章节设置",
+            Text(
+                text = "分类",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                onClick = { onShowCategorySelector() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = selectedCategory ?: "未分类",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.ExpandMore,
+                        contentDescription = "选择分类",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "章节设置",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary
@@ -230,7 +296,7 @@ fun ImportBookBottomSheet(
             }
         }
 
-        if (state.fileFormat != "epub" && state.fileFormat != "nvb") {
+        if (hasTxt) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Box {
@@ -377,7 +443,9 @@ fun ImportBookBottomSheet(
                     )
                 }
             }
-        } else {
+        }
+        
+        if (hasEpubOrNvb) {
             if (!noSplit) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
@@ -387,7 +455,17 @@ fun ImportBookBottomSheet(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = if (state.fileFormat == "epub") "EPUB 格式自带章节信息，将按原有章节导入" else "NVB 格式自带章节信息，将按原有章节导入",
+                        text = if (isMultipleFiles) {
+                            val epubCount = state.files.count { it.fileFormat == "epub" }
+                            val nvbCount = state.files.count { it.fileFormat == "nvb" }
+                            when {
+                                epubCount > 0 && nvbCount > 0 -> "EPUB 和 NVB 格式自带章节信息，将按原有章节导入"
+                                epubCount > 0 -> "EPUB 格式自带章节信息，将按原有章节导入"
+                                else -> "NVB 格式自带章节信息，将按原有章节导入"
+                            }
+                        } else {
+                            if (state.fileFormat == "epub") "EPUB 格式自带章节信息，将按原有章节导入" else "NVB 格式自带章节信息，将按原有章节导入"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(12.dp)
@@ -522,6 +600,7 @@ fun ImportBookBottomSheet(
                     )
                 }
             }
+        }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
