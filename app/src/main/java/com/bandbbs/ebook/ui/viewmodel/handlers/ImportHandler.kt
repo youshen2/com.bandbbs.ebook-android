@@ -48,7 +48,7 @@ class ImportHandler(
             val context = application.applicationContext
             val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
             val allowedExtensions = listOf(".txt", ".epub", ".nvb")
-            
+
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
                     val fileName = sourceFile.name.lowercase()
@@ -65,7 +65,7 @@ class ImportHandler(
                             )
                         )
                     } else {
-                        
+
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
@@ -120,7 +120,7 @@ class ImportHandler(
             val finalCategory = selectedCategory ?: state.selectedCategory
 
             if (state.isMultipleFiles) {
-                
+
                 state.files.forEach { fileInfo ->
                     val finalBookName = fileInfo.bookName.trim()
                     if (finalBookName.isNotEmpty()) {
@@ -129,7 +129,7 @@ class ImportHandler(
                         val fileFormat = detectFileFormat(context, fileInfo.uri)
 
                         if (existingBook != null && (fileFormat == "epub" || fileFormat == "nvb")) {
-                            
+
                             performImport(
                                 fileInfo.uri,
                                 finalBookName,
@@ -145,7 +145,7 @@ class ImportHandler(
                                 customRegex
                             )
                         } else if (existingBook == null) {
-                            
+
                             performImport(
                                 fileInfo.uri,
                                 finalBookName,
@@ -161,11 +161,11 @@ class ImportHandler(
                                 customRegex
                             )
                         }
-                        
+
                     }
                 }
             } else {
-                
+
                 val finalBookName = bookName.trim()
                 if (finalBookName.isEmpty()) {
                     return@launch
@@ -482,21 +482,22 @@ class ImportHandler(
             val existingChapters = db.chapterDao().getChapterInfoForBook(bookId.toInt())
             val existingChapterNames = existingChapters.map { it.name }.toSet()
 
-            
+
             var processedChapters = nvbBook.chapters
             var parsedBookInfo: BookInfoParser.ParsedBookInfo? = null
-            
-            if (!noSplit && processedChapters.isNotEmpty() && 
-                (processedChapters[0].title == "简介" || processedChapters[0].title == "介绍")) {
-                importingState.update { 
-                    it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f) 
+
+            if (!noSplit && processedChapters.isNotEmpty() &&
+                (processedChapters[0].title == "简介" || processedChapters[0].title == "介绍")
+            ) {
+                importingState.update {
+                    it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f)
                 }
-                
+
                 val introContent = processedChapters[0].content
                 parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
-                
+
                 if (parsedBookInfo != null) {
-                    
+
                     val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
                     if (bookEntity != null) {
                         val updatedEntity = bookEntity.copy(
@@ -507,8 +508,8 @@ class ImportHandler(
                         )
                         db.bookDao().update(updatedEntity)
                     }
-                    
-                    
+
+
                     processedChapters = processedChapters.drop(1)
                 }
             }
@@ -677,21 +678,22 @@ class ImportHandler(
             val existingChapters = db.chapterDao().getChapterInfoForBook(bookId.toInt())
             val existingChapterNames = existingChapters.map { it.name }.toSet()
 
-            
+
             var processedEpubChapters = epubBook.chapters
             var parsedBookInfo: BookInfoParser.ParsedBookInfo? = null
-            
-            if (!noSplit && processedEpubChapters.isNotEmpty() && 
-                (processedEpubChapters[0].title == "简介" || processedEpubChapters[0].title == "介绍")) {
-                importingState.update { 
-                    it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f) 
+
+            if (!noSplit && processedEpubChapters.isNotEmpty() &&
+                (processedEpubChapters[0].title == "简介" || processedEpubChapters[0].title == "介绍")
+            ) {
+                importingState.update {
+                    it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f)
                 }
-                
+
                 val introContent = processedEpubChapters[0].content
                 parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
-                
+
                 if (parsedBookInfo != null) {
-                    
+
                     val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
                     if (bookEntity != null) {
                         val updatedEntity = bookEntity.copy(
@@ -702,8 +704,8 @@ class ImportHandler(
                         )
                         db.bookDao().update(updatedEntity)
                     }
-                    
-                    
+
+
                     processedEpubChapters = processedEpubChapters.drop(1)
                 }
             }

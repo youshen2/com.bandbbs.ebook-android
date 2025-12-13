@@ -1,12 +1,12 @@
 package com.bandbbs.ebook.utils
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 /**
  * 阅读时间存储工具类
@@ -15,8 +15,8 @@ import java.util.*
 object ReadingTimeStorage {
     private const val PREFS_NAME = "reading_time_prefs"
     private const val TAG = "ReadingTimeStorage"
-    private const val MIN_SESSION_DURATION_SECONDS = 5L 
-    private const val MAX_SESSIONS_PER_BOOK = 100 
+    private const val MIN_SESSION_DURATION_SECONDS = 5L
+    private const val MAX_SESSIONS_PER_BOOK = 100
 
     /**
      * 记录阅读开始
@@ -30,11 +30,11 @@ object ReadingTimeStorage {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val editor = prefs.edit()
-            
-            
+
+
             editor.putLong("${bookName}_current_session_start", System.currentTimeMillis())
             editor.apply()
-            
+
             Log.d(TAG, "recordReadingStart: $bookName at ${System.currentTimeMillis()}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to record reading start for $bookName", e)
@@ -53,29 +53,32 @@ object ReadingTimeStorage {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val startTime = prefs.getLong("${bookName}_current_session_start", 0L)
-            
+
             if (startTime == 0L) {
                 Log.d(TAG, "recordReadingEnd: No active session for $bookName")
                 return
             }
 
             val endTime = System.currentTimeMillis()
-            val duration = (endTime - startTime) / 1000 
+            val duration = (endTime - startTime) / 1000
 
-            
+
             if (duration < MIN_SESSION_DURATION_SECONDS) {
-                Log.d(TAG, "recordReadingEnd: Session too short ($duration seconds) for $bookName, ignoring")
+                Log.d(
+                    TAG,
+                    "recordReadingEnd: Session too short ($duration seconds) for $bookName, ignoring"
+                )
                 val editor = prefs.edit()
                 editor.remove("${bookName}_current_session_start")
                 editor.apply()
                 return
             }
 
-            
+
             val totalSeconds = prefs.getLong("${bookName}_total_seconds", 0L)
             val sessionsJson = prefs.getString("${bookName}_sessions", null)
-            
-            
+
+
             var sessionsArray = if (sessionsJson != null) {
                 try {
                     JSONArray(sessionsJson)
@@ -87,10 +90,10 @@ object ReadingTimeStorage {
                 JSONArray()
             }
 
-            
+
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val sessionDate = dateFormat.format(Date(startTime))
-            
+
             val newSession = JSONObject().apply {
                 put("startTime", startTime)
                 put("endTime", endTime)
@@ -98,10 +101,10 @@ object ReadingTimeStorage {
                 put("date", sessionDate)
             }
 
-            
+
             sessionsArray.put(newSession)
 
-            
+
             if (sessionsArray.length() > MAX_SESSIONS_PER_BOOK) {
                 val newArray = JSONArray()
                 val startIndex = sessionsArray.length() - MAX_SESSIONS_PER_BOOK
@@ -111,24 +114,27 @@ object ReadingTimeStorage {
                 sessionsArray = newArray
             }
 
-            
+
             val newTotalSeconds = totalSeconds + duration
 
-            
+
             val firstReadDate = prefs.getString("${bookName}_first_read_date", null)
             if (firstReadDate == null) {
                 prefs.edit().putString("${bookName}_first_read_date", sessionDate).apply()
             }
             prefs.edit().putString("${bookName}_last_read_date", sessionDate).apply()
 
-            
+
             val editor = prefs.edit()
             editor.putLong("${bookName}_total_seconds", newTotalSeconds)
             editor.putString("${bookName}_sessions", sessionsArray.toString())
             editor.remove("${bookName}_current_session_start")
             editor.apply()
 
-            Log.d(TAG, "recordReadingEnd: $bookName, duration=$duration seconds, total=$newTotalSeconds seconds, sessions=${sessionsArray.length()}")
+            Log.d(
+                TAG,
+                "recordReadingEnd: $bookName, duration=$duration seconds, total=$newTotalSeconds seconds, sessions=${sessionsArray.length()}"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to record reading end for $bookName", e)
         }
@@ -145,7 +151,7 @@ object ReadingTimeStorage {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val totalSeconds = prefs.getLong("${bookName}_total_seconds", 0L)
-            
+
             if (totalSeconds == 0L) {
                 return null
             }

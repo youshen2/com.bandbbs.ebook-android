@@ -150,27 +150,32 @@ fun BookItem(
                             )
                         }
 
-                        
 
-                    if (book.localCategory != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "分类: ${book.localCategory}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
 
-                    if (book.chapterProgressPercent > 0) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "进度: ${String.format("%.1f", book.chapterProgressPercent)}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
+                        if (book.localCategory != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "分类: ${book.localCategory}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        if (book.chapterProgressPercent > 0) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "进度: ${
+                                    String.format(
+                                        "%.1f",
+                                        book.chapterProgressPercent
+                                    )
+                                }%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 }
             }

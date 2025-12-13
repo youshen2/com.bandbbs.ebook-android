@@ -58,7 +58,7 @@ data class ReaderSettings(
     val textColor: Int = DEFAULT_TEXT_COLOR,
     val backgroundColor: Int = DEFAULT_BG_COLOR,
     val keepScreenOn: Boolean = false,
-    val autoScrollSpeed: Int = 0 
+    val autoScrollSpeed: Int = 0
 )
 
 data class ReaderTheme(
@@ -136,7 +136,7 @@ fun ReaderSettingsBottomSheet(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        
+
         Text(
             text = "背景主题",
             style = MaterialTheme.typography.titleMedium,
@@ -179,7 +179,7 @@ fun ReaderSettingsBottomSheet(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-        
+
         Text(
             text = "字体大小",
             style = MaterialTheme.typography.titleMedium,
@@ -216,7 +216,7 @@ fun ReaderSettingsBottomSheet(
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
         )
 
-        
+
         Text(
             text = "行间距",
             style = MaterialTheme.typography.titleMedium,
@@ -256,7 +256,7 @@ fun ReaderSettingsBottomSheet(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -277,7 +277,7 @@ fun ReaderSettingsBottomSheet(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

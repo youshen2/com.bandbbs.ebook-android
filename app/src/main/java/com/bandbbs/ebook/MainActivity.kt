@@ -17,13 +17,24 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.with
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -31,25 +42,14 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
+import com.bandbbs.ebook.ui.screens.BookStatisticsScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
 import com.bandbbs.ebook.ui.screens.StatisticsScreen
-import com.bandbbs.ebook.ui.screens.BookStatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
 
@@ -60,10 +60,10 @@ class MainActivity : ComponentActivity() {
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             if (uris.size == 1) {
-                
+
                 viewModel.startImport(uris[0])
             } else {
-                
+
                 viewModel.startImportBatch(uris)
             }
         }
@@ -100,7 +100,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            EbookTheme {
+            val themeMode by viewModel.themeMode.collectAsState()
+            val darkTheme = when (themeMode) {
+                MainViewModel.ThemeMode.LIGHT -> false
+                MainViewModel.ThemeMode.DARK -> true
+                MainViewModel.ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            EbookTheme(darkTheme = darkTheme) {
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
 
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
@@ -113,6 +119,7 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf("home") }
                 var selectedBookForStats by remember { mutableStateOf<String?>(null) }
                 val isReaderOpen = chapterToPreview != null
+                val statisticsScrollState = rememberScrollState()
 
                 Scaffold(
                     bottomBar = {
@@ -163,75 +170,75 @@ class MainActivity : ComponentActivity() {
                                 val isExitingReader = initialState == "reader"
                                 val isEnteringBookStats = targetState == "book_statistics"
                                 val isExitingBookStats = initialState == "book_statistics"
-                                
+
                                 if (isEnteringReader) {
-                                    
+
                                     slideInHorizontally(
                                         initialOffsetX = { it },
                                         animationSpec = tween(300)
                                     ) with
-                                    
-                                    slideOutHorizontally(
-                                        targetOffsetX = { -it },
-                                        animationSpec = tween(300)
-                                    )
+
+                                            slideOutHorizontally(
+                                                targetOffsetX = { -it },
+                                                animationSpec = tween(300)
+                                            )
                                 } else if (isExitingReader) {
-                                    
-                                    
+
+
                                     slideInHorizontally(
                                         initialOffsetX = { -it },
                                         animationSpec = tween(300)
                                     ) with
-                                    slideOutHorizontally(
-                                        targetOffsetX = { it },
-                                        animationSpec = tween(300)
-                                    )
+                                            slideOutHorizontally(
+                                                targetOffsetX = { it },
+                                                animationSpec = tween(300)
+                                            )
                                 } else if (isEnteringBookStats) {
-                                    
+
                                     slideInHorizontally(
                                         initialOffsetX = { it },
                                         animationSpec = tween(300)
                                     ) with
-                                    slideOutHorizontally(
-                                        targetOffsetX = { -it },
-                                        animationSpec = tween(300)
-                                    )
+                                            slideOutHorizontally(
+                                                targetOffsetX = { -it },
+                                                animationSpec = tween(300)
+                                            )
                                 } else if (isExitingBookStats) {
-                                    
+
                                     slideInHorizontally(
                                         initialOffsetX = { -it },
                                         animationSpec = tween(300)
                                     ) with
-                                    slideOutHorizontally(
-                                        targetOffsetX = { it },
-                                        animationSpec = tween(300)
-                                    )
+                                            slideOutHorizontally(
+                                                targetOffsetX = { it },
+                                                animationSpec = tween(300)
+                                            )
                                 } else {
-                                    
+
                                     val screenOrder = listOf("home", "statistics", "settings")
                                     val currentIndex = screenOrder.indexOf(initialState)
                                     val targetIndex = screenOrder.indexOf(targetState)
-                                    
+
                                     if (targetIndex > currentIndex) {
-                                        
+
                                         slideInHorizontally(
                                             initialOffsetX = { it },
                                             animationSpec = tween(300)
                                         ) with
-                                        slideOutHorizontally(
-                                            targetOffsetX = { -it },
-                                            animationSpec = tween(300)
-                                        )
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { -it },
+                                                    animationSpec = tween(300)
+                                                )
                                     } else {
-                                        
+
                                         slideInHorizontally(
                                             initialOffsetX = { -it },
                                             animationSpec = tween(300)
                                         ) with
-                                        slideOutHorizontally(
-                                            targetOffsetX = { it },
-                                            animationSpec = tween(300)
-                                        )
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { it },
+                                                    animationSpec = tween(300)
+                                                )
                                     }
                                 }
                             },
@@ -291,9 +298,11 @@ class MainActivity : ComponentActivity() {
                                         onBackClick = { currentScreen = "home" },
                                         onBookStatClick = { bookName ->
                                             selectedBookForStats = bookName
-                                        }
+                                        },
+                                        scrollState = statisticsScrollState
                                     )
                                 }
+
                                 "book_statistics" -> {
                                     selectedBookForStats?.let { bookName ->
                                         BookStatisticsScreen(
@@ -302,6 +311,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 }
+
                                 "settings" -> {
                                     SettingsScreen(
                                         viewModel = viewModel,

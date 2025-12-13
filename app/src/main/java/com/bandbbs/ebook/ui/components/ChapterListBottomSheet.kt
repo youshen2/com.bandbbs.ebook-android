@@ -54,7 +54,7 @@ import kotlinx.coroutines.withContext
 fun ChapterListBottomSheet(
     book: Book,
     chapters: List<ChapterInfo>,
-    readOnly: Boolean = false, 
+    readOnly: Boolean = false,
     onPreviewChapter: (Int) -> Unit,
     onEditContent: (Int) -> Unit,
     onSaveChapterContent: (Int, String, String) -> Unit,
@@ -229,7 +229,7 @@ fun ChapterListBottomSheet(
                 }
             }
         } else {
-            
+
             if (!readOnly) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

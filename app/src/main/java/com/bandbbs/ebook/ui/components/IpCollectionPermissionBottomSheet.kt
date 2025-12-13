@@ -2,7 +2,6 @@ package com.bandbbs.ebook.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -70,7 +69,7 @@ fun IpCollectionPermissionBottomSheet(
             label = "PermissionStep"
         ) { isSecondStep ->
             if (isSecondStep) {
-                
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
@@ -157,7 +156,7 @@ fun IpCollectionPermissionBottomSheet(
                     }
                 }
             } else {
-                
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()

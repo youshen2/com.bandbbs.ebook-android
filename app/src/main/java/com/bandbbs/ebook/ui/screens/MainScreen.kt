@@ -1,9 +1,13 @@
 package com.bandbbs.ebook.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,10 +30,9 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -38,6 +40,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,13 +66,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.R
 import com.bandbbs.ebook.ui.components.BookItem
-import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
-import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
@@ -77,10 +76,12 @@ import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
+import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
+import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
@@ -153,7 +154,8 @@ fun MainScreen(
     val editBookInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val versionIncompatibleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val syncReadingDataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val ipCollectionPermissionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val ipCollectionPermissionSheetState =
+        rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val updateCheckSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     bookToDelete?.let { book ->
@@ -174,11 +176,11 @@ fun MainScreen(
         )
     }
 
-    
+
     if (syncReadingDataState.showModeDialog) {
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
-        
+
         AlertDialog(
             onDismissRequest = {
                 viewModel.dismissSyncModeDialog()
@@ -188,14 +190,14 @@ fun MainScreen(
                 Column {
                     Text("请选择阅读数据的同步方式：")
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "阅读进度",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -221,9 +223,9 @@ fun MainScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -249,9 +251,9 @@ fun MainScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -277,16 +279,16 @@ fun MainScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "阅读时长",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -312,9 +314,9 @@ fun MainScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -340,9 +342,9 @@ fun MainScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -372,8 +374,11 @@ fun MainScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { 
-                        viewModel.setSyncModesAndStart(selectedProgressMode, selectedReadingTimeMode)
+                    onClick = {
+                        viewModel.setSyncModesAndStart(
+                            selectedProgressMode,
+                            selectedReadingTimeMode
+                        )
                     }
                 ) {
                     Text("确定")
@@ -382,7 +387,7 @@ fun MainScreen(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        viewModel.dismissSyncModeDialog() 
+                        viewModel.dismissSyncModeDialog()
                     }
                 ) {
                     Text("取消")
@@ -391,7 +396,7 @@ fun MainScreen(
         )
     }
 
-    
+
     if (syncReadingDataState.isSyncing || (syncReadingDataState.statusText.isNotEmpty() && !syncReadingDataState.isSyncing)) {
         LaunchedEffect(syncReadingDataState.isSyncing, syncReadingDataState.statusText) {
             if (syncReadingDataState.isSyncing || syncReadingDataState.statusText.isNotEmpty()) {
@@ -401,7 +406,7 @@ fun MainScreen(
         ModalBottomSheet(
             onDismissRequest = {
                 if (syncReadingDataState.isSyncing) {
-                    
+
                     viewModel.cancelSyncReadingData()
                 }
                 scope.launch {
@@ -415,7 +420,7 @@ fun MainScreen(
                 state = syncReadingDataState,
                 onDismiss = {
                     if (syncReadingDataState.isSyncing) {
-                        
+
                         viewModel.cancelSyncReadingData()
                     }
                     scope.launch {
@@ -500,7 +505,7 @@ fun MainScreen(
         }
     }
 
-    
+
     if (ipCollectionPermissionState.showSheet) {
         LaunchedEffect(ipCollectionPermissionState.showSheet) {
             ipCollectionPermissionSheetState.show()
@@ -532,7 +537,7 @@ fun MainScreen(
         }
     }
 
-    
+
     if (updateCheckState.showSheet) {
         LaunchedEffect(updateCheckState.showSheet) {
             updateCheckSheetState.show()
@@ -722,13 +727,17 @@ fun MainScreen(
     }
 
     editBookInfoState?.let { state ->
-        var editLocalCategory by remember(state.book) { mutableStateOf(state.book.localCategory ?: "") }
-        
-        
+        var editLocalCategory by remember(state.book) {
+            mutableStateOf(
+                state.book.localCategory ?: ""
+            )
+        }
+
+
         androidx.compose.runtime.LaunchedEffect(state.book.localCategory) {
             editLocalCategory = state.book.localCategory ?: ""
         }
-        
+
         ModalBottomSheet(
             onDismissRequest = { viewModel.dismissEditBookInfo() },
             sheetState = editBookInfoSheetState
@@ -782,7 +791,7 @@ fun MainScreen(
                     title = {
                         Column {
                             Text(
-                                text = stringResource(id = R.string.app_name),
+                                text = "弦电子书",
                                 style = MaterialTheme.typography.titleLarge,
                             )
                             Text(
@@ -794,15 +803,20 @@ fun MainScreen(
                     },
                     actions = {
                         val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
-                        IconButton(
+                        val isEnabled =
+                            connectionState.isConnected && !syncReadingDataState.isSyncing
+                        FilledTonalButton(
                             onClick = { viewModel.syncAllReadingData() },
-                            enabled = connectionState.isConnected && !syncReadingDataState.isSyncing
+                            enabled = isEnabled,
+                            modifier = Modifier.padding(end = 6.dp)
                         ) {
                             Icon(
                                 Icons.Default.Sync,
-                                contentDescription = "同步阅读数据",
-                                modifier = Modifier.size(24.dp)
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("同步数据")
                         }
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
@@ -841,7 +855,7 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                
+
                 if (books.isNotEmpty() && showSearchBar) {
                     TextField(
                         value = searchQuery,
@@ -875,7 +889,10 @@ fun MainScreen(
                     } else {
                         books.filter { book ->
                             book.name.contains(searchQuery, ignoreCase = true) ||
-                            book.localCategory?.contains(searchQuery, ignoreCase = true) == true
+                                    book.localCategory?.contains(
+                                        searchQuery,
+                                        ignoreCase = true
+                                    ) == true
                         }
                     }
                 }
@@ -946,7 +963,15 @@ fun MainScreen(
                             .sortedBy { if (it.first == "未分类") "\uFFFF" else it.first }
                     }
 
-                    val listItems = remember(booksByCategory, expandedCategories, recentBook, recentUpdatedBook, searchQuery, showRecentImport, showRecentUpdate) {
+                    val listItems = remember(
+                        booksByCategory,
+                        expandedCategories,
+                        recentBook,
+                        recentUpdatedBook,
+                        searchQuery,
+                        showRecentImport,
+                        showRecentUpdate
+                    ) {
                         buildList {
                             if (showRecentImport && recentBook != null && searchQuery.isBlank()) {
                                 add(ListItem(ItemType.RECENT_HEADER))
@@ -960,10 +985,8 @@ fun MainScreen(
 
                             booksByCategory.forEach { (category, categoryBooks) ->
                                 add(ListItem(ItemType.CATEGORY_HEADER, category = category))
-                                if (expandedCategories.contains(category)) {
-                                    categoryBooks.forEach { book ->
-                                        add(ListItem(ItemType.BOOK, book = book))
-                                    }
+                                categoryBooks.forEach { book ->
+                                    add(ListItem(ItemType.BOOK, book = book, category = category))
                                 }
                             }
                         }
@@ -974,9 +997,8 @@ fun MainScreen(
                             start = 16.dp,
                             top = 8.dp,
                             end = 16.dp,
-                            bottom = 80.dp 
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            bottom = 80.dp
+                        )
                     ) {
                         itemsIndexed(
                             items = listItems,
@@ -987,11 +1009,30 @@ fun MainScreen(
                                     ItemType.RECENT_UPDATE_HEADER -> "header_recent_update"
                                     ItemType.RECENT_UPDATE_BOOK -> "recent_update_${item.book!!.id}"
                                     ItemType.CATEGORY_HEADER -> "category_${item.category}"
-                                    ItemType.BOOK -> item.book!!.path
+                                    ItemType.BOOK -> "${item.category}_${item.book!!.path}"
                                 }
                             }
                         ) { index, item ->
                             val isLastItem = index == listItems.size - 1
+                            val prevItem = if (index > 0) listItems[index - 1] else null
+
+                            val prevItemVisible = when (prevItem?.type) {
+                                ItemType.BOOK -> {
+                                    val prevCategory = prevItem.category
+                                    prevCategory != null && expandedCategories.contains(prevCategory)
+                                }
+
+                                null -> false
+                                else -> true
+                            }
+                            val shouldAddTopSpacing = when {
+                                index == 0 -> false
+                                prevItem?.type == ItemType.CATEGORY_HEADER -> false
+                                prevItem?.type == ItemType.RECENT_HEADER -> false
+                                prevItem?.type == ItemType.RECENT_UPDATE_HEADER -> false
+                                prevItem?.type == ItemType.BOOK && !prevItemVisible -> false
+                                else -> true
+                            }
                             when (item.type) {
                                 ItemType.RECENT_HEADER -> {
                                     Row(
@@ -1011,6 +1052,7 @@ fun MainScreen(
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Bold
                                         )
+                                        Spacer(modifier = Modifier.size(8.dp))
                                     }
                                 }
 
@@ -1035,7 +1077,7 @@ fun MainScreen(
                                     }
                                 }
 
-                                ItemType.RECENT_BOOK, ItemType.RECENT_UPDATE_BOOK, ItemType.BOOK -> {
+                                ItemType.RECENT_BOOK, ItemType.RECENT_UPDATE_BOOK -> {
                                     val book = item.book!!
                                     AnimatedVisibility(
                                         visible = true,
@@ -1044,7 +1086,8 @@ fun MainScreen(
                                     ) {
                                         Box(
                                             modifier = Modifier.padding(
-                                                bottom = if (isLastItem) 16.dp else 0.dp
+                                                top = 8.dp,
+                                                bottom = 8.dp
                                             )
                                         ) {
                                             BookItem(
@@ -1055,8 +1098,69 @@ fun MainScreen(
                                                 },
                                                 onDeleteClick = { viewModel.requestDeleteBook(book) },
                                                 onSyncClick = { viewModel.startPush(book) },
-                                                onChapterListClick = { viewModel.showChapterList(book) },
-                                                onContinueReadingClick = { viewModel.continueReading(book) },
+                                                onChapterListClick = {
+                                                    viewModel.showChapterList(
+                                                        book
+                                                    )
+                                                },
+                                                onContinueReadingClick = {
+                                                    viewModel.continueReading(
+                                                        book
+                                                    )
+                                                },
+                                                onImportCoverClick = {
+                                                    viewModel.requestImportCover(book)
+                                                    onImportCoverClick()
+                                                },
+                                                onEditInfoClick = {
+                                                    viewModel.showEditBookInfo(book)
+                                                },
+                                                isSyncEnabled = connectionState.isConnected
+                                            )
+                                        }
+                                    }
+                                }
+
+                                ItemType.BOOK -> {
+                                    val book = item.book!!
+                                    val category = item.category!!
+                                    val isCategoryExpanded = expandedCategories.contains(category)
+                                    AnimatedVisibility(
+                                        visible = isCategoryExpanded,
+                                        enter = fadeIn(animationSpec = tween(300)) + expandVertically(
+                                            expandFrom = Alignment.Top,
+                                            animationSpec = tween(300)
+                                        ),
+                                        exit = fadeOut(animationSpec = tween(300)) + shrinkVertically(
+                                            shrinkTowards = Alignment.Top,
+                                            animationSpec = tween(300)
+                                        )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(
+                                                    top = if (shouldAddTopSpacing) 8.dp else 0.dp,
+                                                    bottom = if (isLastItem) 16.dp else 0.dp
+                                                )
+                                        ) {
+                                            BookItem(
+                                                book = book,
+                                                isExpanded = expandedBookPath == book.path,
+                                                onExpandClick = {
+                                                    viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                },
+                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                onSyncClick = { viewModel.startPush(book) },
+                                                onChapterListClick = {
+                                                    viewModel.showChapterList(
+                                                        book
+                                                    )
+                                                },
+                                                onContinueReadingClick = {
+                                                    viewModel.continueReading(
+                                                        book
+                                                    )
+                                                },
                                                 onImportCoverClick = {
                                                     viewModel.requestImportCover(book)
                                                     onImportCoverClick()
@@ -1081,7 +1185,10 @@ fun MainScreen(
                                             .fillMaxWidth()
                                             .clickable {
                                                 viewModel.toggleCategoryExpansion(category)
-                                            },
+                                            }
+                                            .padding(
+                                                bottom = 8.dp
+                                            ),
                                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                                         shape = RoundedCornerShape(12.dp)
                                     ) {

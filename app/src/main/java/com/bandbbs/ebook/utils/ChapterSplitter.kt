@@ -66,6 +66,7 @@ object ChapterSplitter {
                     regexDefault
                 }
             }
+
             else -> regexDefault
         }
 

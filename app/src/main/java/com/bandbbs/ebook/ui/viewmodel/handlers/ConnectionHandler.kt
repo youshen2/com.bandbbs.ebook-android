@@ -31,10 +31,11 @@ class ConnectionHandler(
         interHandshake = connection
         fileConnection = InterconnetFile(connection)
         connection.setOnVersionIncompatible { currentVersion, requiredVersion ->
-            versionIncompatibleState.value = com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState(
-                currentVersion = currentVersion,
-                requiredVersion = requiredVersion
-            )
+            versionIncompatibleState.value =
+                com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState(
+                    currentVersion = currentVersion,
+                    requiredVersion = requiredVersion
+                )
         }
         connection.setOnBandVersionReceived { version ->
             onBandVersionReceived?.invoke(version)

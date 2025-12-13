@@ -17,14 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -240,13 +237,13 @@ fun SyncOptionsBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 500.dp)
             ) {
-                
+
                 if (state.hasCover && !state.isCoverSynced) {
                     item {
                         SyncCoverOption(
@@ -257,7 +254,7 @@ fun SyncOptionsBottomSheet(
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
 
-                
+
                 if (state.hasCover && state.isCoverSynced && onResyncCoverOnly != null) {
                     item {
                         Card(
@@ -305,7 +302,7 @@ fun SyncOptionsBottomSheet(
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
 
-                
+
                 item {
                     BulkActionsCard(
                         state = state,
@@ -334,19 +331,19 @@ fun SyncOptionsBottomSheet(
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
-                
-                
+
+
                 item {
                     ChapterListHeader()
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
-                
-                
+
+
                 itemsIndexed(
                     items = state.chapters,
                     key = { _, chapter -> chapter.id }
                 ) { index, chapter ->
-                    
+
                     val isFirst = index == 0
                     val isLast = index == state.chapters.size - 1
                     val shape = when {
@@ -355,7 +352,7 @@ fun SyncOptionsBottomSheet(
                         isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                         else -> RoundedCornerShape(0.dp)
                     }
-                    
+
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.surface,
@@ -410,7 +407,7 @@ private fun ChapterItem(
     onSelectionChanged: (Set<Int>) -> Unit
 ) {
     val isSynced = chapter.index < syncedChapters
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()

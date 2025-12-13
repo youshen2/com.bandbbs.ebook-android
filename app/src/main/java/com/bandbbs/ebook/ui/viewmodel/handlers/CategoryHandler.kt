@@ -122,10 +122,10 @@ class CategoryHandler(
 
     fun selectCategory(category: String?) {
         categoryState.value?.let { state ->
-            
+
             state.onCategorySelectedForEdit?.invoke(category)
-            
-            
+
+
             if (state.onCategorySelectedForEdit == null) {
                 val book = state.book
                 if (book != null) {

@@ -1,5 +1,5 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -21,8 +21,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 40600
-        versionName = "4.6.0.DEV"
+        versionCode = 40610
+        versionName = "4.6.10.DEV"
     }
 
     signingConfigs {

@@ -1,7 +1,7 @@
 package com.bandbbs.ebook.ui.model
 
 data class Book(
-    val id: Int, 
+    val id: Int,
     val name: String,
     val path: String,
     val size: Long,

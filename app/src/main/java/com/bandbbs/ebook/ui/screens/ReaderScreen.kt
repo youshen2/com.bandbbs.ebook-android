@@ -123,12 +123,12 @@ fun ReaderScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    
+
     val chapter by viewModel.chapterToPreview.collectAsState()
     val allChapters by viewModel.chaptersForPreview.collectAsState()
     val books by viewModel.books.collectAsState()
 
-    
+
     val bookName = remember(chapter, allChapters, books) {
         if (allChapters.isNotEmpty()) {
             val bookId = allChapters[0].bookId
@@ -136,13 +136,13 @@ fun ReaderScreen(
         } else null
     }
 
-    
+
     var showControls by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
     var readerSettings by remember { mutableStateOf(loadReaderSettings(context)) }
     val settingsSheetState = rememberModalBottomSheetState()
 
-    
+
     val currentChapterIndex = remember(chapter, allChapters) {
         if (chapter != null) {
             allChapters.indexOfFirst { it.id == chapter!!.id }.coerceAtLeast(0)
@@ -153,72 +153,72 @@ fun ReaderScreen(
         chapter?.content?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
     }
 
-    
+
     var previousChapterId by remember { mutableIntStateOf(-1) }
-    
+
     var currentTime by remember { mutableStateOf("") }
     var batteryLevel by remember { mutableIntStateOf(0) }
 
     val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
     val density = LocalDensity.current
 
-    
+
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
 
     BackHandler(enabled = true) {
-        
+
         chapter?.let { ch ->
             saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
         }
-        
+
         if (bookName != null) {
             ReadingTimeStorage.recordReadingEnd(context, bookName)
         }
-        
+
         onClose()
     }
 
-    
+
     LaunchedEffect(chapter, bookName) {
         if (chapter == null) return@LaunchedEffect
 
-        
+
         if (allChapters.isNotEmpty()) {
             val bookId = allChapters[0].bookId
             withContext(Dispatchers.IO) {
                 saveLastReadChapter(context, bookId, chapter!!.id)
             }
         }
-        
+
         if (bookName != null) {
             withContext(Dispatchers.IO) {
-                
+
                 if (previousChapterId != -1 && previousChapterId != chapter!!.id) {
                     ReadingTimeStorage.recordReadingEnd(context, bookName)
                 }
-                
+
                 ReadingTimeStorage.recordReadingStart(context, bookName)
                 previousChapterId = chapter!!.id
             }
         }
 
-        
+
         val (index, offset) = withContext(Dispatchers.IO) {
             loadReadingPosition(context, chapter!!.id)
         }
-        
+
         listState.scrollToItem(0, 0)
         if (index < paragraphs.size + 1) {
             listState.scrollToItem(index, offset)
         }
     }
 
-    
+
     LaunchedEffect(firstVisibleItemIndex, firstVisibleItemScrollOffset) {
-        
-        
+
+
         delay(1000)
         if (chapter != null) {
             withContext(Dispatchers.IO) {
@@ -232,23 +232,30 @@ fun ReaderScreen(
         }
     }
 
-    
+
     DisposableEffect(lifecycleOwner, bookName) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
                     chapter?.let { ch ->
-                        saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
+                        saveReadingPosition(
+                            context,
+                            ch.id,
+                            firstVisibleItemIndex,
+                            firstVisibleItemScrollOffset
+                        )
                     }
                     if (bookName != null) {
                         ReadingTimeStorage.recordReadingEnd(context, bookName)
                     }
                 }
+
                 Lifecycle.Event.ON_RESUME -> {
                     if (bookName != null) {
                         ReadingTimeStorage.recordReadingStart(context, bookName)
                     }
                 }
+
                 else -> {}
             }
         }
@@ -261,7 +268,7 @@ fun ReaderScreen(
         }
     }
 
-    
+
     DisposableEffect(readerSettings.keepScreenOn) {
         val window = (context as? Activity)?.window
         if (readerSettings.keepScreenOn) {
@@ -274,21 +281,20 @@ fun ReaderScreen(
         }
     }
 
-    
+
     LaunchedEffect(readerSettings.autoScrollSpeed, isDragged, showControls) {
         if (readerSettings.autoScrollSpeed > 0 && !isDragged && !showControls) {
             while (isActive) {
-                
-                
-                
+
+
                 val scrollAmount = (readerSettings.autoScrollSpeed / 20f) * density.density
                 listState.scrollBy(scrollAmount)
-                delay(16) 
+                delay(16)
             }
         }
     }
 
-    
+
     LaunchedEffect(Unit) {
         while (true) {
             val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -297,7 +303,7 @@ fun ReaderScreen(
         }
     }
 
-    
+
     DisposableEffect(context) {
         val batteryReceiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
@@ -375,14 +381,14 @@ fun ReaderScreen(
                         ) {
                             if (currentChapterIndex > 0) {
                                 TextButton(onClick = {
-                                    
+
                                     saveReadingPosition(
                                         context,
                                         chapter!!.id,
                                         firstVisibleItemIndex,
                                         firstVisibleItemScrollOffset
                                     )
-                                    
+
                                     if (bookName != null) {
                                         scope.launch(Dispatchers.IO) {
                                             ReadingTimeStorage.recordReadingEnd(context, bookName)
@@ -397,14 +403,14 @@ fun ReaderScreen(
 
                             if (currentChapterIndex < allChapters.size - 1) {
                                 TextButton(onClick = {
-                                    
+
                                     saveReadingPosition(
                                         context,
                                         chapter!!.id,
                                         firstVisibleItemIndex,
                                         firstVisibleItemScrollOffset
                                     )
-                                    
+
                                     if (bookName != null) {
                                         scope.launch(Dispatchers.IO) {
                                             ReadingTimeStorage.recordReadingEnd(context, bookName)
@@ -552,7 +558,7 @@ fun ReaderScreen(
                                         firstVisibleItemScrollOffset
                                     )
                                 }
-                                
+
                                 if (bookName != null) {
                                     scope.launch(Dispatchers.IO) {
                                         ReadingTimeStorage.recordReadingEnd(context, bookName)
@@ -599,7 +605,7 @@ fun ReaderScreen(
                                         firstVisibleItemScrollOffset
                                     )
                                 }
-                                
+
                                 if (bookName != null) {
                                     scope.launch(Dispatchers.IO) {
                                         ReadingTimeStorage.recordReadingEnd(context, bookName)
@@ -613,14 +619,18 @@ fun ReaderScreen(
                     ) {
                         Text(
                             "下一章",
-                            color = if (currentChapterIndex < allChapters.size - 1) Color(readerSettings.textColor) else Color.Gray
+                            color = if (currentChapterIndex < allChapters.size - 1) Color(
+                                readerSettings.textColor
+                            ) else Color.Gray
                         )
                         Spacer(modifier = Modifier.size(4.dp))
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
                             contentDescription = "下一章",
                             modifier = Modifier.size(20.dp),
-                            tint = if (currentChapterIndex < allChapters.size - 1) Color(readerSettings.textColor) else Color.Gray
+                            tint = if (currentChapterIndex < allChapters.size - 1) Color(
+                                readerSettings.textColor
+                            ) else Color.Gray
                         )
                     }
                 }

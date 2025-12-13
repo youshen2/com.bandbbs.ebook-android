@@ -50,12 +50,12 @@ data class ImportState(
     val renamePattern: String = "",
     val customRegex: String = ""
 ) {
-    
+
     val uri: Uri get() = uris.first()
     val bookName: String get() = files.first().bookName
     val fileSize: Long get() = files.first().fileSize
     val fileFormat: String get() = files.first().fileFormat
-    
+
     val isMultipleFiles: Boolean get() = uris.size > 1
 }
 
@@ -101,9 +101,9 @@ data class EditBookInfoState(
 )
 
 enum class SyncMode {
-    AUTO,      
-    BAND_ONLY, 
-    PHONE_ONLY 
+    AUTO,
+    BAND_ONLY,
+    PHONE_ONLY
 }
 
 data class SyncReadingDataState(

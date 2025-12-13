@@ -71,6 +71,7 @@ fun UpdateCheckBottomSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
             errorMessage != null -> {
 
                 Card(
@@ -108,8 +109,10 @@ fun UpdateCheckBottomSheet(
                     }
                 }
             }
+
             updateInfoList.isNotEmpty() || updateInfo != null -> {
-                val updatesToShow = if (updateInfoList.isNotEmpty()) updateInfoList else listOfNotNull(updateInfo)
+                val updatesToShow =
+                    if (updateInfoList.isNotEmpty()) updateInfoList else listOfNotNull(updateInfo)
                 val hasUpdates = updatesToShow.any { it.hasUpdate }
 
                 if (hasUpdates) {
@@ -185,6 +188,7 @@ fun UpdateCheckBottomSheet(
                     }
                 }
             }
+
             else -> {
 
                 Card(
@@ -239,7 +243,8 @@ private fun UpdateItemCard(
     val isAndroid = updateInfoItem.deviceType == "android"
     val title = if (isAndroid) "手机端更新" else "手环端更新"
     val icon = if (isAndroid) Icons.Default.Smartphone else Icons.Default.Watch
-    val subtitle = if (!isAndroid && deviceName != null) deviceName else if (isAndroid) "Android App" else ""
+    val subtitle =
+        if (!isAndroid && deviceName != null) deviceName else if (isAndroid) "Android App" else ""
 
     Card(
         modifier = Modifier.fillMaxWidth(),

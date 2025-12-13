@@ -1,21 +1,48 @@
 package com.bandbbs.ebook.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material3.*
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,8 +51,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.*
-import androidx.activity.compose.BackHandler
+import java.util.Calendar
+import java.util.Locale
 
 data class ReadingTimeStats(
     val totalSeconds: Long = 0L,
@@ -74,12 +101,15 @@ data class DailyStat(
 fun StatisticsScreen(
     viewModel: MainViewModel = viewModel(),
     onBackClick: () -> Unit,
-    onBookStatClick: (String) -> Unit = {}
+    onBookStatClick: (String) -> Unit = {},
+    scrollState: androidx.compose.foundation.ScrollState? = null
 ) {
     val context = LocalContext.current
     val stats = remember { mutableStateOf<ReadingTimeStats?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val localScrollState = rememberScrollState()
+    val actualScrollState = scrollState ?: localScrollState
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -119,12 +149,12 @@ fun StatisticsScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 80.dp) 
-                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 80.dp)
+                        .verticalScroll(actualScrollState)
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    
+
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -138,15 +168,15 @@ fun StatisticsScreen(
                         Column(
                             modifier = Modifier.padding(16.dp)
                         ) {
-                            
+
                             StatCard(
                                 title = "总阅读时长",
                                 value = readingStats.totalFormatted
                             )
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            
+
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -162,9 +192,9 @@ fun StatisticsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -180,9 +210,9 @@ fun StatisticsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -198,8 +228,8 @@ fun StatisticsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            
-                            
+
+
                             if (readingStats.weeklyStats.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
@@ -211,7 +241,7 @@ fun StatisticsScreen(
                                 )
                                 WeeklyStatsChart(weeklyStats = readingStats.weeklyStats)
                             }
-                            
+
                             if (readingStats.dailyStats.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
@@ -225,10 +255,10 @@ fun StatisticsScreen(
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    
+
+
                     if (readingStats.bookStats.isNotEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -249,14 +279,14 @@ fun StatisticsScreen(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 12.dp)
                                 )
-                                
+
                                 readingStats.bookStats.forEachIndexed { index, bookStat ->
                                     if (index > 0) {
                                         HorizontalDivider(
                                             modifier = Modifier.padding(vertical = 8.dp)
                                         )
                                     }
-                                    
+
                                     BookStatRow(
                                         bookStat = bookStat,
                                         onClick = {
@@ -267,7 +297,7 @@ fun StatisticsScreen(
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             } ?: run {
@@ -372,7 +402,7 @@ fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val dayFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
     val weekDayFormat = SimpleDateFormat("E", Locale.getDefault())
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -384,13 +414,13 @@ fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
             } else {
                 0f
             }
-            
+
             val date = try {
                 dateFormat.parse(stat.date)
             } catch (e: Exception) {
                 null
             }
-            
+
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -441,8 +471,8 @@ fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
 @Composable
 fun DailyStatsChart(dailyStats: List<DailyStat>) {
     val maxSeconds = dailyStats.maxOfOrNull { it.seconds } ?: 1L
-    val recentStats = dailyStats.takeLast(30) 
-    
+    val recentStats = dailyStats.takeLast(30)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -454,7 +484,7 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
             } else {
                 0f
             }
-            
+
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -477,7 +507,7 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stat.date.takeLast(5), 
+                    text = stat.date.takeLast(5),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     fontSize = 10.sp
@@ -597,29 +627,29 @@ fun BookReadingTimeDetailDialog(
 suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     val readingTimePrefs = context.getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
     val allKeys = readingTimePrefs.all.keys
-    
+
     var totalSeconds = 0L
     var sessionCount = 0
-    val allSessions = mutableListOf<Pair<String, Long>>() 
+    val allSessions = mutableListOf<Pair<String, Long>>()
     var firstReadDate: String? = null
     var lastReadDate: String? = null
     val bookStatsList = mutableListOf<BookStat>()
-    
+
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val displayDateFormat = SimpleDateFormat("yyyy年MM月dd日", Locale.getDefault())
-    
-    
+
+
     allKeys.forEach { key ->
         if (key.endsWith("_total_seconds")) {
             val bookName = key.removeSuffix("_total_seconds")
             val seconds = readingTimePrefs.getLong(key, 0L)
             totalSeconds += seconds
-            
+
             var bookSessionCount = 0
             var bookFirstDate: String? = null
             var bookLastDate: String? = null
-            
-            
+
+
             val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
             if (sessionsJson != null) {
                 try {
@@ -629,7 +659,7 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         val duration = session.optLong("duration", 0L)
                         if (duration > 0) {
                             var dateStr = session.optString("date", "")
-                            
+
                             if (dateStr.isEmpty()) {
                                 val startTime = session.optLong("startTime", 0L)
                                 if (startTime > 0) {
@@ -637,19 +667,19 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                                     dateStr = dateFormat.format(date)
                                 }
                             }
-                            
+
                             if (dateStr.isNotEmpty()) {
                                 allSessions.add(dateStr to duration)
                                 sessionCount++
                                 bookSessionCount++
-                                
+
                                 if (bookFirstDate == null || dateStr < bookFirstDate!!) {
                                     bookFirstDate = dateStr
                                 }
                                 if (bookLastDate == null || dateStr > bookLastDate!!) {
                                     bookLastDate = dateStr
                                 }
-                                
+
                                 if (firstReadDate == null || dateStr < firstReadDate!!) {
                                     firstReadDate = dateStr
                                 }
@@ -663,14 +693,14 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         }
                     }
                 } catch (e: Exception) {
-                    
+
                 }
             }
-            
-            
+
+
             val bookFirstDatePref = readingTimePrefs.getString("${bookName}_first_read_date", null)
             val bookLastDatePref = readingTimePrefs.getString("${bookName}_last_read_date", null)
-            
+
             if (bookFirstDatePref != null) {
                 if (bookFirstDate == null || bookFirstDatePref < bookFirstDate!!) {
                     bookFirstDate = bookFirstDatePref
@@ -687,10 +717,10 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                     lastReadDate = bookLastDatePref
                 }
             }
-            
-            
+
+
             if (bookSessionCount == 0 && seconds > 0) {
-                
+
                 if (bookFirstDate == null && bookFirstDatePref != null) {
                     bookFirstDate = bookFirstDatePref
                 }
@@ -698,8 +728,8 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                     bookLastDate = bookLastDatePref
                 }
             }
-            
-            
+
+
             if (seconds > 0) {
                 bookStatsList.add(
                     BookStat(
@@ -709,14 +739,16 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         sessionCount = bookSessionCount,
                         firstReadDate = bookFirstDate?.let {
                             try {
-                                dateFormat.parse(it)?.let { date -> displayDateFormat.format(date) } ?: it
+                                dateFormat.parse(it)?.let { date -> displayDateFormat.format(date) }
+                                    ?: it
                             } catch (e: Exception) {
                                 it
                             }
                         } ?: "",
                         lastReadDate = bookLastDate?.let {
                             try {
-                                dateFormat.parse(it)?.let { date -> displayDateFormat.format(date) } ?: it
+                                dateFormat.parse(it)?.let { date -> displayDateFormat.format(date) }
+                                    ?: it
                             } catch (e: Exception) {
                                 it
                             }
@@ -726,8 +758,8 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
             }
         }
     }
-    
-    
+
+
     val uniqueDays = allSessions.map { it.first }.distinct().size
     val averageDailySeconds = if (uniqueDays > 0) {
         totalSeconds / uniqueDays
@@ -736,7 +768,8 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
             val firstDate = dateFormat.parse(firstReadDate)
             val lastDate = dateFormat.parse(lastReadDate)
             if (firstDate != null && lastDate != null) {
-                val daysDiff = maxOf(1, ((lastDate.time - firstDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1)
+                val daysDiff =
+                    maxOf(1, ((lastDate.time - firstDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1)
                 totalSeconds / daysDiff
             } else {
                 0L
@@ -747,8 +780,8 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     } else {
         0L
     }
-    
-    
+
+
     val allSessionDurations = allSessions.map { it.second }
     val longestSessionSeconds = allSessionDurations.maxOrNull() ?: 0L
     val averageSessionSeconds = if (sessionCount > 0) {
@@ -756,33 +789,33 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     } else {
         0L
     }
-    
-    
+
+
     val dailyStatsMap = mutableMapOf<String, Long>()
     allSessions.forEach { (date, duration) ->
         dailyStatsMap[date] = (dailyStatsMap[date] ?: 0L) + duration
     }
-    
+
     val dailyStats = dailyStatsMap.map { (date, seconds) ->
         DailyStat(date = date, seconds = seconds)
     }.sortedBy { it.date }
-    
+
     val calendar = Calendar.getInstance()
     val today = calendar.time
     calendar.add(Calendar.DAY_OF_YEAR, -6)
     val sevenDaysAgo = calendar.time
     val sevenDaysAgoStr = dateFormat.format(sevenDaysAgo)
     val todayStr = dateFormat.format(today)
-    
+
     val weeklyStats = dailyStats.filter { stat ->
         stat.date >= sevenDaysAgoStr && stat.date <= todayStr
     }
-    
+
     val weeklyStatsMap = mutableMapOf<String, Long>()
     weeklyStats.forEach { stat ->
         weeklyStatsMap[stat.date] = stat.seconds
     }
-    
+
     val completeWeeklyStats = mutableListOf<DailyStat>()
     calendar.time = sevenDaysAgo
     for (i in 0..6) {
@@ -795,14 +828,14 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
         )
         calendar.add(Calendar.DAY_OF_YEAR, 1)
     }
-    
+
     return ReadingTimeStats(
         totalSeconds = totalSeconds,
         totalFormatted = formatDuration(totalSeconds),
         averageDailySeconds = averageDailySeconds,
         averageDailyFormatted = formatDuration(averageDailySeconds),
         sessionCount = sessionCount,
-        firstReadDate = firstReadDate?.let { 
+        firstReadDate = firstReadDate?.let {
             try {
                 dateFormat.parse(it)?.let { date -> displayDateFormat.format(date) } ?: it
             } catch (e: Exception) {
@@ -831,21 +864,21 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
 suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): BookStat? {
     val readingTimePrefs = context.getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
     val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
-    
+
     if (totalSeconds == 0L) {
         return null
     }
-    
+
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val displayDateFormat = SimpleDateFormat("yyyy年MM月dd日", Locale.getDefault())
-    
+
     var sessionCount = 0
     var firstReadDate: String? = null
     var lastReadDate: String? = null
     val allSessions = mutableListOf<Pair<String, Long>>()
     val sessionDurations = mutableListOf<Long>()
-    
-    
+
+
     val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
     if (sessionsJson != null) {
         try {
@@ -855,7 +888,7 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                 val duration = session.optLong("duration", 0L)
                 if (duration > 0) {
                     var dateStr = session.optString("date", "")
-                    
+
                     if (dateStr.isEmpty()) {
                         val startTime = session.optLong("startTime", 0L)
                         if (startTime > 0) {
@@ -863,12 +896,12 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                             dateStr = dateFormat.format(date)
                         }
                     }
-                    
+
                     if (dateStr.isNotEmpty()) {
                         allSessions.add(dateStr to duration)
                         sessionDurations.add(duration)
                         sessionCount++
-                        
+
                         if (firstReadDate == null || dateStr < firstReadDate!!) {
                             firstReadDate = dateStr
                         }
@@ -882,48 +915,48 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                 }
             }
         } catch (e: Exception) {
-            
+
         }
     }
-    
-    
+
+
     val bookFirstDate = readingTimePrefs.getString("${bookName}_first_read_date", null)
     val bookLastDate = readingTimePrefs.getString("${bookName}_last_read_date", null)
-    
+
     if (bookFirstDate != null && (firstReadDate == null || bookFirstDate < firstReadDate!!)) {
         firstReadDate = bookFirstDate
     }
     if (bookLastDate != null && (lastReadDate == null || bookLastDate > lastReadDate!!)) {
         lastReadDate = bookLastDate
     }
-    
-    
+
+
     val dailyStatsMap = mutableMapOf<String, Long>()
     allSessions.forEach { (date, duration) ->
         dailyStatsMap[date] = (dailyStatsMap[date] ?: 0L) + duration
     }
-    
+
     val dailyStats = dailyStatsMap.map { (date, seconds) ->
         DailyStat(date = date, seconds = seconds)
     }.sortedBy { it.date }
-    
-    
+
+
     val calendar = Calendar.getInstance()
     val today = calendar.time
     calendar.add(Calendar.DAY_OF_YEAR, -6)
     val sevenDaysAgo = calendar.time
     val sevenDaysAgoStr = dateFormat.format(sevenDaysAgo)
     val todayStr = dateFormat.format(today)
-    
+
     val weeklyStats = dailyStats.filter { stat ->
         stat.date >= sevenDaysAgoStr && stat.date <= todayStr
     }
-    
+
     val weeklyStatsMap = mutableMapOf<String, Long>()
     weeklyStats.forEach { stat ->
         weeklyStatsMap[stat.date] = stat.seconds
     }
-    
+
     val completeWeeklyStats = mutableListOf<DailyStat>()
     calendar.time = sevenDaysAgo
     for (i in 0..6) {
@@ -936,8 +969,8 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
         )
         calendar.add(Calendar.DAY_OF_YEAR, 1)
     }
-    
-    
+
+
     val readingDays = allSessions.map { it.first }.distinct().size
     val longestSessionSeconds = sessionDurations.maxOrNull() ?: 0L
     val averageSessionSeconds = if (sessionCount > 0) {
@@ -952,7 +985,8 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
             val firstDate = dateFormat.parse(firstReadDate)
             val lastDate = dateFormat.parse(lastReadDate)
             if (firstDate != null && lastDate != null) {
-                val daysDiff = maxOf(1, ((lastDate.time - firstDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1)
+                val daysDiff =
+                    maxOf(1, ((lastDate.time - firstDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1)
                 totalSeconds / daysDiff
             } else {
                 0L
@@ -963,7 +997,7 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     } else {
         0L
     }
-    
+
     return BookStat(
         bookName = bookName,
         totalSeconds = totalSeconds,
@@ -1019,7 +1053,7 @@ fun BookStatisticsScreen(
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    
+
     BackHandler(enabled = true) {
         onBackClick()
     }
@@ -1038,7 +1072,7 @@ fun BookStatisticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = bookName,
                         maxLines = 1,
@@ -1080,8 +1114,8 @@ fun BookStatisticsScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    
+
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -1099,10 +1133,10 @@ fun BookStatisticsScreen(
                                 title = "总阅读时长",
                                 value = bookStats.totalFormatted
                             )
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            
+
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1118,10 +1152,10 @@ fun BookStatisticsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            
+
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1137,17 +1171,17 @@ fun BookStatisticsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            
+
+
                             StatInfoCard(
                                 title = "最长单次阅读",
                                 value = bookStats.longestSessionFormatted,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            
-                            
+
+
                             if (bookStats.firstReadDate.isNotEmpty() || bookStats.lastReadDate.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 if (bookStats.firstReadDate.isNotEmpty()) {
@@ -1158,8 +1192,8 @@ fun BookStatisticsScreen(
                                     InfoRow("最后阅读", bookStats.lastReadDate)
                                 }
                             }
-                            
-                            
+
+
                             if (bookStats.weeklyStats.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
@@ -1171,8 +1205,8 @@ fun BookStatisticsScreen(
                                 )
                                 WeeklyStatsChart(weeklyStats = bookStats.weeklyStats)
                             }
-                            
-                            
+
+
                             if (bookStats.dailyStats.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
@@ -1186,7 +1220,7 @@ fun BookStatisticsScreen(
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             } ?: run {

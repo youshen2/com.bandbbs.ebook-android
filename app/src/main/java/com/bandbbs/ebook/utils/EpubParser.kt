@@ -229,18 +229,18 @@ object EpubParser {
 
 
         var content = extractTextContent(htmlContent)
-        
-        
+
+
         content = removeTitleFromContent(content, title)
-        
-        
+
+
         content = normalizeContentStart(content)
-        
+
         val wordCount = content.length
 
         return EpubChapter(title, content, wordCount)
     }
-    
+
     /**
      * 从内容中删除前三行可能存在的章节标题
      */
@@ -248,40 +248,46 @@ object EpubParser {
         if (title == "未命名章节" || title.isBlank()) {
             return content
         }
-        
+
         val lines = content.lines()
         if (lines.isEmpty()) {
             return content
         }
-        
-        
+
+
         val titleTrimmed = title.trim()
         val titleNormalized = titleTrimmed.replace(Regex("\\s+"), " ")
-        
+
         val filteredLines = mutableListOf<String>()
         var removedCount = 0
-        
-        
+
+
         for (i in lines.indices) {
             if (i < 3 && removedCount < 3) {
                 val line = lines[i].trim()
-                
-                
+
+
                 if (line.isEmpty()) {
                     filteredLines.add(lines[i])
                     continue
                 }
-                
-                
-                val isTitleLine = line == titleTrimmed || 
-                                 line == titleNormalized ||
-                                 line.contains(titleTrimmed, ignoreCase = true) ||
-                                 titleTrimmed.contains(line, ignoreCase = true) ||
-                                 
-                                 (line.length > 3 && titleTrimmed.length > 3 && 
-                                  (line.substring(0, minOf(10, line.length)) == titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) ||
-                                   titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) == line.substring(0, minOf(10, line.length))))
-                
+
+
+                val isTitleLine = line == titleTrimmed ||
+                        line == titleNormalized ||
+                        line.contains(titleTrimmed, ignoreCase = true) ||
+                        titleTrimmed.contains(line, ignoreCase = true) ||
+
+                        (line.length > 3 && titleTrimmed.length > 3 &&
+                                (line.substring(
+                                    0,
+                                    minOf(10, line.length)
+                                ) == titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) ||
+                                        titleTrimmed.substring(
+                                            0,
+                                            minOf(10, titleTrimmed.length)
+                                        ) == line.substring(0, minOf(10, line.length))))
+
                 if (isTitleLine) {
                     removedCount++
                     continue
@@ -289,10 +295,10 @@ object EpubParser {
             }
             filteredLines.add(lines[i])
         }
-        
+
         return filteredLines.joinToString("\n")
     }
-    
+
     /**
      * 规范化内容开头，确保只有一个换行
      */
@@ -300,11 +306,11 @@ object EpubParser {
         if (content.isBlank()) {
             return content
         }
-        
-        
+
+
         val trimmed = content.trimStart()
-        
-        
+
+
         return if (trimmed.isNotEmpty()) {
             "\n$trimmed"
         } else {

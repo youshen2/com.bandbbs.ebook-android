@@ -127,7 +127,8 @@ object VersionChecker {
             }
 
             if (bandUpdate != null) {
-                val hasUpdate = currentVersionCode != null && bandUpdate.version_code > currentVersionCode
+                val hasUpdate =
+                    currentVersionCode != null && bandUpdate.version_code > currentVersionCode
                 Result.success(
                     UpdateInfo(
                         hasUpdate = hasUpdate,

@@ -91,7 +91,7 @@ class LibraryHandler(
                     content = content,
                     wordCount = chapter.wordCount
                 )
-                
+
                 val allChapters = db.chapterDao().getChapterInfoForBook(chapter.bookId)
                 withContext(Dispatchers.Main) {
                     chapterToPreview.value = chapterWithContent
@@ -113,16 +113,16 @@ class LibraryHandler(
             val lastReadChapterId = prefs.getInt("$KEY_LAST_READ_CHAPTER${bookEntity.id}", -1)
 
             val chapterIdToOpen = if (lastReadChapterId != -1) {
-                
+
                 if (db.chapterDao().getChapterById(lastReadChapterId) != null) {
                     lastReadChapterId
                 } else {
-                    
+
                     val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                     chapters.firstOrNull()?.id
                 }
             } else {
-                
+
                 val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                 chapters.firstOrNull()?.id
             }

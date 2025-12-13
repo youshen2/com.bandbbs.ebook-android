@@ -45,7 +45,8 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var currentChapterIndexInBook: Int = 0
     private var currentChapterIndexInSlicedList: Int = 0
     private var bookStatusCompleter: CompletableDeferred<BookStatusResult>? = null
-    private var readingDataCompleter: CompletableDeferred<FileMessagesFromDevice.ReadingData>? = null
+    private var readingDataCompleter: CompletableDeferred<FileMessagesFromDevice.ReadingData>? =
+        null
     private var transferStartChapterIndex: Int = 0
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()

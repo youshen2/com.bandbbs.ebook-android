@@ -43,13 +43,17 @@ fun SyncReadingDataBottomSheet(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = when {
                     state.isSyncing -> MaterialTheme.colorScheme.primaryContainer
-                    state.statusText.contains("失败", ignoreCase = true) -> MaterialTheme.colorScheme.errorContainer
+                    state.statusText.contains(
+                        "失败",
+                        ignoreCase = true
+                    ) -> MaterialTheme.colorScheme.errorContainer
+
                     else -> MaterialTheme.colorScheme.primaryContainer
                 }
             ),
@@ -68,6 +72,7 @@ fun SyncReadingDataBottomSheet(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
+
                     state.statusText.contains("失败", ignoreCase = true) -> {
                         Icon(
                             imageVector = Icons.Default.Error,
@@ -76,6 +81,7 @@ fun SyncReadingDataBottomSheet(
                             tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
+
                     else -> {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
@@ -93,8 +99,9 @@ fun SyncReadingDataBottomSheet(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Medium,
                         color = when {
-                            state.statusText.contains("失败", ignoreCase = true) -> 
+                            state.statusText.contains("失败", ignoreCase = true) ->
                                 MaterialTheme.colorScheme.onErrorContainer
+
                             else -> MaterialTheme.colorScheme.onPrimaryContainer
                         }
                     )
@@ -102,8 +109,9 @@ fun SyncReadingDataBottomSheet(
                         text = if (state.isSyncing) "正在同步中..." else state.statusText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = when {
-                            state.statusText.contains("失败", ignoreCase = true) -> 
+                            state.statusText.contains("失败", ignoreCase = true) ->
                                 MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+
                             else -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         }
                     )
@@ -111,7 +119,7 @@ fun SyncReadingDataBottomSheet(
             }
         }
 
-        
+
         if (state.isSyncing || state.totalBooks > 0) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -189,7 +197,7 @@ fun SyncReadingDataBottomSheet(
             }
         }
 
-        
+
         if (state.statusText.contains("失败", ignoreCase = true) && !state.isSyncing) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -218,7 +226,7 @@ fun SyncReadingDataBottomSheet(
                 }
             }
         }
-        
+
         if (!state.isSyncing) {
             Button(
                 onClick = onDismiss,
@@ -236,7 +244,7 @@ fun SyncReadingDataBottomSheet(
                 Text("取消")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
