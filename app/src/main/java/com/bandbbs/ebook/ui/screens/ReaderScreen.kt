@@ -154,6 +154,8 @@ fun ReaderScreen(
     }
 
     
+    var previousChapterId by remember { mutableIntStateOf(-1) }
+    
     var currentTime by remember { mutableStateOf("") }
     var batteryLevel by remember { mutableIntStateOf(0) }
 
@@ -192,7 +194,13 @@ fun ReaderScreen(
         
         if (bookName != null) {
             withContext(Dispatchers.IO) {
+                
+                if (previousChapterId != -1 && previousChapterId != chapter!!.id) {
+                    ReadingTimeStorage.recordReadingEnd(context, bookName)
+                }
+                
                 ReadingTimeStorage.recordReadingStart(context, bookName)
+                previousChapterId = chapter!!.id
             }
         }
 
@@ -374,6 +382,12 @@ fun ReaderScreen(
                                         firstVisibleItemIndex,
                                         firstVisibleItemScrollOffset
                                     )
+                                    
+                                    if (bookName != null) {
+                                        scope.launch(Dispatchers.IO) {
+                                            ReadingTimeStorage.recordReadingEnd(context, bookName)
+                                        }
+                                    }
                                     val prevChapter = allChapters[currentChapterIndex - 1]
                                     onChapterChange(prevChapter.id)
                                 }) {
@@ -390,6 +404,12 @@ fun ReaderScreen(
                                         firstVisibleItemIndex,
                                         firstVisibleItemScrollOffset
                                     )
+                                    
+                                    if (bookName != null) {
+                                        scope.launch(Dispatchers.IO) {
+                                            ReadingTimeStorage.recordReadingEnd(context, bookName)
+                                        }
+                                    }
                                     val nextChapter = allChapters[currentChapterIndex + 1]
                                     onChapterChange(nextChapter.id)
                                 }) {
@@ -532,6 +552,12 @@ fun ReaderScreen(
                                         firstVisibleItemScrollOffset
                                     )
                                 }
+                                
+                                if (bookName != null) {
+                                    scope.launch(Dispatchers.IO) {
+                                        ReadingTimeStorage.recordReadingEnd(context, bookName)
+                                    }
+                                }
                                 val prevChapter = allChapters[currentChapterIndex - 1]
                                 onChapterChange(prevChapter.id)
                             }
@@ -572,6 +598,12 @@ fun ReaderScreen(
                                         firstVisibleItemIndex,
                                         firstVisibleItemScrollOffset
                                     )
+                                }
+                                
+                                if (bookName != null) {
+                                    scope.launch(Dispatchers.IO) {
+                                        ReadingTimeStorage.recordReadingEnd(context, bookName)
+                                    }
                                 }
                                 val nextChapter = allChapters[currentChapterIndex + 1]
                                 onChapterChange(nextChapter.id)
