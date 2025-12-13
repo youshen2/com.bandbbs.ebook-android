@@ -35,6 +35,7 @@ import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
 import com.bandbbs.ebook.ui.screens.StatisticsScreen
+import com.bandbbs.ebook.ui.screens.BookStatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
                 val chapterListSheetState = rememberModalBottomSheetState()
 
                 var currentScreen by remember { mutableStateOf("home") }
+                var selectedBookForStats by remember { mutableStateOf<String?>(null) }
                 val isReaderOpen = chapterToPreview != null
 
                 Scaffold(
@@ -155,10 +157,12 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AnimatedContent(
-                            targetState = if (isReaderOpen) "reader" else currentScreen,
+                            targetState = if (isReaderOpen) "reader" else if (selectedBookForStats != null) "book_statistics" else currentScreen,
                             transitionSpec = {
                                 val isEnteringReader = targetState == "reader"
                                 val isExitingReader = initialState == "reader"
+                                val isEnteringBookStats = targetState == "book_statistics"
+                                val isExitingBookStats = initialState == "book_statistics"
                                 
                                 if (isEnteringReader) {
                                     
@@ -173,6 +177,26 @@ class MainActivity : ComponentActivity() {
                                     )
                                 } else if (isExitingReader) {
                                     
+                                    
+                                    slideInHorizontally(
+                                        initialOffsetX = { -it },
+                                        animationSpec = tween(300)
+                                    ) with
+                                    slideOutHorizontally(
+                                        targetOffsetX = { it },
+                                        animationSpec = tween(300)
+                                    )
+                                } else if (isEnteringBookStats) {
+                                    
+                                    slideInHorizontally(
+                                        initialOffsetX = { it },
+                                        animationSpec = tween(300)
+                                    ) with
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -it },
+                                        animationSpec = tween(300)
+                                    )
+                                } else if (isExitingBookStats) {
                                     
                                     slideInHorizontally(
                                         initialOffsetX = { -it },
@@ -264,8 +288,19 @@ class MainActivity : ComponentActivity() {
 
                                 "statistics" -> {
                                     StatisticsScreen(
-                                        onBackClick = { currentScreen = "home" }
+                                        onBackClick = { currentScreen = "home" },
+                                        onBookStatClick = { bookName ->
+                                            selectedBookForStats = bookName
+                                        }
                                     )
+                                }
+                                "book_statistics" -> {
+                                    selectedBookForStats?.let { bookName ->
+                                        BookStatisticsScreen(
+                                            bookName = bookName,
+                                            onBackClick = { selectedBookForStats = null }
+                                        )
+                                    }
                                 }
                                 "settings" -> {
                                     SettingsScreen(

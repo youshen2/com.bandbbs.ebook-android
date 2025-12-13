@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.activity.compose.BackHandler
 
 data class ReadingTimeStats(
     val totalSeconds: Long = 0L,
@@ -36,7 +37,13 @@ data class ReadingTimeStats(
     val lastReadDate: String = "",
     val dailyStats: List<DailyStat> = emptyList(),
     val bookStats: List<BookStat> = emptyList(),
-    val weeklyStats: List<DailyStat> = emptyList()
+    val weeklyStats: List<DailyStat> = emptyList(),
+    val readingDays: Int = 0,
+    val longestSessionSeconds: Long = 0L,
+    val longestSessionFormatted: String = "0分钟",
+    val averageSessionSeconds: Long = 0L,
+    val averageSessionFormatted: String = "0分钟",
+    val totalBooks: Int = 0
 )
 
 data class BookStat(
@@ -45,7 +52,16 @@ data class BookStat(
     val totalFormatted: String,
     val sessionCount: Int,
     val firstReadDate: String,
-    val lastReadDate: String
+    val lastReadDate: String,
+    val dailyStats: List<DailyStat> = emptyList(),
+    val weeklyStats: List<DailyStat> = emptyList(),
+    val averageSessionSeconds: Long = 0L,
+    val averageSessionFormatted: String = "0分钟",
+    val longestSessionSeconds: Long = 0L,
+    val longestSessionFormatted: String = "0分钟",
+    val readingDays: Int = 0,
+    val averageDailySeconds: Long = 0L,
+    val averageDailyFormatted: String = "0分钟"
 )
 
 data class DailyStat(
@@ -57,13 +73,13 @@ data class DailyStat(
 @Composable
 fun StatisticsScreen(
     viewModel: MainViewModel = viewModel(),
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onBookStatClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val stats = remember { mutableStateOf<ReadingTimeStats?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-    var selectedBookName by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -147,6 +163,42 @@ fun StatisticsScreen(
                                 )
                             }
                             
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                StatInfoCard(
+                                    title = "阅读天数",
+                                    value = "${readingStats.readingDays}天",
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatInfoCard(
+                                    title = "书籍数量",
+                                    value = "${readingStats.totalBooks}本",
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                StatInfoCard(
+                                    title = "最长单次",
+                                    value = readingStats.longestSessionFormatted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatInfoCard(
+                                    title = "平均单次",
+                                    value = readingStats.averageSessionFormatted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
                             
                             if (readingStats.weeklyStats.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -208,7 +260,7 @@ fun StatisticsScreen(
                                     BookStatRow(
                                         bookStat = bookStat,
                                         onClick = {
-                                            selectedBookName = bookStat.bookName
+                                            onBookStatClick(bookStat.bookName)
                                         }
                                     )
                                 }
@@ -238,15 +290,6 @@ fun StatisticsScreen(
                 }
             }
         }
-    }
-    
-    
-    selectedBookName?.let { bookName ->
-        BookReadingTimeDetailDialog(
-            bookName = bookName,
-            onDismiss = { selectedBookName = null },
-            context = context
-        )
     }
 }
 
@@ -706,6 +749,15 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     }
     
     
+    val allSessionDurations = allSessions.map { it.second }
+    val longestSessionSeconds = allSessionDurations.maxOrNull() ?: 0L
+    val averageSessionSeconds = if (sessionCount > 0) {
+        totalSeconds / sessionCount
+    } else {
+        0L
+    }
+    
+    
     val dailyStatsMap = mutableMapOf<String, Long>()
     allSessions.forEach { (date, duration) ->
         dailyStatsMap[date] = (dailyStatsMap[date] ?: 0L) + duration
@@ -766,7 +818,13 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
         } ?: "",
         dailyStats = dailyStats,
         bookStats = bookStatsList.sortedByDescending { it.totalSeconds },
-        weeklyStats = completeWeeklyStats
+        weeklyStats = completeWeeklyStats,
+        readingDays = uniqueDays,
+        longestSessionSeconds = longestSessionSeconds,
+        longestSessionFormatted = formatDuration(longestSessionSeconds),
+        averageSessionSeconds = averageSessionSeconds,
+        averageSessionFormatted = formatDuration(averageSessionSeconds),
+        totalBooks = bookStatsList.size
     )
 }
 
@@ -784,6 +842,8 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     var sessionCount = 0
     var firstReadDate: String? = null
     var lastReadDate: String? = null
+    val allSessions = mutableListOf<Pair<String, Long>>()
+    val sessionDurations = mutableListOf<Long>()
     
     
     val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
@@ -805,6 +865,8 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                     }
                     
                     if (dateStr.isNotEmpty()) {
+                        allSessions.add(dateStr to duration)
+                        sessionDurations.add(duration)
                         sessionCount++
                         
                         if (firstReadDate == null || dateStr < firstReadDate!!) {
@@ -814,6 +876,7 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                             lastReadDate = dateStr
                         }
                     } else {
+                        sessionDurations.add(duration)
                         sessionCount++
                     }
                 }
@@ -834,6 +897,73 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
         lastReadDate = bookLastDate
     }
     
+    
+    val dailyStatsMap = mutableMapOf<String, Long>()
+    allSessions.forEach { (date, duration) ->
+        dailyStatsMap[date] = (dailyStatsMap[date] ?: 0L) + duration
+    }
+    
+    val dailyStats = dailyStatsMap.map { (date, seconds) ->
+        DailyStat(date = date, seconds = seconds)
+    }.sortedBy { it.date }
+    
+    
+    val calendar = Calendar.getInstance()
+    val today = calendar.time
+    calendar.add(Calendar.DAY_OF_YEAR, -6)
+    val sevenDaysAgo = calendar.time
+    val sevenDaysAgoStr = dateFormat.format(sevenDaysAgo)
+    val todayStr = dateFormat.format(today)
+    
+    val weeklyStats = dailyStats.filter { stat ->
+        stat.date >= sevenDaysAgoStr && stat.date <= todayStr
+    }
+    
+    val weeklyStatsMap = mutableMapOf<String, Long>()
+    weeklyStats.forEach { stat ->
+        weeklyStatsMap[stat.date] = stat.seconds
+    }
+    
+    val completeWeeklyStats = mutableListOf<DailyStat>()
+    calendar.time = sevenDaysAgo
+    for (i in 0..6) {
+        val dateStr = dateFormat.format(calendar.time)
+        completeWeeklyStats.add(
+            DailyStat(
+                date = dateStr,
+                seconds = weeklyStatsMap[dateStr] ?: 0L
+            )
+        )
+        calendar.add(Calendar.DAY_OF_YEAR, 1)
+    }
+    
+    
+    val readingDays = allSessions.map { it.first }.distinct().size
+    val longestSessionSeconds = sessionDurations.maxOrNull() ?: 0L
+    val averageSessionSeconds = if (sessionCount > 0) {
+        totalSeconds / sessionCount
+    } else {
+        0L
+    }
+    val averageDailySeconds = if (readingDays > 0) {
+        totalSeconds / readingDays
+    } else if (firstReadDate != null && lastReadDate != null) {
+        try {
+            val firstDate = dateFormat.parse(firstReadDate)
+            val lastDate = dateFormat.parse(lastReadDate)
+            if (firstDate != null && lastDate != null) {
+                val daysDiff = maxOf(1, ((lastDate.time - firstDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1)
+                totalSeconds / daysDiff
+            } else {
+                0L
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    } else {
+        0L
+    }
+    
     return BookStat(
         bookName = bookName,
         totalSeconds = totalSeconds,
@@ -852,7 +982,16 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
             } catch (e: Exception) {
                 it
             }
-        } ?: ""
+        } ?: "",
+        dailyStats = dailyStats,
+        weeklyStats = completeWeeklyStats,
+        averageSessionSeconds = averageSessionSeconds,
+        averageSessionFormatted = formatDuration(averageSessionSeconds),
+        longestSessionSeconds = longestSessionSeconds,
+        longestSessionFormatted = formatDuration(longestSessionSeconds),
+        readingDays = readingDays,
+        averageDailySeconds = averageDailySeconds,
+        averageDailyFormatted = formatDuration(averageDailySeconds)
     )
 }
 
@@ -866,5 +1005,209 @@ fun formatDuration(seconds: Long): String {
         "${hours}小时${remainingMinutes}分钟"
     } else {
         "${hours}小时"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookStatisticsScreen(
+    bookName: String,
+    onBackClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val stats = remember(bookName) { mutableStateOf<BookStat?>(null) }
+    val isLoading = remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    
+    BackHandler(enabled = true) {
+        onBackClick()
+    }
+
+    LaunchedEffect(bookName) {
+        scope.launch {
+            isLoading.value = true
+            val calculatedStats = withContext(Dispatchers.IO) {
+                calculateBookReadingTimeStats(context, bookName)
+            }
+            stats.value = calculatedStats
+            isLoading.value = false
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        text = bookName,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
+    ) { paddingValues ->
+        if (isLoading.value) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            stats.value?.let { bookStats ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 80.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = 0.dp
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            StatCard(
+                                title = "总阅读时长",
+                                value = bookStats.totalFormatted
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                StatInfoCard(
+                                    title = "阅读次数",
+                                    value = "${bookStats.sessionCount}次",
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatInfoCard(
+                                    title = "阅读天数",
+                                    value = "${bookStats.readingDays}天",
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                StatInfoCard(
+                                    title = "日均阅读",
+                                    value = bookStats.averageDailyFormatted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatInfoCard(
+                                    title = "平均单次",
+                                    value = bookStats.averageSessionFormatted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            
+                            StatInfoCard(
+                                title = "最长单次阅读",
+                                value = bookStats.longestSessionFormatted,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            
+                            
+                            if (bookStats.firstReadDate.isNotEmpty() || bookStats.lastReadDate.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                if (bookStats.firstReadDate.isNotEmpty()) {
+                                    InfoRow("首次阅读", bookStats.firstReadDate)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                                if (bookStats.lastReadDate.isNotEmpty()) {
+                                    InfoRow("最后阅读", bookStats.lastReadDate)
+                                }
+                            }
+                            
+                            
+                            if (bookStats.weeklyStats.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "最近一周阅读时长",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                WeeklyStatsChart(weeklyStats = bookStats.weeklyStats)
+                            }
+                            
+                            
+                            if (bookStats.dailyStats.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "每日阅读时长",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                DailyStatsChart(dailyStats = bookStats.dailyStats)
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            } ?: run {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "暂无阅读记录",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
