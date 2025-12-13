@@ -569,7 +569,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncAllReadingData() {
+        Log.d("MainViewModel", "syncAllReadingData() called")
         if (!connectionHandler.isConnected()) {
+            Log.w("MainViewModel", "Cannot sync: band not connected")
             _syncReadingDataState.value = SyncReadingDataState(
                 isSyncing = false,
                 statusText = "手环未连接",
@@ -578,12 +580,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        
+        Log.d("MainViewModel", "Showing sync mode selection dialog")
+        _syncReadingDataState.value = _syncReadingDataState.value.copy(showModeDialog = true)
+    }
 
+    fun setSyncModeAndStart(mode: SyncMode) {
+        setSyncModesAndStart(mode, mode)
+    }
+
+    fun setSyncModesAndStart(progressMode: SyncMode, readingTimeMode: SyncMode) {
+        Log.d("MainViewModel", "setSyncModesAndStart() called with progressMode: $progressMode, readingTimeMode: $readingTimeMode")
         syncReadingDataJob?.cancel()
 
         syncReadingDataJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                
+                withContext(Dispatchers.Main) {
+                    _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                        showModeDialog = false,
+                        progressSyncMode = progressMode,
+                        readingTimeSyncMode = readingTimeMode
+                    )
+                }
+                
                 val allBooks = _books.value
+                Log.d("MainViewModel", "Starting sync for ${allBooks.size} books")
                 if (allBooks.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         _syncReadingDataState.value = SyncReadingDataState(
@@ -629,21 +651,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     try {
+                        Log.d("MainViewModel", "Syncing reading data for book: ${book.name}")
 
                         val bandReadingData: com.bandbbs.ebook.logic.ReadingDataResult? = try {
-                            fileConn.getReadingData(book.name)
+                            val data = fileConn.getReadingData(book.name)
+                            Log.d("MainViewModel", "Got reading data from band for ${book.name}: progress=${data.progress != null}, readingTime=${data.readingTime != null}")
+                            data
                         } catch (e: Exception) {
                             Log.e("MainViewModel", "Failed to get reading data from band for ${book.name}", e)
                             null
                         }
 
-
+                        
                         val phoneProgress = getPhoneReadingProgress(book)
+                        Log.d("MainViewModel", "Phone progress for ${book.name}: ${phoneProgress != null}")
                         var bandProgress: Map<String, Any>? = null
                         if (bandReadingData != null) {
                             try {
                                 if (bandReadingData.progress != null) {
-
                                     val progressMap = org.json.JSONObject(bandReadingData.progress)
                                     val tempMap = mutableMapOf<String, Any>()
                                     val keys = progressMap.keys()
@@ -654,7 +679,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                         if (key == "chapterIndex") {
                                             when {
                                                 value == org.json.JSONObject.NULL -> {
-
                                                     continue
                                                 }
                                                 value is Int -> tempMap[key] = value
@@ -667,7 +691,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                                             tempMap[key] = intValue
                                                         }
                                                     } catch (e: Exception) {
-
                                                     }
                                                 }
                                                 else -> {
@@ -677,7 +700,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                                             tempMap[key] = intValue
                                                         }
                                                     } catch (e: Exception) {
-
                                                     }
                                                 }
                                             }
@@ -706,21 +728,142 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
 
-
-                        val mergedProgress = mergeProgress(phoneProgress, bandProgress)
-
-                        savePhoneReadingProgress(book, mergedProgress)
-
-                        if (mergedProgress != null) {
-                            val progressJson = mergedProgress.let {
-                                try {
-                                    org.json.JSONObject(it).toString()
-                                } catch (e: Exception) {
-                                    Log.e("MainViewModel", "Failed to serialize progress", e)
-                                    null
+                        
+                        val phoneReadingTime = getPhoneReadingTime(book.name)
+                        Log.d("MainViewModel", "Phone reading time for ${book.name}: ${if (phoneReadingTime != null) "exists (totalSeconds=${phoneReadingTime["totalSeconds"]})" else "null"}")
+                        
+                        var bandReadingTime: Map<String, Any>? = null
+                        if (bandReadingData != null && bandReadingData.readingTime != null) {
+                            try {
+                                Log.d("MainViewModel", "Parsing band reading time for ${book.name}")
+                                val readingTimeMap = org.json.JSONObject(bandReadingData.readingTime)
+                                val tempMap = mutableMapOf<String, Any>()
+                                val keys = readingTimeMap.keys()
+                                while (keys.hasNext()) {
+                                    val key = keys.next()
+                                    val value = readingTimeMap.get(key)
+                                    tempMap[key] = when (value) {
+                                        is org.json.JSONObject -> {
+                                            val sessionMap = mutableMapOf<String, Any>()
+                                            val sessionKeys = value.keys()
+                                            while (sessionKeys.hasNext()) {
+                                                val sessionKey = sessionKeys.next()
+                                                sessionMap[sessionKey] = value.get(sessionKey)
+                                            }
+                                            sessionMap
+                                        }
+                                        is org.json.JSONArray -> {
+                                            val sessionList = mutableListOf<Any>()
+                                            for (i in 0 until value.length()) {
+                                                val sessionObj = value.getJSONObject(i)
+                                                val sessionMap = mutableMapOf<String, Any>()
+                                                val sessionKeys = sessionObj.keys()
+                                                while (sessionKeys.hasNext()) {
+                                                    val sessionKey = sessionKeys.next()
+                                                    val sessionValue = sessionObj.get(sessionKey)
+                                                    sessionMap[sessionKey] = when (sessionValue) {
+                                                        is org.json.JSONObject -> sessionValue.toString()
+                                                        is org.json.JSONArray -> sessionValue.toString()
+                                                        is Boolean -> sessionValue
+                                                        is Int -> sessionValue
+                                                        is Long -> sessionValue
+                                                        is Double -> sessionValue
+                                                        is String -> sessionValue
+                                                        else -> sessionValue.toString()
+                                                    }
+                                                }
+                                                sessionList.add(sessionMap)
+                                            }
+                                            sessionList
+                                        }
+                                        is Boolean -> value
+                                        is Int -> value
+                                        is Long -> value
+                                        is Double -> value
+                                        is String -> value
+                                        else -> value.toString()
+                                    }
                                 }
+                                bandReadingTime = tempMap
+                                val sessionsSize = when (val sessions = bandReadingTime["sessions"]) {
+                                    is List<*> -> sessions.size
+                                    else -> 0
+                                }
+                                Log.d("MainViewModel", "Parsed band reading time for ${book.name}: totalSeconds=${bandReadingTime["totalSeconds"]}, sessions=$sessionsSize")
+                            } catch (e: Exception) {
+                                Log.e("MainViewModel", "Failed to parse band reading time for ${book.name}", e)
                             }
-                            fileConn.setReadingData(book.name, progressJson)
+                        } else {
+                            Log.d("MainViewModel", "No band reading time data for ${book.name}")
+                        }
+
+                        
+                        val progressMode = _syncReadingDataState.value.progressSyncMode
+                        val readingTimeMode = _syncReadingDataState.value.readingTimeSyncMode
+                        Log.d("MainViewModel", "Merging data for ${book.name} with progressMode: $progressMode, readingTimeMode: $readingTimeMode")
+                        
+                        val finalProgress = when (progressMode) {
+                            SyncMode.AUTO -> {
+                                val merged = mergeProgress(phoneProgress, bandProgress)
+                                Log.d("MainViewModel", "Auto merged progress for ${book.name}: ${merged != null}")
+                                merged
+                            }
+                            SyncMode.BAND_ONLY -> {
+                                Log.d("MainViewModel", "Using band progress for ${book.name}")
+                                bandProgress ?: phoneProgress
+                            }
+                            SyncMode.PHONE_ONLY -> {
+                                Log.d("MainViewModel", "Using phone progress for ${book.name}")
+                                phoneProgress ?: bandProgress
+                            }
+                        }
+                        savePhoneReadingProgress(book, finalProgress)
+
+                        val finalReadingTime = when (readingTimeMode) {
+                            SyncMode.AUTO -> {
+                                val merged = mergeReadingTime(phoneReadingTime, bandReadingTime)
+                                Log.d("MainViewModel", "Auto merged reading time for ${book.name}: ${if (merged != null) "totalSeconds=${merged["totalSeconds"]}, sessions=${(merged["sessions"] as? List<*>)?.size ?: 0}" else "null"}")
+                                merged
+                            }
+                            SyncMode.BAND_ONLY -> {
+                                Log.d("MainViewModel", "Using band reading time for ${book.name}")
+                                bandReadingTime ?: phoneReadingTime
+                            }
+                            SyncMode.PHONE_ONLY -> {
+                                Log.d("MainViewModel", "Using phone reading time for ${book.name}")
+                                phoneReadingTime ?: bandReadingTime
+                            }
+                        }
+                        savePhoneReadingTime(book.name, finalReadingTime)
+                        Log.d("MainViewModel", "Saved reading time for ${book.name}")
+
+                        
+                        val progressJson = finalProgress?.let {
+                            try {
+                                org.json.JSONObject(it).toString()
+                            } catch (e: Exception) {
+                                Log.e("MainViewModel", "Failed to serialize progress", e)
+                                null
+                            }
+                        }
+
+                        val readingTimeJson = finalReadingTime?.let {
+                            try {
+                                val json = org.json.JSONObject(it).toString()
+                                Log.d("MainViewModel", "Serialized reading time JSON for ${book.name}: ${json.length} chars")
+                                json
+                            } catch (e: Exception) {
+                                Log.e("MainViewModel", "Failed to serialize reading time for ${book.name}", e)
+                                null
+                            }
+                        }
+
+                        if (progressJson != null || readingTimeJson != null) {
+                            Log.d("MainViewModel", "Sending reading data to band for ${book.name}: progress=${progressJson != null}, readingTime=${readingTimeJson != null}")
+                            fileConn.setReadingData(book.name, progressJson, readingTimeJson)
+                            Log.d("MainViewModel", "Successfully sent reading data to band for ${book.name}")
+                        } else {
+                            Log.d("MainViewModel", "No reading data to send to band for ${book.name}")
                         }
 
                         syncedCount++
@@ -781,8 +924,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _syncReadingDataState.value = SyncReadingDataState()
     }
 
+    fun dismissSyncModeDialog() {
+        _syncReadingDataState.value = _syncReadingDataState.value.copy(showModeDialog = false)
+    }
+
     fun dismissVersionIncompatible() {
         _versionIncompatibleState.value = null
+    }
+
+    fun clearAllReadingTimeData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
+                val editor = readingTimePrefs.edit()
+                editor.clear()
+                editor.apply()
+                Log.d("MainViewModel", "Cleared all reading time data")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to clear reading time data", e)
+            }
+        }
     }
 
     fun checkForUpdates(isAutoCheck: Boolean = false) {
@@ -1106,6 +1267,180 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             Log.w("MainViewModel", "No valid chapterIndex in progress for ${book.name}")
         }
+    }
+
+    private fun getPhoneReadingTime(bookName: String): Map<String, Any>? {
+        val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
+        val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
+        Log.d("MainViewModel", "getPhoneReadingTime($bookName): totalSeconds=$totalSeconds")
+        if (totalSeconds == 0L) {
+            Log.d("MainViewModel", "No reading time data found for $bookName")
+            return null
+        }
+
+        val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
+        val sessions = if (sessionsJson != null) {
+            try {
+                org.json.JSONArray(sessionsJson)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to parse sessions JSON for $bookName", e)
+                null
+            }
+        } else null
+
+        val sessionList = sessions?.let { 
+            (0 until it.length()).map { i ->
+                try {
+                    it.getJSONObject(i)
+                } catch (e: Exception) {
+                    null
+                }
+            }.filterNotNull()
+        } ?: emptyList<Any>()
+        
+        val lastReadDate = readingTimePrefs.getString("${bookName}_last_read_date", null) ?: ""
+        val firstReadDate = readingTimePrefs.getString("${bookName}_first_read_date", null) ?: ""
+        
+        Log.d("MainViewModel", "getPhoneReadingTime($bookName): sessions=${sessionList.size}, firstReadDate=$firstReadDate, lastReadDate=$lastReadDate")
+
+        return mapOf(
+            "totalSeconds" to totalSeconds,
+            "sessions" to sessionList,
+            "lastReadDate" to lastReadDate,
+            "firstReadDate" to firstReadDate
+        )
+    }
+
+    private fun savePhoneReadingTime(bookName: String, readingTime: Map<String, Any>?) {
+        if (readingTime == null) {
+            Log.d("MainViewModel", "savePhoneReadingTime($bookName): skipping, readingTime is null")
+            return
+        }
+
+        val readingTimePrefs = getApplication<Application>().getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
+        val totalSeconds = (readingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
+        val lastReadDate = readingTime["lastReadDate"] as? String ?: ""
+        val firstReadDate = readingTime["firstReadDate"] as? String ?: ""
+        
+        Log.d("MainViewModel", "savePhoneReadingTime($bookName): totalSeconds=$totalSeconds, firstReadDate=$firstReadDate, lastReadDate=$lastReadDate")
+
+        val editor = readingTimePrefs.edit()
+        editor.putLong("${bookName}_total_seconds", totalSeconds)
+        if (lastReadDate.isNotEmpty()) {
+            editor.putString("${bookName}_last_read_date", lastReadDate)
+        }
+        if (firstReadDate.isNotEmpty()) {
+            editor.putString("${bookName}_first_read_date", firstReadDate)
+        }
+
+        val sessions = readingTime["sessions"]
+        if (sessions is List<*>) {
+            try {
+                val sessionsArray = org.json.JSONArray()
+                sessions.forEach { session ->
+                    if (session is Map<*, *>) {
+                        val sessionObj = org.json.JSONObject()
+                        session.forEach { (key, value) ->
+                            when (value) {
+                                is Number -> sessionObj.put(key.toString(), value)
+                                is String -> sessionObj.put(key.toString(), value)
+                                is Boolean -> sessionObj.put(key.toString(), value)
+                                else -> sessionObj.put(key.toString(), value.toString())
+                            }
+                        }
+                        sessionsArray.put(sessionObj)
+                    } else if (session is org.json.JSONObject) {
+                        sessionsArray.put(session)
+                    }
+                }
+                editor.putString("${bookName}_sessions", sessionsArray.toString())
+                Log.d("MainViewModel", "Saved ${sessionsArray.length()} sessions for $bookName")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to save sessions for $bookName", e)
+            }
+        } else {
+            Log.d("MainViewModel", "No sessions to save for $bookName")
+        }
+
+        editor.apply()
+        Log.d("MainViewModel", "Successfully saved reading time for $bookName")
+    }
+
+    private fun mergeReadingTime(
+        phoneReadingTime: Map<String, Any>?,
+        bandReadingTime: Map<String, Any>?
+    ): Map<String, Any>? {
+        Log.d("MainViewModel", "mergeReadingTime(): phone=${phoneReadingTime != null}, band=${bandReadingTime != null}")
+        
+        if (phoneReadingTime == null && bandReadingTime == null) {
+            Log.d("MainViewModel", "mergeReadingTime(): both null, returning null")
+            return null
+        }
+        if (phoneReadingTime == null) {
+            Log.d("MainViewModel", "mergeReadingTime(): phone null, using band")
+            return bandReadingTime
+        }
+        if (bandReadingTime == null) {
+            Log.d("MainViewModel", "mergeReadingTime(): band null, using phone")
+            return phoneReadingTime
+        }
+
+        val phoneTotalSeconds = (phoneReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
+        val bandTotalSeconds = (bandReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
+
+        Log.d("MainViewModel", "mergeReadingTime(): phoneTotalSeconds=$phoneTotalSeconds, bandTotalSeconds=$bandTotalSeconds")
+        
+        
+        val usePhone = phoneTotalSeconds >= bandTotalSeconds
+        val selectedReadingTime = if (usePhone) phoneReadingTime else bandReadingTime
+        
+        val selectedTotalSeconds = if (usePhone) phoneTotalSeconds else bandTotalSeconds
+        val selectedSessions = if (usePhone) {
+            (phoneReadingTime["sessions"] as? List<Any>) ?: emptyList<Any>()
+        } else {
+            (bandReadingTime["sessions"] as? List<Any>) ?: emptyList<Any>()
+        }
+        
+        Log.d("MainViewModel", "mergeReadingTime(): using ${if (usePhone) "phone" else "band"} reading time (totalSeconds=$selectedTotalSeconds, sessions=${selectedSessions.size})")
+
+        
+        val finalSessions = if (selectedSessions.size > 100) {
+            Log.d("MainViewModel", "mergeReadingTime(): limiting sessions from ${selectedSessions.size} to 100")
+            selectedSessions.takeLast(100)
+        } else {
+            selectedSessions
+        }
+        
+        Log.d("MainViewModel", "mergeReadingTime(): finalSessions=${finalSessions.size}")
+
+        
+        val phoneFirstDate = phoneReadingTime["firstReadDate"] as? String ?: ""
+        val phoneLastDate = phoneReadingTime["lastReadDate"] as? String ?: ""
+        val bandFirstDate = bandReadingTime["firstReadDate"] as? String ?: ""
+        val bandLastDate = bandReadingTime["lastReadDate"] as? String ?: ""
+
+        val firstReadDate = if (usePhone) {
+            if (phoneFirstDate.isEmpty()) bandFirstDate else phoneFirstDate
+        } else {
+            if (bandFirstDate.isEmpty()) phoneFirstDate else bandFirstDate
+        }
+
+        val lastReadDate = if (usePhone) {
+            if (phoneLastDate.isEmpty()) bandLastDate else phoneLastDate
+        } else {
+            if (bandLastDate.isEmpty()) phoneLastDate else bandLastDate
+        }
+
+        val result = mapOf(
+            "totalSeconds" to selectedTotalSeconds,
+            "sessions" to finalSessions,
+            "firstReadDate" to firstReadDate,
+            "lastReadDate" to lastReadDate
+        )
+        
+        Log.d("MainViewModel", "mergeReadingTime(): result - totalSeconds=$selectedTotalSeconds, sessions=${finalSessions.size}, firstReadDate=$firstReadDate, lastReadDate=$lastReadDate")
+        
+        return result
     }
 
 

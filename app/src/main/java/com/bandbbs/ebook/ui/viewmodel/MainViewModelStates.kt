@@ -100,13 +100,22 @@ data class EditBookInfoState(
     val isResyncing: Boolean = false
 )
 
+enum class SyncMode {
+    AUTO,      
+    BAND_ONLY, 
+    PHONE_ONLY 
+}
+
 data class SyncReadingDataState(
     val isSyncing: Boolean = false,
     val statusText: String = "",
     val progress: Float = 0f,
     val currentBook: String = "",
     val totalBooks: Int = 0,
-    val syncedBooks: Int = 0
+    val syncedBooks: Int = 0,
+    val showModeDialog: Boolean = false,
+    val progressSyncMode: SyncMode = SyncMode.AUTO,
+    val readingTimeSyncMode: SyncMode = SyncMode.AUTO
 )
 
 data class VersionIncompatibleState(

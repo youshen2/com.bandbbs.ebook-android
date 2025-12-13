@@ -74,6 +74,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bandbbs.ebook.ui.components.ReaderSettingsBottomSheet
 import com.bandbbs.ebook.ui.components.loadReaderSettings
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import com.bandbbs.ebook.utils.ReadingTimeStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -125,6 +126,15 @@ fun ReaderScreen(
     
     val chapter by viewModel.chapterToPreview.collectAsState()
     val allChapters by viewModel.chaptersForPreview.collectAsState()
+    val books by viewModel.books.collectAsState()
+
+    
+    val bookName = remember(chapter, allChapters, books) {
+        if (allChapters.isNotEmpty()) {
+            val bookId = allChapters[0].bookId
+            books.find { it.id == bookId }?.name
+        } else null
+    }
 
     
     var showControls by remember { mutableStateOf(true) }
@@ -160,11 +170,16 @@ fun ReaderScreen(
         chapter?.let { ch ->
             saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
         }
+        
+        if (bookName != null) {
+            ReadingTimeStorage.recordReadingEnd(context, bookName)
+        }
+        
         onClose()
     }
 
     
-    LaunchedEffect(chapter) {
+    LaunchedEffect(chapter, bookName) {
         if (chapter == null) return@LaunchedEffect
 
         
@@ -172,6 +187,12 @@ fun ReaderScreen(
             val bookId = allChapters[0].bookId
             withContext(Dispatchers.IO) {
                 saveLastReadChapter(context, bookId, chapter!!.id)
+            }
+        }
+        
+        if (bookName != null) {
+            withContext(Dispatchers.IO) {
+                ReadingTimeStorage.recordReadingStart(context, bookName)
             }
         }
 
@@ -204,17 +225,31 @@ fun ReaderScreen(
     }
 
     
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, bookName) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                chapter?.let { ch ->
-                    saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    chapter?.let { ch ->
+                        saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
+                    }
+                    if (bookName != null) {
+                        ReadingTimeStorage.recordReadingEnd(context, bookName)
+                    }
                 }
+                Lifecycle.Event.ON_RESUME -> {
+                    if (bookName != null) {
+                        ReadingTimeStorage.recordReadingStart(context, bookName)
+                    }
+                }
+                else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            if (bookName != null) {
+                ReadingTimeStorage.recordReadingEnd(context, bookName)
+            }
         }
     }
 
@@ -437,6 +472,9 @@ fun ReaderScreen(
                                     firstVisibleItemIndex,
                                     firstVisibleItemScrollOffset
                                 )
+                            }
+                            if (bookName != null) {
+                                ReadingTimeStorage.recordReadingEnd(context, bookName)
                             }
                             onClose()
                         }) {
