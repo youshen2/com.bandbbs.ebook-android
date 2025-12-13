@@ -108,7 +108,6 @@ private data class ListItem(
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    onImportClick: () -> Unit,
     onImportCoverClick: () -> Unit
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
@@ -842,11 +841,6 @@ fun MainScreen(
                         actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
-            },
-            floatingActionButton = {
-                FloatingActionButton(onClick = onImportClick) {
-                    Icon(Icons.Default.Add, contentDescription = "导入书籍")
-                }
             },
             containerColor = MaterialTheme.colorScheme.surface
         ) { paddingValues ->
