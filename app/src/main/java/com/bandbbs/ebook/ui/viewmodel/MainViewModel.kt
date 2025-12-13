@@ -596,11 +596,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncReadingDataJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 
+                val currentProgressMode = progressMode
+                val currentReadingTimeMode = readingTimeMode
+                
                 withContext(Dispatchers.Main) {
                     _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         showModeDialog = false,
-                        progressSyncMode = progressMode,
-                        readingTimeSyncMode = readingTimeMode
+                        progressSyncMode = currentProgressMode,
+                        readingTimeSyncMode = currentReadingTimeMode
                     )
                 }
                 
@@ -618,7 +621,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 withContext(Dispatchers.Main) {
-                    _syncReadingDataState.value = SyncReadingDataState(
+                    _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         isSyncing = true,
                         statusText = "开始同步阅读数据...",
                         progress = 0f,
@@ -798,11 +801,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         
-                        val progressMode = _syncReadingDataState.value.progressSyncMode
-                        val readingTimeMode = _syncReadingDataState.value.readingTimeSyncMode
-                        Log.d("MainViewModel", "Merging data for ${book.name} with progressMode: $progressMode, readingTimeMode: $readingTimeMode")
+                        Log.d("MainViewModel", "Merging data for ${book.name} with progressMode: $currentProgressMode, readingTimeMode: $currentReadingTimeMode")
                         
-                        val finalProgress = when (progressMode) {
+                        
+                        val finalProgress = when (currentProgressMode) {
                             SyncMode.AUTO -> {
                                 val merged = mergeProgress(phoneProgress, bandProgress)
                                 Log.d("MainViewModel", "Auto merged progress for ${book.name}: ${merged != null}")
@@ -810,16 +812,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             SyncMode.BAND_ONLY -> {
                                 Log.d("MainViewModel", "Using band progress for ${book.name}")
-                                bandProgress ?: phoneProgress
+                                bandProgress
                             }
                             SyncMode.PHONE_ONLY -> {
                                 Log.d("MainViewModel", "Using phone progress for ${book.name}")
-                                phoneProgress ?: bandProgress
+                                phoneProgress
                             }
                         }
-                        savePhoneReadingProgress(book, finalProgress)
-
-                        val finalReadingTime = when (readingTimeMode) {
+                        
+                        
+                        val finalReadingTime = when (currentReadingTimeMode) {
                             SyncMode.AUTO -> {
                                 val merged = mergeReadingTime(phoneReadingTime, bandReadingTime)
                                 Log.d("MainViewModel", "Auto merged reading time for ${book.name}: ${if (merged != null) "totalSeconds=${merged["totalSeconds"]}, sessions=${(merged["sessions"] as? List<*>)?.size ?: 0}" else "null"}")
@@ -827,33 +829,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             SyncMode.BAND_ONLY -> {
                                 Log.d("MainViewModel", "Using band reading time for ${book.name}")
-                                bandReadingTime ?: phoneReadingTime
+                                bandReadingTime
                             }
                             SyncMode.PHONE_ONLY -> {
                                 Log.d("MainViewModel", "Using phone reading time for ${book.name}")
-                                phoneReadingTime ?: bandReadingTime
+                                phoneReadingTime
                             }
                         }
-                        savePhoneReadingTime(book.name, finalReadingTime)
-                        Log.d("MainViewModel", "Saved reading time for ${book.name}")
+                        
+                        
+                        when (currentProgressMode) {
+                            SyncMode.AUTO, SyncMode.BAND_ONLY -> {
+                                savePhoneReadingProgress(book, finalProgress)
+                            }
+                            SyncMode.PHONE_ONLY -> {
+                                
+                                Log.d("MainViewModel", "PHONE_ONLY mode: keeping phone progress unchanged for ${book.name}")
+                            }
+                        }
+                        
+                        when (currentReadingTimeMode) {
+                            SyncMode.AUTO, SyncMode.BAND_ONLY -> {
+                                savePhoneReadingTime(book.name, finalReadingTime)
+                                Log.d("MainViewModel", "Saved reading time for ${book.name}")
+                            }
+                            SyncMode.PHONE_ONLY -> {
+                                
+                                Log.d("MainViewModel", "PHONE_ONLY mode: keeping phone reading time unchanged for ${book.name}")
+                            }
+                        }
 
                         
-                        val progressJson = finalProgress?.let {
-                            try {
-                                org.json.JSONObject(it).toString()
-                            } catch (e: Exception) {
-                                Log.e("MainViewModel", "Failed to serialize progress", e)
+                        val progressJson = when (currentProgressMode) {
+                            SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
+                                finalProgress?.let {
+                                    try {
+                                        org.json.JSONObject(it).toString()
+                                    } catch (e: Exception) {
+                                        Log.e("MainViewModel", "Failed to serialize progress", e)
+                                        null
+                                    }
+                                }
+                            }
+                            SyncMode.BAND_ONLY -> {
+                                
+                                Log.d("MainViewModel", "BAND_ONLY mode: keeping band progress unchanged for ${book.name}")
                                 null
                             }
                         }
 
-                        val readingTimeJson = finalReadingTime?.let {
-                            try {
-                                val json = org.json.JSONObject(it).toString()
-                                Log.d("MainViewModel", "Serialized reading time JSON for ${book.name}: ${json.length} chars")
-                                json
-                            } catch (e: Exception) {
-                                Log.e("MainViewModel", "Failed to serialize reading time for ${book.name}", e)
+                        val readingTimeJson = when (currentReadingTimeMode) {
+                            SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
+                                finalReadingTime?.let {
+                                    try {
+                                        val json = org.json.JSONObject(it).toString()
+                                        Log.d("MainViewModel", "Serialized reading time JSON for ${book.name}: ${json.length} chars")
+                                        json
+                                    } catch (e: Exception) {
+                                        Log.e("MainViewModel", "Failed to serialize reading time for ${book.name}", e)
+                                        null
+                                    }
+                                }
+                            }
+                            SyncMode.BAND_ONLY -> {
+                                
+                                Log.d("MainViewModel", "BAND_ONLY mode: keeping band reading time unchanged for ${book.name}")
                                 null
                             }
                         }
