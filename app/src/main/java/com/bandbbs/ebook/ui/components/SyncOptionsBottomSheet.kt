@@ -337,7 +337,7 @@ fun SyncOptionsBottomSheet(
                                 }?.index ?: state.totalChapters
                             }
                             val endIndex = state.totalChapters
-                            selectedChapters = (startIndex until endIndex).toSet()
+                            selectedChapters = (startIndex until endIndex).filter { it !in state.syncedChapterIndices }.toSet()
                         },
                         onResyncCoverOnly = onResyncCoverOnly
                     )
