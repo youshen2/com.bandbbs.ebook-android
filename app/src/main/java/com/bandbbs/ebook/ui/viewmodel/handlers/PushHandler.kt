@@ -33,7 +33,7 @@ class PushHandler(
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         if (fileConn.busy || syncOptionsState.value != null) return
 
-        syncOptionsState.value = SyncOptionsState(book, 0, 0, emptyList(), false)
+        syncOptionsState.value = SyncOptionsState(book, 0, emptySet(), emptyList(), false)
 
         scope.launch {
             try {
@@ -61,7 +61,7 @@ class PushHandler(
                 syncOptionsState.value = SyncOptionsState(
                     book = book,
                     totalChapters = totalChapters,
-                    syncedChapters = bookStatus.syncedChapters.size,
+                    syncedChapterIndices = bookStatus.syncedChapters.toSet(),
                     chapters = chapters,
                     hasCover = hasCover,
                     isCoverSynced = bookStatus.hasCover

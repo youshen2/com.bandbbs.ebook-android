@@ -75,11 +75,14 @@ fun SyncOptionsBottomSheet(
     var quickSelectText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(state.syncedChapters, state.totalChapters, state.chapters) {
+    LaunchedEffect(state.syncedChapterIndices, state.totalChapters, state.chapters) {
         if (state.chapters.isNotEmpty() && selectedChapters.isEmpty()) {
-            val startIndex = state.syncedChapters.coerceIn(0, state.totalChapters)
+            // 找到第一个未同步的章节索引
+            val firstUnsyncedIndex = state.chapters.firstOrNull { 
+                it.index !in state.syncedChapterIndices 
+            }?.index ?: state.totalChapters
             val endIndex = state.totalChapters
-            selectedChapters = (startIndex until endIndex).toSet()
+            selectedChapters = (firstUnsyncedIndex until endIndex).toSet()
         }
     }
 
@@ -322,7 +325,17 @@ fun SyncOptionsBottomSheet(
                         },
                         onSelectNone = { selectedChapters = emptySet() },
                         onSelectUnread = {
-                            val startIndex = state.syncedChapters.coerceIn(0, state.totalChapters)
+                            // 获取当前阅读进度
+                            val currentChapterIndex = state.book.chapterIndex
+                            // 选择从当前章节索引+1开始到最后的未读章节
+                            val startIndex = if (currentChapterIndex != null && currentChapterIndex >= 0) {
+                                (currentChapterIndex + 1).coerceAtMost(state.totalChapters)
+                            } else {
+                                // 如果没有阅读进度，选择第一个未同步的章节开始
+                                state.chapters.firstOrNull { 
+                                    it.index !in state.syncedChapterIndices 
+                                }?.index ?: state.totalChapters
+                            }
                             val endIndex = state.totalChapters
                             selectedChapters = (startIndex until endIndex).toSet()
                         },
@@ -362,7 +375,7 @@ fun SyncOptionsBottomSheet(
                             chapter = chapter,
                             index = index,
                             totalChapters = state.chapters.size,
-                            syncedChapters = state.syncedChapters,
+                            syncedChapterIndices = state.syncedChapterIndices,
                             isSelected = selectedChapters.contains(chapter.index),
                             currentSelection = selectedChapters,
                             onSelectionChanged = { newSelection ->
@@ -401,12 +414,12 @@ private fun ChapterItem(
     chapter: com.bandbbs.ebook.database.ChapterInfo,
     index: Int,
     totalChapters: Int,
-    syncedChapters: Int,
+    syncedChapterIndices: Set<Int>,
     isSelected: Boolean,
     currentSelection: Set<Int>,
     onSelectionChanged: (Set<Int>) -> Unit
 ) {
-    val isSynced = chapter.index < syncedChapters
+    val isSynced = chapter.index in syncedChapterIndices
 
     Column(
         modifier = Modifier

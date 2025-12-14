@@ -73,11 +73,14 @@ data class ImportReportState(
 data class SyncOptionsState(
     val book: Book,
     val totalChapters: Int,
-    val syncedChapters: Int,
+    val syncedChapterIndices: Set<Int>,
     val chapters: List<ChapterInfo> = emptyList(),
     val hasCover: Boolean = false,
     val isCoverSynced: Boolean = false
-)
+) {
+    // 保持向后兼容，提供 syncedChapters 作为计算属性
+    val syncedChapters: Int get() = syncedChapterIndices.size
+}
 
 data class OverwriteConfirmState(
     val existingBook: Book,
