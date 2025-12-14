@@ -78,7 +78,7 @@ data class SyncOptionsState(
     val hasCover: Boolean = false,
     val isCoverSynced: Boolean = false
 ) {
-    // 保持向后兼容，提供 syncedChapters 作为计算属性
+    
     val syncedChapters: Int get() = syncedChapterIndices.size
 }
 

@@ -77,7 +77,7 @@ fun SyncOptionsBottomSheet(
 
     LaunchedEffect(state.syncedChapterIndices, state.totalChapters, state.chapters) {
         if (state.chapters.isNotEmpty() && selectedChapters.isEmpty()) {
-            // 找到第一个未同步的章节索引
+            
             val firstUnsyncedIndex = state.chapters.firstOrNull { 
                 it.index !in state.syncedChapterIndices 
             }?.index ?: state.totalChapters
@@ -325,13 +325,13 @@ fun SyncOptionsBottomSheet(
                         },
                         onSelectNone = { selectedChapters = emptySet() },
                         onSelectUnread = {
-                            // 获取当前阅读进度
+                            
                             val currentChapterIndex = state.book.chapterIndex
-                            // 选择从当前章节索引+1开始到最后的未读章节
+                            
                             val startIndex = if (currentChapterIndex != null && currentChapterIndex >= 0) {
-                                (currentChapterIndex + 1).coerceAtMost(state.totalChapters)
+                                currentChapterIndex.coerceIn(0, state.totalChapters - 1)
                             } else {
-                                // 如果没有阅读进度，选择第一个未同步的章节开始
+                                
                                 state.chapters.firstOrNull { 
                                     it.index !in state.syncedChapterIndices 
                                 }?.index ?: state.totalChapters
