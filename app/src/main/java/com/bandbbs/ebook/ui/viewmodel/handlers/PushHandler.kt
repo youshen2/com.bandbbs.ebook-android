@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Context
+import com.bandbbs.ebook.notifications.ForegroundTransferService
 
 class PushHandler(
     private val db: AppDatabase,
@@ -22,7 +24,8 @@ class PushHandler(
     private val syncOptionsState: MutableStateFlow<SyncOptionsState?>,
     private val firstSyncConfirmState: MutableStateFlow<Book?>,
     private val connectionHandler: ConnectionHandler,
-    private val firstSyncConfirmedKey: String
+    private val firstSyncConfirmedKey: String,
+    private val appContext: Context
 ) {
 
     private var pendingPushBook: Book? = null
@@ -247,6 +250,12 @@ class PushHandler(
             transferLog = initialLog,
             isTransferring = true
         )
+        ForegroundTransferService.startService(
+            appContext,
+            "传输中",
+            initialMessage,
+            null
+        )
 
         scope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
@@ -302,6 +311,7 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
+                        ForegroundTransferService.stopService(appContext)
                     },
                     onSuccess = { message, count ->
                         addTransferLog("[成功] $message，共传输 $count 章")
@@ -314,6 +324,7 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
+                        ForegroundTransferService.stopService(appContext)
                     },
                     onProgress = { p, preview, speed ->
                         val progressPercent = (p * 100).toInt()
@@ -332,6 +343,11 @@ class PushHandler(
                                 isTransferring = true
                             )
                         }
+                        val chapterTitle = preview.substringBefore("(").trim()
+                        val chapterNumberRegex = Regex("""(第[\d一二三四五六七八九十百千万零〇]+章)""")
+                        val chapterNumber = chapterNumberRegex.find(chapterTitle)?.value
+                        val title = chapterNumber ?: "传输中"
+                        ForegroundTransferService.startService(appContext, title, preview, progressPercent)
                     },
                     onCoverProgress = { current, total ->
                         if (total > 0) {

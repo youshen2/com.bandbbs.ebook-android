@@ -22,6 +22,8 @@ import androidx.compose.animation.with
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
@@ -56,6 +58,9 @@ import com.bandbbs.ebook.ui.screens.StatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import android.provider.Settings
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
 
@@ -102,8 +107,28 @@ class MainActivity : ComponentActivity() {
                 notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        // First-launch tutorial: show once to instruct user to set synchronizer to unrestricted
+        // and guide ColorOS14+ users to enable "流体云显示实时通知" in app notification management.
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val firstLaunchTutorial = !prefs.getBoolean("tutorial_shown", false)
+        fun markTutorialShown() {
+            prefs.edit().putBoolean("tutorial_shown", true).apply()
+        }
+        fun openAppNotificationSettings() {
+            try {
+                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        }
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.pushState.collect { pushState ->
                     if (pushState.isTransferring && !pushState.isFinished) {
                         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -124,25 +149,25 @@ class MainActivity : ComponentActivity() {
                                 append("$progressPercent%")
                             }
                         }
-                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(title, content, progressPercent)
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(applicationContext, title, content, progressPercent)
                     } else {
-                        com.bandbbs.ebook.notifications.LiveNotificationManager.cancel()
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(applicationContext)
                     }
                 }
             }
         }
 
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.syncReadingDataState.collect { syncState ->
                     val pushActive = viewModel.pushState.value.isTransferring
-                    if (syncState.isSyncing && !pushActive) {
+                if (syncState.isSyncing && !pushActive) {
                         val progressPercent = (syncState.progress * 100).toInt()
                         val title = "$progressPercent%"
-                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(title, "数据同步中", progressPercent)
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(applicationContext, title, "数据同步中", progressPercent)
                     } else {
                         if (!pushActive) {
-                            com.bandbbs.ebook.notifications.LiveNotificationManager.cancel()
+                            com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(applicationContext)
                         }
                     }
                 }
@@ -150,6 +175,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val context = LocalContext.current
+            var showTutorial by remember { mutableStateOf(firstLaunchTutorial) }
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
@@ -230,6 +257,39 @@ class MainActivity : ComponentActivity() {
                     }
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
+                        if (showTutorial) {
+                            AlertDialog(
+                                onDismissRequest = {
+                                    markTutorialShown()
+                                    showTutorial = false
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        markTutorialShown()
+                                        showTutorial = false
+                                    }) {
+                                        androidx.compose.material3.Text("我知道了")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        markTutorialShown()
+                                        showTutorial = false
+                                    }) {
+                                        androidx.compose.material3.Text("关闭")
+                                    }
+                                },
+                                title = {
+                                    androidx.compose.material3.Text("首次使用提示")
+                                },
+                                text = {
+                                    androidx.compose.material3.Text(
+                                        "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\n" +
+                                                "ColorOS14及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。"
+                                    )
+                                }
+                            )
+                        }
                         AnimatedContent(
                             targetState = if (isReaderOpen) "reader" else if (selectedBookForStats != null) "book_statistics" else currentScreen,
                             transitionSpec = {

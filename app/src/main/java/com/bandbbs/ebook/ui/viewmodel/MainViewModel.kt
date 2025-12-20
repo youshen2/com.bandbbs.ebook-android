@@ -216,7 +216,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncOptionsState = _syncOptionsState,
         firstSyncConfirmState = _firstSyncConfirmState,
         connectionHandler = connectionHandler,
-        firstSyncConfirmedKey = FIRST_SYNC_CONFIRMED_KEY
+        firstSyncConfirmedKey = FIRST_SYNC_CONFIRMED_KEY,
+        appContext = application.applicationContext
     )
 
     private val libraryHandler = LibraryHandler(
