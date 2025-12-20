@@ -1201,7 +1201,8 @@ fun MainScreen(
                                                 viewModel.toggleCategoryExpansion(category)
                                             }
                                             .padding(
-                                                bottom = 8.dp
+                                                top = 8.dp,
+                                                bottom = if (isExpanded) 8.dp else 0.dp
                                             ),
                                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                                         shape = RoundedCornerShape(12.dp)
