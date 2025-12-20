@@ -4,6 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
+import android.app.NotificationManager
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -79,6 +83,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted: Boolean ->
+    }
+
     @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,9 +95,13 @@ class MainActivity : ComponentActivity() {
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
         viewModel.setConnection(conn)
-
-
-
+        val notifManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        com.bandbbs.ebook.notifications.LiveNotificationManager.initialize(applicationContext, notifManager)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.pushState.collect { pushState ->
@@ -96,6 +109,13 @@ class MainActivity : ComponentActivity() {
                         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    if (pushState.isTransferring) {
+                        val bookName = pushState.book?.name ?: "传输中"
+                        val progressPercent = if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
+                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(bookName, progressPercent)
+                    } else {
+                        com.bandbbs.ebook.notifications.LiveNotificationManager.cancel()
                     }
                 }
             }
@@ -399,7 +419,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.reconnect()
+        val currentPushState = viewModel.pushState.value
+        if (!currentPushState.isTransferring) {
+            viewModel.reconnect()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
