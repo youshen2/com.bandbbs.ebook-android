@@ -6,6 +6,8 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import android.app.PendingIntent
+import android.content.Intent
 import com.bandbbs.ebook.R
 
 object LiveNotificationManager {
@@ -29,12 +31,24 @@ object LiveNotificationManager {
         }
     }
 
-    fun showTransferNotification(title: String, progressPercent: Int? = null) {
+    fun showTransferNotification(title: String, contentText: String? = null, progressPercent: Int? = null) {
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+
+        contentText?.let {
+            builder.setContentText(it)
+        }
+
+        val launchIntent = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
+            ?: Intent(appContext, com.bandbbs.ebook.MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        val pendingIntent = PendingIntent.getActivity(appContext, 0, launchIntent, flags)
+        builder.setContentIntent(pendingIntent)
             .setRequestPromotedOngoing(true)
 
         if (progressPercent == null || progressPercent <= 0) {

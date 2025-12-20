@@ -111,11 +111,39 @@ class MainActivity : ComponentActivity() {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
                     if (pushState.isTransferring) {
-                        val bookName = pushState.book?.name ?: "传输中"
                         val progressPercent = if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
-                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(bookName, progressPercent)
+                        val preview = pushState.preview
+                        val chapterTitle = preview.substringBefore("(").trim()
+                        val chapterNumberRegex = Regex("""(第[\d一二三四五六七八九十百千万零〇]+章)""")
+                        val chapterNumber = chapterNumberRegex.find(chapterTitle)?.value
+                        val title = chapterNumber ?: "传输中"
+                        val content = buildString {
+                            append(chapterTitle)
+                            if (progressPercent != null) {
+                                append(" • ")
+                                append("$progressPercent%")
+                            }
+                        }
+                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(title, content, progressPercent)
                     } else {
                         com.bandbbs.ebook.notifications.LiveNotificationManager.cancel()
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncReadingDataState.collect { syncState ->
+                    val pushActive = viewModel.pushState.value.isTransferring
+                    if (syncState.isSyncing && !pushActive) {
+                        val progressPercent = (syncState.progress * 100).toInt()
+                        val title = "$progressPercent%"
+                        com.bandbbs.ebook.notifications.LiveNotificationManager.showTransferNotification(title, "数据同步中", progressPercent)
+                    } else {
+                        if (!pushActive) {
+                            com.bandbbs.ebook.notifications.LiveNotificationManager.cancel()
+                        }
                     }
                 }
             }
