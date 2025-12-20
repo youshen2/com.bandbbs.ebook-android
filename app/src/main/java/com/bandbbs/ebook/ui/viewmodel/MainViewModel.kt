@@ -136,6 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val SHOW_CONNECTION_ERROR_KEY = "show_connection_error"
     private val SHOW_SEARCH_BAR_KEY = "show_search_bar"
     private val THEME_MODE_KEY = "theme_mode"
+    private val QUICK_EDIT_CATEGORY_KEY = "quick_edit_category"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -159,6 +160,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _showSearchBar = MutableStateFlow(prefs.getBoolean(SHOW_SEARCH_BAR_KEY, true))
     val showSearchBar = _showSearchBar.asStateFlow()
+
+    private val _quickEditCategoryEnabled =
+        MutableStateFlow(prefs.getBoolean(QUICK_EDIT_CATEGORY_KEY, false))
+    val quickEditCategoryEnabled = _quickEditCategoryEnabled.asStateFlow()
 
     enum class ThemeMode {
         LIGHT, DARK, SYSTEM
@@ -1308,6 +1313,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowSearchBar(show: Boolean) {
         prefs.edit().putBoolean(SHOW_SEARCH_BAR_KEY, show).apply()
         _showSearchBar.value = show
+    }
+
+    fun setQuickEditCategory(enabled: Boolean) {
+        prefs.edit().putBoolean(QUICK_EDIT_CATEGORY_KEY, enabled).apply()
+        _quickEditCategoryEnabled.value = enabled
     }
 
     fun setThemeMode(mode: ThemeMode) {

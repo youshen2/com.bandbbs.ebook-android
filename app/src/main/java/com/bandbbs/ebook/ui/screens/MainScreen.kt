@@ -43,8 +43,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.SwipeToDismiss
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -108,7 +112,7 @@ private data class ListItem(
     val book: com.bandbbs.ebook.ui.model.Book? = null
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
@@ -121,6 +125,7 @@ fun MainScreen(
     val showRecentImport by viewModel.showRecentImport.collectAsState()
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
     val showSearchBar by viewModel.showSearchBar.collectAsState()
+    val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
@@ -1104,33 +1109,78 @@ fun MainScreen(
                                                 bottom = 8.dp
                                             )
                                         ) {
-                                            BookItem(
-                                                book = book,
-                                                isExpanded = expandedBookPath == book.path,
-                                                onExpandClick = {
-                                                    viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
-                                                },
-                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
-                                                onSyncClick = { viewModel.startPush(book) },
-                                                onChapterListClick = {
-                                                    viewModel.showChapterList(
-                                                        book
+                                            if (quickEditCategoryEnabled) {
+                                                val dismissState = rememberDismissState(confirmStateChange = { newState ->
+                                                    if (newState == DismissValue.DismissedToStart) {
+                                                        viewModel.showCategorySelector(book)
+                                                        false
+                                                    } else {
+                                                        true
+                                                    }
+                                                })
+
+                                                SwipeToDismiss(
+                                                    state = dismissState,
+                                                    directions = setOf(DismissDirection.EndToStart),
+                                                    background = {}
+                                                ) {
+                                                    BookItem(
+                                                        book = book,
+                                                        isExpanded = expandedBookPath == book.path,
+                                                        onExpandClick = {
+                                                            viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                        },
+                                                        onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                        onSyncClick = { viewModel.startPush(book) },
+                                                        onChapterListClick = {
+                                                            viewModel.showChapterList(
+                                                                book
+                                                            )
+                                                        },
+                                                        onContinueReadingClick = {
+                                                            viewModel.continueReading(
+                                                                book
+                                                            )
+                                                        },
+                                                        onImportCoverClick = {
+                                                            viewModel.requestImportCover(book)
+                                                            onImportCoverClick()
+                                                        },
+                                                        onEditInfoClick = {
+                                                            viewModel.showEditBookInfo(book)
+                                                        },
+                                                        isSyncEnabled = connectionState.isConnected
                                                     )
-                                                },
-                                                onContinueReadingClick = {
-                                                    viewModel.continueReading(
-                                                        book
-                                                    )
-                                                },
-                                                onImportCoverClick = {
-                                                    viewModel.requestImportCover(book)
-                                                    onImportCoverClick()
-                                                },
-                                                onEditInfoClick = {
-                                                    viewModel.showEditBookInfo(book)
-                                                },
-                                                isSyncEnabled = connectionState.isConnected
-                                            )
+                                                }
+                                            } else {
+                                                BookItem(
+                                                    book = book,
+                                                    isExpanded = expandedBookPath == book.path,
+                                                    onExpandClick = {
+                                                        viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                    },
+                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                    onSyncClick = { viewModel.startPush(book) },
+                                                    onChapterListClick = {
+                                                        viewModel.showChapterList(
+                                                            book
+                                                        )
+                                                    },
+                                                    onContinueReadingClick = {
+                                                        viewModel.continueReading(
+                                                            book
+                                                        )
+                                                    },
+                                                    onImportCoverClick = {
+                                                        viewModel.requestImportCover(book)
+                                                        onImportCoverClick()
+                                                    },
+                                                    onEditInfoClick = {
+                                                        viewModel.showEditBookInfo(book)
+                                                    },
+                                                    isSyncEnabled = connectionState.isConnected
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1157,33 +1207,78 @@ fun MainScreen(
                                                     bottom = if (isLastItem) 16.dp else 0.dp
                                                 )
                                         ) {
-                                            BookItem(
-                                                book = book,
-                                                isExpanded = expandedBookPath == book.path,
-                                                onExpandClick = {
-                                                    viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
-                                                },
-                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
-                                                onSyncClick = { viewModel.startPush(book) },
-                                                onChapterListClick = {
-                                                    viewModel.showChapterList(
-                                                        book
+                                            if (quickEditCategoryEnabled) {
+                                                val dismissState = rememberDismissState(confirmStateChange = { newState ->
+                                                    if (newState == DismissValue.DismissedToStart) {
+                                                        viewModel.showCategorySelector(book)
+                                                        false
+                                                    } else {
+                                                        true
+                                                    }
+                                                })
+
+                                                SwipeToDismiss(
+                                                    state = dismissState,
+                                                    directions = setOf(DismissDirection.EndToStart),
+                                                    background = {}
+                                                ) {
+                                                    BookItem(
+                                                        book = book,
+                                                        isExpanded = expandedBookPath == book.path,
+                                                        onExpandClick = {
+                                                            viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                        },
+                                                        onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                        onSyncClick = { viewModel.startPush(book) },
+                                                        onChapterListClick = {
+                                                            viewModel.showChapterList(
+                                                                book
+                                                            )
+                                                        },
+                                                        onContinueReadingClick = {
+                                                            viewModel.continueReading(
+                                                                book
+                                                            )
+                                                        },
+                                                        onImportCoverClick = {
+                                                            viewModel.requestImportCover(book)
+                                                            onImportCoverClick()
+                                                        },
+                                                        onEditInfoClick = {
+                                                            viewModel.showEditBookInfo(book)
+                                                        },
+                                                        isSyncEnabled = connectionState.isConnected
                                                     )
-                                                },
-                                                onContinueReadingClick = {
-                                                    viewModel.continueReading(
-                                                        book
-                                                    )
-                                                },
-                                                onImportCoverClick = {
-                                                    viewModel.requestImportCover(book)
-                                                    onImportCoverClick()
-                                                },
-                                                onEditInfoClick = {
-                                                    viewModel.showEditBookInfo(book)
-                                                },
-                                                isSyncEnabled = connectionState.isConnected
-                                            )
+                                                }
+                                            } else {
+                                                BookItem(
+                                                    book = book,
+                                                    isExpanded = expandedBookPath == book.path,
+                                                    onExpandClick = {
+                                                        viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                    },
+                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                    onSyncClick = { viewModel.startPush(book) },
+                                                    onChapterListClick = {
+                                                        viewModel.showChapterList(
+                                                            book
+                                                        )
+                                                    },
+                                                    onContinueReadingClick = {
+                                                        viewModel.continueReading(
+                                                            book
+                                                        )
+                                                    },
+                                                    onImportCoverClick = {
+                                                        viewModel.requestImportCover(book)
+                                                        onImportCoverClick()
+                                                    },
+                                                    onEditInfoClick = {
+                                                        viewModel.showEditBookInfo(book)
+                                                    },
+                                                    isSyncEnabled = connectionState.isConnected
+                                                )
+                                            }
                                         }
                                     }
                                 }

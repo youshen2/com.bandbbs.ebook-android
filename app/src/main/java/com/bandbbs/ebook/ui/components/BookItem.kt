@@ -81,14 +81,20 @@ fun BookItem(
                     .clickable { showCoverDialog = false },
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = File(book.coverImagePath),
-                    contentDescription = "封面大图",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.FillWidth
-                )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showCoverDialog,
+                    enter = androidx.compose.animation.scaleIn(),
+                    exit = androidx.compose.animation.scaleOut()
+                ) {
+                    AsyncImage(
+                        model = File(book.coverImagePath),
+                        contentDescription = "封面大图",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
             }
         }
     }

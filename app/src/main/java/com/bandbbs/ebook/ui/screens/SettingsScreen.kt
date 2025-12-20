@@ -65,6 +65,7 @@ fun SettingsScreen(
     val showConnectionError by viewModel.showConnectionError.collectAsState()
     val updateCheckState by viewModel.updateCheckState.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+    val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -139,6 +140,15 @@ fun SettingsScreen(
                         description = "在主页显示搜索栏",
                         checked = showSearchBar,
                         onCheckedChange = { viewModel.setShowSearchBar(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    SettingItem(
+                        title = "左滑快速修改分类",
+                        description = "在书籍条目上左滑直接修改本地分类（默认关闭）",
+                        checked = quickEditCategoryEnabled,
+                        onCheckedChange = { viewModel.setQuickEditCategory(it) }
                     )
 
                     Column {
