@@ -35,6 +35,7 @@ object LiveNotificationManager {
             .setContentTitle(title)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setRequestPromotedOngoing(true)
 
         if (progressPercent == null || progressPercent <= 0) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {

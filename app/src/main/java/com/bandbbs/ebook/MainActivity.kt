@@ -417,14 +417,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        val currentPushState = viewModel.pushState.value
-        if (!currentPushState.isTransferring) {
-            viewModel.reconnect()
-        }
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.data?.let {
