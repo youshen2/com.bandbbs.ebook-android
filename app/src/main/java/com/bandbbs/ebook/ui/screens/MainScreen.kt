@@ -10,6 +10,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,6 +76,7 @@ import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
 import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
+import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
@@ -176,6 +180,13 @@ fun MainScreen(
     }
 
 
+    if (syncReadingDataState.showConfirmDialog) {
+        SyncReadingDataConfirmDialog(
+            onConfirm = { viewModel.confirmSyncReadingData() },
+            onCancel = { viewModel.cancelSyncReadingDataConfirm() }
+        )
+    }
+
     if (syncReadingDataState.showModeDialog) {
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
@@ -186,7 +197,13 @@ fun MainScreen(
             },
             title = { Text("选择同步方式") },
             text = {
-                Column {
+                val scrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(scrollState)
+                ) {
                     Text("请选择阅读数据的同步方式：")
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -499,6 +516,9 @@ fun MainScreen(
                         viewModel.cancelPush()
                         viewModel.syncCoverOnly(it.book)
                     }
+                },
+                onDeleteChapters = { chapterIndices ->
+                    viewModel.deleteBandChapters(it.book, chapterIndices)
                 }
             )
         }

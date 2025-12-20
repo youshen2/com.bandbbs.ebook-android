@@ -47,6 +47,10 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var bookStatusCompleter: CompletableDeferred<BookStatusResult>? = null
     private var readingDataCompleter: CompletableDeferred<FileMessagesFromDevice.ReadingData>? =
         null
+    private var deleteChaptersCompleter: CompletableDeferred<Boolean>? = null
+    private var deleteChaptersProgressCallback: ((Double, String) -> Unit)? = null
+    private var deleteChaptersSuccessCallback: ((String) -> Unit)? = null
+    private var deleteChaptersErrorCallback: ((String) -> Unit)? = null
     private var transferStartChapterIndex: Int = 0
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()
@@ -104,18 +108,36 @@ class InterconnetFile(private val conn: InterHandshake) {
 
                     "error" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Error>(it)
-                        if (::onError.isInitialized) {
-                            onError(jsonMessage.message, jsonMessage.count)
+                        if (deleteChaptersCompleter != null) {
+                            deleteChaptersErrorCallback?.invoke(jsonMessage.message)
+                            deleteChaptersCompleter?.complete(false)
+                            deleteChaptersCompleter = null
+                            deleteChaptersProgressCallback = null
+                            deleteChaptersSuccessCallback = null
+                            deleteChaptersErrorCallback = null
+                        } else {
+                            if (::onError.isInitialized) {
+                                onError(jsonMessage.message, jsonMessage.count)
+                            }
+                            resetTransferState()
                         }
-                        resetTransferState()
                     }
 
                     "success" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
-                        if (::onSuccess.isInitialized) {
-                            onSuccess(jsonMessage.message, jsonMessage.count)
+                        if (deleteChaptersCompleter != null) {
+                            deleteChaptersSuccessCallback?.invoke(jsonMessage.message)
+                            deleteChaptersCompleter?.complete(true)
+                            deleteChaptersCompleter = null
+                            deleteChaptersProgressCallback = null
+                            deleteChaptersSuccessCallback = null
+                            deleteChaptersErrorCallback = null
+                        } else {
+                            if (::onSuccess.isInitialized) {
+                                onSuccess(jsonMessage.message, jsonMessage.count)
+                            }
+                            resetTransferState()
                         }
-                        resetTransferState()
                     }
 
                     "next" -> {
@@ -226,11 +248,63 @@ class InterconnetFile(private val conn: InterHandshake) {
                         readingDataCompleter = null
                     }
 
+                    "progress" -> {
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.Progress>(it)
+                        val progressValue = jsonMessage.count / 100.0
+                        if (::onProgress.isInitialized) {
+                            onProgress(progressValue, jsonMessage.message, "")
+                        }
+                        if (deleteChaptersCompleter != null) {
+                            deleteChaptersProgressCallback?.invoke(progressValue, jsonMessage.message)
+                        }
+                    }
+
                     "usuage" -> TODO()
                 }
             } catch (e: Exception) {
                 Log.e("file", "Error parsing JSON message: $it", e)
             }
+        }
+    }
+
+    suspend fun deleteChapters(
+        bookName: String,
+        chapterIndices: List<Int>,
+        onProgress: ((progress: Double, message: String) -> Unit)? = null,
+        onSuccess: ((message: String) -> Unit)? = null,
+        onError: ((message: String) -> Unit)? = null
+    ): Boolean {
+        return try {
+            conn.init()
+            delay(500L)
+            
+            deleteChaptersCompleter = CompletableDeferred()
+            deleteChaptersProgressCallback = onProgress
+            deleteChaptersSuccessCallback = onSuccess
+            deleteChaptersErrorCallback = onError
+            
+            val message = FileMessagesToSend.DeleteChapters(
+                filename = bookName,
+                chapterIndices = chapterIndices
+            )
+            conn.sendMessage(json.encodeToString(message)).await()
+            Log.d("File", "Sent delete_chapters command for ${chapterIndices.size} chapters")
+            
+            val result = deleteChaptersCompleter?.await() ?: false
+            deleteChaptersCompleter = null
+            deleteChaptersProgressCallback = null
+            deleteChaptersSuccessCallback = null
+            deleteChaptersErrorCallback = null
+            result
+        } catch (e: Exception) {
+            Log.e("File", "Failed to send delete_chapters command", e)
+            deleteChaptersCompleter = null
+            deleteChaptersProgressCallback = null
+            deleteChaptersSuccessCallback = null
+            deleteChaptersErrorCallback = null
+            onError?.invoke("删除失败: ${e.message}")
+            false
         }
     }
 
@@ -841,6 +915,13 @@ class InterconnetFile(private val conn: InterHandshake) {
             val progress: String? = null,
             val readingTime: String? = null
         ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class Progress(
+            val type: String = "progress",
+            val message: String,
+            val count: Int
+        ) : FileMessagesFromDevice()
     }
 
     @Serializable
@@ -950,6 +1031,14 @@ class InterconnetFile(private val conn: InterHandshake) {
             val filename: String,
             val progress: String? = null,
             val readingTime: String? = null
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class DeleteChapters(
+            val tag: String = "file",
+            val stat: String = "delete_chapters",
+            val filename: String,
+            val chapterIndices: List<Int>
         ) : FileMessagesToSend()
     }
 }

@@ -285,7 +285,7 @@ fun BookItem(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("同步手环")
+                            Text("传输书籍")
                         }
                     }
 

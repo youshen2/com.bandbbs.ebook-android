@@ -68,7 +68,8 @@ fun SyncOptionsBottomSheet(
     state: SyncOptionsState,
     onCancel: () -> Unit,
     onConfirm: (selectedChapterIndices: Set<Int>, syncCover: Boolean) -> Unit,
-    onResyncCoverOnly: (() -> Unit)? = null
+    onResyncCoverOnly: (() -> Unit)? = null,
+    onDeleteChapters: ((Set<Int>) -> Unit)? = null
 ) {
     var selectedChapters by remember { mutableStateOf(setOf<Int>()) }
     var syncCover by remember { mutableStateOf(true) }
@@ -339,6 +340,22 @@ fun SyncOptionsBottomSheet(
                             val endIndex = state.totalChapters
                             selectedChapters = (startIndex until endIndex).filter { it !in state.syncedChapterIndices }.toSet()
                         },
+                        onSelectRead = {
+                            val currentChapterIndex = state.book.chapterIndex
+                            if (currentChapterIndex != null && currentChapterIndex >= 0) {
+                                selectedChapters = (0 until currentChapterIndex).filter { it in state.syncedChapterIndices }.toSet()
+                            } else {
+                                selectedChapters = emptySet()
+                            }
+                        },
+                        onDeleteSelected = onDeleteChapters?.let { deleteFunc ->
+                            {
+                                if (selectedChapters.isNotEmpty()) {
+                                    deleteFunc(selectedChapters)
+                                }
+                            }
+                        },
+                        selectedCount = selectedCount,
                         onResyncCoverOnly = onResyncCoverOnly
                     )
                 }
@@ -522,6 +539,9 @@ private fun BulkActionsCard(
     onSelectAll: () -> Unit,
     onSelectNone: () -> Unit,
     onSelectUnread: () -> Unit,
+    onSelectRead: () -> Unit,
+    onDeleteSelected: (() -> Unit)?,
+    selectedCount: Int,
     onResyncCoverOnly: (() -> Unit)?
 ) {
     val focusManager = LocalFocusManager.current
@@ -600,6 +620,30 @@ private fun BulkActionsCard(
                 }
                 FilledTonalButton(onClick = onSelectUnread, modifier = Modifier.weight(1f)) {
                     Text("未读")
+                }
+            }
+
+            if (onSelectRead != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(onClick = onSelectRead, modifier = Modifier.weight(1f)) {
+                        Text("已读")
+                    }
+                    if (onDeleteSelected != null && selectedCount > 0) {
+                        androidx.compose.material3.Button(
+                            onClick = onDeleteSelected,
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("删除选中($selectedCount)")
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }

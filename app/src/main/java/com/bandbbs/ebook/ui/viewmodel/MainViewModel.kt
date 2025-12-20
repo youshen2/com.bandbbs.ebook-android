@@ -41,6 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val readerPrefs: SharedPreferences =
         application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
     private val FIRST_SYNC_CONFIRMED_KEY = "first_sync_confirmed"
+    private val FIRST_SYNC_READING_DATA_CONFIRMED_KEY = "first_sync_reading_data_confirmed"
 
     private val _connectionState = MutableStateFlow(ConnectionState())
     val connectionState = _connectionState.asStateFlow()
@@ -343,6 +344,99 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetPushState() = pushHandler.resetPushState()
 
+    fun deleteBandChapters(book: Book, chapterIndices: Set<Int>) {
+        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { 
+            Log.e("MainViewModel", "Cannot get file connection")
+            return
+        }
+        
+        if (fileConn.busy) {
+            Log.w("MainViewModel", "File connection is busy")
+            return
+        }
+
+        _pushState.value = PushState(
+            book = book,
+            progress = 0.0,
+            preview = "准备删除章节...",
+            transferLog = listOf("准备删除 ${chapterIndices.size} 个章节..."),
+            statusText = "准备删除...",
+            isTransferring = true
+        )
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val success = fileConn.deleteChapters(
+                    bookName = book.name,
+                    chapterIndices = chapterIndices.toList(),
+                    onProgress = { progress, message ->
+                        viewModelScope.launch(Dispatchers.Main) {
+                            val currentState = _pushState.value
+                            val newLog = (currentState.transferLog + message).takeLast(100)
+                            _pushState.value = currentState.copy(
+                                progress = progress,
+                                preview = message,
+                                statusText = message,
+                                transferLog = newLog
+                            )
+                        }
+                    },
+                    onSuccess = { message ->
+                        viewModelScope.launch(Dispatchers.Main) {
+                            val currentState = _pushState.value
+                            val newLog = (currentState.transferLog + message).takeLast(100)
+                            _pushState.value = currentState.copy(
+                                progress = 1.0,
+                                statusText = message,
+                                isFinished = true,
+                                isSuccess = true,
+                                isTransferring = false,
+                                transferLog = newLog
+                            )
+                            pushHandler.refreshBookStatus(book)
+                        }
+                    },
+                    onError = { errorMessage ->
+                        viewModelScope.launch(Dispatchers.Main) {
+                            val currentState = _pushState.value
+                            val newLog = (currentState.transferLog + "错误: $errorMessage").takeLast(100)
+                            _pushState.value = currentState.copy(
+                                statusText = errorMessage,
+                                isFinished = true,
+                                isSuccess = false,
+                                isTransferring = false,
+                                transferLog = newLog
+                            )
+                        }
+                    }
+                )
+                
+                if (!success) {
+                    withContext(Dispatchers.Main) {
+                        val currentState = _pushState.value
+                        _pushState.value = currentState.copy(
+                            statusText = "删除失败",
+                            isFinished = true,
+                            isSuccess = false,
+                            isTransferring = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error deleting chapters from band", e)
+                withContext(Dispatchers.Main) {
+                    val currentState = _pushState.value
+                    _pushState.value = currentState.copy(
+                        statusText = "删除失败: ${e.message}",
+                        isFinished = true,
+                        isSuccess = false,
+                        isTransferring = false
+                    )
+                }
+            }
+        }
+    }
+
     fun showChapterList(book: Book) = libraryHandler.showChapterList(book)
 
     fun closeChapterList() = libraryHandler.closeChapterList()
@@ -603,9 +697,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        val hasConfirmedFirstSync = prefs.getBoolean(FIRST_SYNC_READING_DATA_CONFIRMED_KEY, false)
+        if (!hasConfirmedFirstSync) {
+            Log.d("MainViewModel", "Showing confirm dialog for first time")
+            _syncReadingDataState.value = _syncReadingDataState.value.copy(showConfirmDialog = true)
+        } else {
+            Log.d("MainViewModel", "First sync already confirmed, showing mode dialog directly")
+            _syncReadingDataState.value = _syncReadingDataState.value.copy(showModeDialog = true)
+        }
+    }
 
-        Log.d("MainViewModel", "Showing sync mode selection dialog")
-        _syncReadingDataState.value = _syncReadingDataState.value.copy(showModeDialog = true)
+    fun confirmSyncReadingData() {
+        Log.d("MainViewModel", "confirmSyncReadingData() called")
+        prefs.edit().putBoolean(FIRST_SYNC_READING_DATA_CONFIRMED_KEY, true).apply()
+        _syncReadingDataState.value = _syncReadingDataState.value.copy(
+            showConfirmDialog = false,
+            showModeDialog = true
+        )
+    }
+
+    fun cancelSyncReadingDataConfirm() {
+        _syncReadingDataState.value = _syncReadingDataState.value.copy(showConfirmDialog = false)
     }
 
     fun setSyncModeAndStart(mode: SyncMode) {

@@ -81,6 +81,43 @@ class PushHandler(
         }
     }
 
+    fun refreshBookStatus(book: Book) {
+        scope.launch {
+            try {
+                connectionHandler.reconnect()
+                delay(500L)
+                val conn = connectionHandler.getHandshake()
+                conn.init()
+                delay(500L)
+                val fileConn = connectionHandler.getFileConnection()
+                val bookStatus = withContext(Dispatchers.IO) {
+                    fileConn.getBookStatus(book.name)
+                }
+                val (totalChapters, chapters, hasCover) = withContext(Dispatchers.IO) {
+                    val bookEntity = db.bookDao().getBookByPath(book.path)
+                    if (bookEntity != null) {
+                        val count = db.chapterDao().getChapterCountForBook(bookEntity.id)
+                        val chapterList = db.chapterDao().getChapterInfoForBook(bookEntity.id)
+                        val hasCoverImage = bookEntity.coverImagePath != null
+                        Triple(count, chapterList, hasCoverImage)
+                    } else {
+                        Triple(0, emptyList(), false)
+                    }
+                }
+                syncOptionsState.value?.let { currentState ->
+                    syncOptionsState.value = currentState.copy(
+                        syncedChapterIndices = bookStatus.syncedChapters.toSet(),
+                        chapters = chapters,
+                        hasCover = hasCover,
+                        isCoverSynced = bookStatus.hasCover
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("PushHandler", "Failed to refresh book status", e)
+            }
+        }
+    }
+
     private fun addTransferLog(message: String) {
         pushState.update { state ->
             val newLog = (state.transferLog + message).takeLast(100)
