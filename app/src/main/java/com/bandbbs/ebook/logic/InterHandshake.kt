@@ -63,7 +63,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                         "Band version $bandVersion is incompatible, required: $MIN_BAND_VERSION_CODE"
                     )
                     onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
-                    return@addListener
                 }
             } else {
                 Log.w("Handshake", "Band version is incompatible, required: $MIN_BAND_VERSION_CODE")
