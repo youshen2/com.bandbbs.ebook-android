@@ -107,8 +107,6 @@ class MainActivity : ComponentActivity() {
                 notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        // First-launch tutorial: show once to instruct user to set synchronizer to unrestricted
-        // and guide ColorOS14+ users to enable "流体云显示实时通知" in app notification management.
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val firstLaunchTutorial = !prefs.getBoolean("tutorial_shown", false)
         fun markTutorialShown() {

@@ -1051,9 +1051,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         val progressJson = when (currentProgressMode) {
                             SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
-                                finalProgress?.let {
+                                finalProgress?.let { fp ->
                                     try {
-                                        org.json.JSONObject(it).toString()
+                                        val normalized = HashMap<String, Any?>()
+                                        normalized.putAll(fp)
+                                        val rawOffsetAny = fp["offsetInChapter"]
+                                        val rawOffset = when (rawOffsetAny) {
+                                            is Number -> rawOffsetAny.toInt()
+                                            is String -> rawOffsetAny.toIntOrNull() ?: 0
+                                            else -> 0
+                                        }
+                                        var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
+                                        if (normalizedOffset % 2 == 1) normalizedOffset = Math.max(0, normalizedOffset - 1)
+                                        if (fp.containsKey("offsetInChapter")) {
+                                            normalized["offsetInChapter"] = normalizedOffset
+                                        }
+                                        org.json.JSONObject(normalized).toString()
                                     } catch (e: Exception) {
                                         Log.e("MainViewModel", "Failed to serialize progress", e)
                                         null
@@ -1062,7 +1075,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
 
                             SyncMode.BAND_ONLY -> {
-
                                 Log.d(
                                     "MainViewModel",
                                     "BAND_ONLY mode: keeping band progress unchanged for ${book.name}"
