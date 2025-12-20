@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.content.Context
 import com.bandbbs.ebook.notifications.ForegroundTransferService
+import com.bandbbs.ebook.notifications.LiveNotificationManager
 
 class PushHandler(
     private val db: AppDatabase,
@@ -256,6 +257,7 @@ class PushHandler(
             initialMessage,
             null
         )
+        LiveNotificationManager.showTransferNotification("传输中", initialMessage, null)
 
         scope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
@@ -348,6 +350,7 @@ class PushHandler(
                         val chapterNumber = chapterNumberRegex.find(chapterTitle)?.value
                         val title = chapterNumber ?: "传输中"
                         ForegroundTransferService.startService(appContext, title, preview, progressPercent)
+                        LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
                     },
                     onCoverProgress = { current, total ->
                         if (total > 0) {
