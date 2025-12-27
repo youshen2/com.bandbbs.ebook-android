@@ -137,6 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val SHOW_SEARCH_BAR_KEY = "show_search_bar"
     private val THEME_MODE_KEY = "theme_mode"
     private val QUICK_EDIT_CATEGORY_KEY = "quick_edit_category"
+    private val AUTO_MINIMIZE_ON_TRANSFER_KEY = "auto_minimize_on_transfer"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -164,6 +165,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _quickEditCategoryEnabled =
         MutableStateFlow(prefs.getBoolean(QUICK_EDIT_CATEGORY_KEY, false))
     val quickEditCategoryEnabled = _quickEditCategoryEnabled.asStateFlow()
+
+    private val _autoMinimizeOnTransfer =
+        MutableStateFlow(prefs.getBoolean(AUTO_MINIMIZE_ON_TRANSFER_KEY, false))
+    val autoMinimizeOnTransfer = _autoMinimizeOnTransfer.asStateFlow()
 
     enum class ThemeMode {
         LIGHT, DARK, SYSTEM
@@ -1323,6 +1328,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setThemeMode(mode: ThemeMode) {
         prefs.edit().putString(THEME_MODE_KEY, mode.name).apply()
         _themeMode.value = mode
+    }
+
+    fun setAutoMinimizeOnTransfer(enabled: Boolean) {
+        prefs.edit().putBoolean(AUTO_MINIMIZE_ON_TRANSFER_KEY, enabled).apply()
+        _autoMinimizeOnTransfer.value = enabled
     }
 
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {

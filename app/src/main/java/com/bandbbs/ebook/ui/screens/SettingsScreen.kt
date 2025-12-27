@@ -66,6 +66,7 @@ fun SettingsScreen(
     val updateCheckState by viewModel.updateCheckState.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
+    val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -146,9 +147,41 @@ fun SettingsScreen(
 
                     SettingItem(
                         title = "左滑快速修改分类",
-                        description = "在书籍条目上左滑直接修改本地分类（默认关闭）",
+                        description = "在书籍条目上左滑直接修改本地分类",
                         checked = quickEditCategoryEnabled,
                         onCheckedChange = { viewModel.setQuickEditCategory(it) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 0.dp
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Text(
+                        text = "传输设置",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    SettingItem(
+                        title = "开始传输后自动退出到后台",
+                        description = "开始传输后自动将应用最小化到后台",
+                        checked = autoMinimizeOnTransfer,
+                        onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) }
                     )
 
                     Column {

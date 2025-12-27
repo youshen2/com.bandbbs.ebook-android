@@ -1110,7 +1110,7 @@ fun BookStatisticsScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 80.dp)
+                        .padding(bottom = if (bookName.isEmpty()) 80.dp else 20.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))

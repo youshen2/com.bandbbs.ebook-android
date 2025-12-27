@@ -33,6 +33,7 @@ object LiveNotificationManager {
     }
 
     fun showTransferNotification(title: String, contentText: String? = null, progressPercent: Int? = null) {
+        val supportsPromoted = isPostPromotionsEnabled()
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title)
@@ -40,7 +41,9 @@ object LiveNotificationManager {
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setRequestPromotedOngoing(true)
+        if (supportsPromoted) {
+            builder.setRequestPromotedOngoing(true)
+        }
 
         contentText?.let { builder.setContentText(it) }
 
@@ -69,12 +72,15 @@ object LiveNotificationManager {
     }
 
     fun buildTransferNotification(title: String, contentText: String? = null, progressPercent: Int? = null): Notification {
+        val supportsPromoted = isPostPromotionsEnabled()
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setRequestPromotedOngoing(true)
+        if (supportsPromoted) {
+            builder.setRequestPromotedOngoing(true)
+        }
 
         contentText?.let { builder.setContentText(it) }
 

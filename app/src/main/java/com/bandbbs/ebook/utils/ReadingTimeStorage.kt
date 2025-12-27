@@ -16,7 +16,6 @@ object ReadingTimeStorage {
     private const val PREFS_NAME = "reading_time_prefs"
     private const val TAG = "ReadingTimeStorage"
     private const val MIN_SESSION_DURATION_SECONDS = 5L
-    private const val MAX_SESSIONS_PER_BOOK = 100
 
     /**
      * 记录阅读开始
@@ -103,16 +102,6 @@ object ReadingTimeStorage {
 
 
             sessionsArray.put(newSession)
-
-
-            if (sessionsArray.length() > MAX_SESSIONS_PER_BOOK) {
-                val newArray = JSONArray()
-                val startIndex = sessionsArray.length() - MAX_SESSIONS_PER_BOOK
-                for (i in startIndex until sessionsArray.length()) {
-                    newArray.put(sessionsArray.getJSONObject(i))
-                }
-                sessionsArray = newArray
-            }
 
 
             val newTotalSeconds = totalSeconds + duration

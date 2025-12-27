@@ -50,7 +50,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
-import com.bandbbs.ebook.ui.screens.BookStatisticsScreen
+import com.bandbbs.ebook.BookStatisticsActivity
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
                 startActivity(intent)
             }
         }
+        var wasTransferring = false
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.pushState.collect { pushState ->
@@ -136,19 +137,18 @@ class MainActivity : ComponentActivity() {
                     if (pushState.isTransferring) {
                         val progressPercent = if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
                         val preview = pushState.preview
-                        val chapterTitle = preview.substringBefore("(").trim()
-                        val chapterNumberRegex = Regex("""(第[\d一二三四五六七八九十百千万零〇]+章)""")
-                        val chapterNumber = chapterNumberRegex.find(chapterTitle)?.value
-                        val title = chapterNumber ?: "传输中"
-                        val content = buildString {
-                            append(chapterTitle)
-                            if (progressPercent != null) {
-                                append(" • ")
-                                append("$progressPercent%")
-                            }
-                        }
+                        val title = if (progressPercent != null) "$progressPercent%" else "传输中"
+                        val content = preview
                         com.bandbbs.ebook.notifications.ForegroundTransferService.startService(applicationContext, title, content, progressPercent)
+                        if (!wasTransferring) {
+                            val autoMinimize = viewModel.autoMinimizeOnTransfer.value
+                            if (autoMinimize && !pushState.isFinished) {
+                                moveTaskToBack(true)
+                            }
+                            wasTransferring = true
+                        }
                     } else {
+                        wasTransferring = false
                         com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(applicationContext)
                     }
                 }
@@ -192,7 +192,6 @@ class MainActivity : ComponentActivity() {
                 val chapterListSheetState = rememberModalBottomSheetState()
 
                 var currentScreen by remember { mutableStateOf("home") }
-                var selectedBookForStats by remember { mutableStateOf<String?>(null) }
                 val isReaderOpen = chapterToPreview != null
                 val statisticsScrollState = rememberScrollState()
 
@@ -237,7 +236,7 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     floatingActionButton = {
-                        if (!isReaderOpen && currentScreen == "home" && selectedBookForStats == null) {
+                        if (!isReaderOpen && currentScreen == "home") {
                             FloatingActionButton(
                                 onClick = {
                                     filePickerLauncher.launch(
@@ -289,47 +288,21 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         AnimatedContent(
-                            targetState = if (isReaderOpen) "reader" else if (selectedBookForStats != null) "book_statistics" else currentScreen,
+                            targetState = if (isReaderOpen) "reader" else currentScreen,
                             transitionSpec = {
                                 val isEnteringReader = targetState == "reader"
                                 val isExitingReader = initialState == "reader"
-                                val isEnteringBookStats = targetState == "book_statistics"
-                                val isExitingBookStats = initialState == "book_statistics"
 
                                 if (isEnteringReader) {
-
                                     slideInHorizontally(
                                         initialOffsetX = { it },
                                         animationSpec = tween(300)
                                     ) with
-
                                             slideOutHorizontally(
                                                 targetOffsetX = { -it },
                                                 animationSpec = tween(300)
                                             )
                                 } else if (isExitingReader) {
-
-
-                                    slideInHorizontally(
-                                        initialOffsetX = { -it },
-                                        animationSpec = tween(300)
-                                    ) with
-                                            slideOutHorizontally(
-                                                targetOffsetX = { it },
-                                                animationSpec = tween(300)
-                                            )
-                                } else if (isEnteringBookStats) {
-
-                                    slideInHorizontally(
-                                        initialOffsetX = { it },
-                                        animationSpec = tween(300)
-                                    ) with
-                                            slideOutHorizontally(
-                                                targetOffsetX = { -it },
-                                                animationSpec = tween(300)
-                                            )
-                                } else if (isExitingBookStats) {
-
                                     slideInHorizontally(
                                         initialOffsetX = { -it },
                                         animationSpec = tween(300)
@@ -339,13 +312,11 @@ class MainActivity : ComponentActivity() {
                                                 animationSpec = tween(300)
                                             )
                                 } else {
-
                                     val screenOrder = listOf("home", "statistics", "settings")
                                     val currentIndex = screenOrder.indexOf(initialState)
                                     val targetIndex = screenOrder.indexOf(targetState)
 
                                     if (targetIndex > currentIndex) {
-
                                         slideInHorizontally(
                                             initialOffsetX = { it },
                                             animationSpec = tween(300)
@@ -355,7 +326,6 @@ class MainActivity : ComponentActivity() {
                                                     animationSpec = tween(300)
                                                 )
                                     } else {
-
                                         slideInHorizontally(
                                             initialOffsetX = { -it },
                                             animationSpec = tween(300)
@@ -413,19 +383,10 @@ class MainActivity : ComponentActivity() {
                                     StatisticsScreen(
                                         onBackClick = { currentScreen = "home" },
                                         onBookStatClick = { bookName ->
-                                            selectedBookForStats = bookName
+                                            BookStatisticsActivity.start(this@MainActivity, bookName)
                                         },
                                         scrollState = statisticsScrollState
                                     )
-                                }
-
-                                "book_statistics" -> {
-                                    selectedBookForStats?.let { bookName ->
-                                        BookStatisticsScreen(
-                                            bookName = bookName,
-                                            onBackClick = { selectedBookForStats = null }
-                                        )
-                                    }
                                 }
 
                                 "settings" -> {

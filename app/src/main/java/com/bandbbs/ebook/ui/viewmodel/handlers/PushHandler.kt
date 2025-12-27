@@ -345,10 +345,7 @@ class PushHandler(
                                 isTransferring = true
                             )
                         }
-                        val chapterTitle = preview.substringBefore("(").trim()
-                        val chapterNumberRegex = Regex("""(第[\d一二三四五六七八九十百千万零〇]+章)""")
-                        val chapterNumber = chapterNumberRegex.find(chapterTitle)?.value
-                        val title = chapterNumber ?: "传输中"
+                        val title = "$progressPercent%"
                         ForegroundTransferService.startService(appContext, title, preview, progressPercent)
                         LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
                     },
