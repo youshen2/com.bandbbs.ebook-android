@@ -8,7 +8,7 @@ import java.net.URL
 
 object VersionChecker {
     private const val TAG = "VersionChecker"
-    private const val API_URL = "https://api.ikortex.top/v1/sinebook_vela/version"
+    private const val API_URL = "https://api.lucky-e.top/v1/sinebook_vela/version"
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
