@@ -67,6 +67,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
+    val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
@@ -182,6 +183,15 @@ fun SettingsScreen(
                         description = "开始传输后自动将应用最小化到后台",
                         checked = autoMinimizeOnTransfer,
                         onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    SettingItem(
+                        title = "传输时自动重试中断",
+                        description = "传输中断时每5秒自动重连，重连成功后重新开始",
+                        checked = autoRetryOnTransferError,
+                        onCheckedChange = { viewModel.setAutoRetryOnTransferError(it) }
                     )
 
                     Column {

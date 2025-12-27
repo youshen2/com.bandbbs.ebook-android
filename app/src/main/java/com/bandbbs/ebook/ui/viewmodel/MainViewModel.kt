@@ -138,6 +138,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val THEME_MODE_KEY = "theme_mode"
     private val QUICK_EDIT_CATEGORY_KEY = "quick_edit_category"
     private val AUTO_MINIMIZE_ON_TRANSFER_KEY = "auto_minimize_on_transfer"
+    private val AUTO_RETRY_ON_TRANSFER_ERROR_KEY = "auto_retry_on_transfer_error"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -169,6 +170,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoMinimizeOnTransfer =
         MutableStateFlow(prefs.getBoolean(AUTO_MINIMIZE_ON_TRANSFER_KEY, false))
     val autoMinimizeOnTransfer = _autoMinimizeOnTransfer.asStateFlow()
+
+    private val _autoRetryOnTransferError =
+        MutableStateFlow(prefs.getBoolean(AUTO_RETRY_ON_TRANSFER_ERROR_KEY, false))
+    val autoRetryOnTransferError = _autoRetryOnTransferError.asStateFlow()
 
     enum class ThemeMode {
         LIGHT, DARK, SYSTEM
@@ -227,7 +232,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         firstSyncConfirmState = _firstSyncConfirmState,
         connectionHandler = connectionHandler,
         firstSyncConfirmedKey = FIRST_SYNC_CONFIRMED_KEY,
-        appContext = application.applicationContext
+        appContext = application.applicationContext,
+        autoRetryOnTransferError = _autoRetryOnTransferError
     )
 
     private val libraryHandler = LibraryHandler(
@@ -1333,6 +1339,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoMinimizeOnTransfer(enabled: Boolean) {
         prefs.edit().putBoolean(AUTO_MINIMIZE_ON_TRANSFER_KEY, enabled).apply()
         _autoMinimizeOnTransfer.value = enabled
+    }
+
+    fun setAutoRetryOnTransferError(enabled: Boolean) {
+        prefs.edit().putBoolean(AUTO_RETRY_ON_TRANSFER_ERROR_KEY, enabled).apply()
+        _autoRetryOnTransferError.value = enabled
     }
 
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {
