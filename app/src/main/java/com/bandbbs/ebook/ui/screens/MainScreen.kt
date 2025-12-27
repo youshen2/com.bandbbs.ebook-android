@@ -84,12 +84,10 @@ import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
-import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
-import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
@@ -141,8 +139,6 @@ fun MainScreen(
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
-    val updateCheckState by viewModel.updateCheckState.collectAsState()
-    val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
@@ -162,9 +158,6 @@ fun MainScreen(
     val editBookInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val versionIncompatibleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val syncReadingDataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val ipCollectionPermissionSheetState =
-        rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val updateCheckSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     bookToDelete?.let { book ->
         AlertDialog(
@@ -524,68 +517,6 @@ fun MainScreen(
                 },
                 onDeleteChapters = { chapterIndices ->
                     viewModel.deleteBandChapters(it.book, chapterIndices)
-                }
-            )
-        }
-    }
-
-
-    if (ipCollectionPermissionState.showSheet) {
-        LaunchedEffect(ipCollectionPermissionState.showSheet) {
-            ipCollectionPermissionSheetState.show()
-        }
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch {
-                    ipCollectionPermissionSheetState.hide()
-                    viewModel.dismissIpCollectionPermissionSheet()
-                }
-            },
-            sheetState = ipCollectionPermissionSheetState
-        ) {
-            IpCollectionPermissionBottomSheet(
-                isFirstTime = ipCollectionPermissionState.isFirstTime,
-                onAllow = {
-                    scope.launch {
-                        ipCollectionPermissionSheetState.hide()
-                        viewModel.onIpCollectionPermissionResult(true)
-                    }
-                },
-                onDeny = {
-                    scope.launch {
-                        ipCollectionPermissionSheetState.hide()
-                        viewModel.onIpCollectionPermissionResult(false)
-                    }
-                }
-            )
-        }
-    }
-
-
-    if (updateCheckState.showSheet) {
-        LaunchedEffect(updateCheckState.showSheet) {
-            updateCheckSheetState.show()
-        }
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch {
-                    updateCheckSheetState.hide()
-                    viewModel.dismissUpdateCheck()
-                }
-            },
-            sheetState = updateCheckSheetState
-        ) {
-            UpdateCheckBottomSheet(
-                isChecking = updateCheckState.isChecking,
-                updateInfo = updateCheckState.updateInfo,
-                updateInfoList = updateCheckState.updateInfoList,
-                errorMessage = updateCheckState.errorMessage,
-                deviceName = updateCheckState.deviceName,
-                onDismiss = {
-                    scope.launch {
-                        updateCheckSheetState.hide()
-                        viewModel.dismissUpdateCheck()
-                    }
                 }
             )
         }

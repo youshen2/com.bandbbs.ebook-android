@@ -37,6 +37,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
+import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
+import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.BookStatisticsActivity
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
@@ -190,6 +193,11 @@ class MainActivity : ComponentActivity() {
 
                 val scope = rememberCoroutineScope()
                 val chapterListSheetState = rememberModalBottomSheetState()
+                val ipCollectionPermissionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val updateCheckSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+                val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
+                val updateCheckState by viewModel.updateCheckState.collectAsState()
 
                 var currentScreen by remember { mutableStateOf("home") }
                 val isReaderOpen = chapterToPreview != null
@@ -457,6 +465,66 @@ class MainActivity : ComponentActivity() {
                                     viewModel.splitChapter(editorState.id, segments)
                                 }
                             )
+                        }
+
+                        if (ipCollectionPermissionState.showSheet) {
+                            LaunchedEffect(ipCollectionPermissionState.showSheet) {
+                                ipCollectionPermissionSheetState.show()
+                            }
+                            ModalBottomSheet(
+                                onDismissRequest = {
+                                    scope.launch {
+                                        ipCollectionPermissionSheetState.hide()
+                                        viewModel.dismissIpCollectionPermissionSheet()
+                                    }
+                                },
+                                sheetState = ipCollectionPermissionSheetState
+                            ) {
+                                IpCollectionPermissionBottomSheet(
+                                    isFirstTime = ipCollectionPermissionState.isFirstTime,
+                                    onAllow = {
+                                        scope.launch {
+                                            ipCollectionPermissionSheetState.hide()
+                                            viewModel.onIpCollectionPermissionResult(true)
+                                        }
+                                    },
+                                    onDeny = {
+                                        scope.launch {
+                                            ipCollectionPermissionSheetState.hide()
+                                            viewModel.onIpCollectionPermissionResult(false)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        if (updateCheckState.showSheet) {
+                            LaunchedEffect(updateCheckState.showSheet) {
+                                updateCheckSheetState.show()
+                            }
+                            ModalBottomSheet(
+                                onDismissRequest = {
+                                    scope.launch {
+                                        updateCheckSheetState.hide()
+                                        viewModel.dismissUpdateCheck()
+                                    }
+                                },
+                                sheetState = updateCheckSheetState
+                            ) {
+                                UpdateCheckBottomSheet(
+                                    isChecking = updateCheckState.isChecking,
+                                    updateInfo = updateCheckState.updateInfo,
+                                    updateInfoList = updateCheckState.updateInfoList,
+                                    errorMessage = updateCheckState.errorMessage,
+                                    deviceName = updateCheckState.deviceName,
+                                    onDismiss = {
+                                        scope.launch {
+                                            updateCheckSheetState.hide()
+                                            viewModel.dismissUpdateCheck()
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -47,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
-import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -63,7 +62,6 @@ fun SettingsScreen(
     val autoCheckUpdates by viewModel.autoCheckUpdates.collectAsState()
     val ipCollectionAllowed by viewModel.ipCollectionAllowed.collectAsState()
     val showConnectionError by viewModel.showConnectionError.collectAsState()
-    val updateCheckState by viewModel.updateCheckState.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
@@ -71,7 +69,6 @@ fun SettingsScreen(
 
     val scope = rememberCoroutineScope()
     val aboutSheetState = rememberModalBottomSheetState()
-    val updateCheckSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAboutSheet by remember { mutableStateOf(false) }
     var showDeleteReadingTimeDialog by remember { mutableStateOf(false) }
 
@@ -608,36 +605,6 @@ fun SettingsScreen(
             sheetState = aboutSheetState
         ) {
             AboutBottomSheet()
-        }
-    }
-
-
-    if (updateCheckState.showSheet) {
-        LaunchedEffect(updateCheckState.showSheet) {
-            updateCheckSheetState.show()
-        }
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch {
-                    updateCheckSheetState.hide()
-                    viewModel.dismissUpdateCheck()
-                }
-            },
-            sheetState = updateCheckSheetState
-        ) {
-            UpdateCheckBottomSheet(
-                isChecking = updateCheckState.isChecking,
-                updateInfo = updateCheckState.updateInfo,
-                updateInfoList = updateCheckState.updateInfoList,
-                errorMessage = updateCheckState.errorMessage,
-                deviceName = updateCheckState.deviceName,
-                onDismiss = {
-                    scope.launch {
-                        updateCheckSheetState.hide()
-                        viewModel.dismissUpdateCheck()
-                    }
-                }
-            )
         }
     }
 }

@@ -260,6 +260,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val ipCollectionAllowed = prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false)
         val hasAskedBefore = prefs.getBoolean(IP_COLLECTION_PERMISSION_ASKED_KEY, false)
 
+        if (!hasAskedBefore) {
+            _ipCollectionPermissionState.value = IpCollectionPermissionState(
+                showSheet = true,
+                isFirstTime = true
+            )
+            return
+        }
+
         if (hasAskedBefore && ipCollectionAllowed) {
             performUpdateCheck(isAutoCheck = true)
         }
