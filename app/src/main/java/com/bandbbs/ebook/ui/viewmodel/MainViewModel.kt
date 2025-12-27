@@ -257,6 +257,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun performInitialUpdateCheck() {
+        val autoCheckEnabled = prefs.getBoolean(AUTO_CHECK_UPDATES_KEY, true)
+        if (!autoCheckEnabled) {
+            return
+        }
+
         val ipCollectionAllowed = prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false)
         val hasAskedBefore = prefs.getBoolean(IP_COLLECTION_PERMISSION_ASKED_KEY, false)
 

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.MenuBook
@@ -1151,7 +1152,35 @@ fun MainScreen(
                                                 SwipeToDismiss(
                                                     state = dismissState,
                                                     directions = setOf(DismissDirection.EndToStart),
-                                                    background = {}
+                                                    background = {
+                                                        val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
+                                                        val color = when (direction) {
+                                                            DismissDirection.EndToStart -> MaterialTheme.colorScheme.primaryContainer
+                                                            else -> MaterialTheme.colorScheme.surface
+                                                        }
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                                .padding(16.dp),
+                                                            contentAlignment = Alignment.CenterEnd
+                                                        ) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    Icons.Outlined.Edit,
+                                                                    contentDescription = null,
+                                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                                )
+                                                                Text(
+                                                                    "修改分类",
+                                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                                    style = MaterialTheme.typography.bodyLarge
+                                                                )
+                                                            }
+                                                        }
+                                                    }
                                                 ) {
                                                     BookItem(
                                                         book = book,
