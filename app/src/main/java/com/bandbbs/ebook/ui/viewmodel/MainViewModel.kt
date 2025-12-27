@@ -139,6 +139,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val QUICK_EDIT_CATEGORY_KEY = "quick_edit_category"
     private val AUTO_MINIMIZE_ON_TRANSFER_KEY = "auto_minimize_on_transfer"
     private val AUTO_RETRY_ON_TRANSFER_ERROR_KEY = "auto_retry_on_transfer_error"
+    private val HAS_CLICKED_TRANSFER_BUTTON_KEY = "has_clicked_transfer_button"
+    private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -174,6 +176,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoRetryOnTransferError =
         MutableStateFlow(prefs.getBoolean(AUTO_RETRY_ON_TRANSFER_ERROR_KEY, false))
     val autoRetryOnTransferError = _autoRetryOnTransferError.asStateFlow()
+
+    private val _hasClickedTransferButton =
+        MutableStateFlow(prefs.getBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, false))
+    val hasClickedTransferButton = _hasClickedTransferButton.asStateFlow()
+
+    private val _quickRenameCategoryEnabled =
+        MutableStateFlow(prefs.getBoolean(QUICK_RENAME_CATEGORY_KEY, false))
+    val quickRenameCategoryEnabled = _quickRenameCategoryEnabled.asStateFlow()
 
     enum class ThemeMode {
         LIGHT, DARK, SYSTEM
@@ -359,7 +369,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelDeleteBook() = libraryHandler.cancelDeleteBook()
 
-    fun startPush(book: Book) = pushHandler.startPush(book)
+    fun startPush(book: Book) {
+        if (!_hasClickedTransferButton.value) {
+            prefs.edit().putBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, true).apply()
+            _hasClickedTransferButton.value = true
+        }
+        pushHandler.startPush(book)
+    }
 
     fun syncCoverOnly(book: Book) = pushHandler.syncCoverOnly(book)
 
@@ -1357,6 +1373,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoRetryOnTransferError(enabled: Boolean) {
         prefs.edit().putBoolean(AUTO_RETRY_ON_TRANSFER_ERROR_KEY, enabled).apply()
         _autoRetryOnTransferError.value = enabled
+    }
+
+    fun setQuickRenameCategory(enabled: Boolean) {
+        prefs.edit().putBoolean(QUICK_RENAME_CATEGORY_KEY, enabled).apply()
+        _quickRenameCategoryEnabled.value = enabled
+    }
+
+    fun renameCategory(oldName: String, newName: String) {
+        categoryHandler.renameCategory(oldName, newName)
     }
 
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {

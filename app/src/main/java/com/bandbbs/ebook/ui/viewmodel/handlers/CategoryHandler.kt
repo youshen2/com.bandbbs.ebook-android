@@ -151,5 +151,34 @@ class CategoryHandler(
     fun dismissCategorySelector() {
         categoryState.value = null
     }
+
+    fun renameCategory(oldName: String, newName: String) {
+        try {
+            val currentSet =
+                prefs.getStringSet(CATEGORIES_KEY, null)?.toMutableSet() ?: mutableSetOf()
+            if (currentSet.contains(oldName) && !currentSet.contains(newName)) {
+                currentSet.remove(oldName)
+                currentSet.add(newName)
+                prefs.edit().putStringSet(CATEGORIES_KEY, HashSet(currentSet)).apply()
+
+                scope.launch(Dispatchers.IO) {
+                    val books = db.bookDao().getAllBooks()
+                    books.forEach { bookEntity ->
+                        if (bookEntity.localCategory == oldName) {
+                            db.bookDao().update(bookEntity.copy(localCategory = newName))
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        onBooksChanged()
+                    }
+                }
+
+                categoryState.value?.let { state ->
+                    categoryState.value = state.copy(categories = currentSet.toList().sorted())
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
 }
 

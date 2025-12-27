@@ -9,6 +9,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -41,6 +42,8 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,6 +77,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.components.BookItem
@@ -125,6 +129,8 @@ fun MainScreen(
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
     val showSearchBar by viewModel.showSearchBar.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
+    val quickRenameCategoryEnabled by viewModel.quickRenameCategoryEnabled.collectAsState()
+    val hasClickedTransferButton by viewModel.hasClickedTransferButton.collectAsState()
     val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
@@ -806,6 +812,56 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
+                if (!hasClickedTransferButton && books.isNotEmpty()) {
+                    var showTipCard by remember { mutableStateOf(true) }
+                    AnimatedVisibility(
+                        visible = showTipCard,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = 0.dp
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "开始传输书籍",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "点击书籍卡片展开，然后点击传输书籍按钮进行传输",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if (books.isNotEmpty() && showSearchBar) {
                     TextField(
@@ -1249,12 +1305,63 @@ fun MainScreen(
                                         booksByCategory.first { it.first == category }.second
                                     val isExpanded = expandedCategories.contains(category)
 
+                                    var showRenameDialog by remember { mutableStateOf(false) }
+                                    var newCategoryName by remember(category) { mutableStateOf(category) }
+
+                                    if (showRenameDialog) {
+                                        AlertDialog(
+                                            onDismissRequest = { showRenameDialog = false },
+                                            title = { Text("重命名分类") },
+                                            text = {
+                                                TextField(
+                                                    value = newCategoryName,
+                                                    onValueChange = { newCategoryName = it },
+                                                    label = { Text("分类名称") },
+                                                    singleLine = true
+                                                )
+                                            },
+                                            confirmButton = {
+                                                TextButton(
+                                                    onClick = {
+                                                        if (newCategoryName.isNotBlank() && newCategoryName != category) {
+                                                            viewModel.renameCategory(category, newCategoryName)
+                                                            showRenameDialog = false
+                                                        }
+                                                    },
+                                                    enabled = newCategoryName.isNotBlank() && newCategoryName != category
+                                                ) {
+                                                    Text("确定")
+                                                }
+                                            },
+                                            dismissButton = {
+                                                TextButton(onClick = { showRenameDialog = false }) {
+                                                    Text("取消")
+                                                }
+                                            }
+                                        )
+                                    }
+
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable {
-                                                viewModel.toggleCategoryExpansion(category)
-                                            }
+                                            .then(
+                                                if (quickRenameCategoryEnabled) {
+                                                    Modifier.pointerInput(category) {
+                                                        detectTapGestures(
+                                                            onTap = {
+                                                                viewModel.toggleCategoryExpansion(category)
+                                                            },
+                                                            onLongPress = {
+                                                                showRenameDialog = true
+                                                            }
+                                                        )
+                                                    }
+                                                } else {
+                                                    Modifier.clickable {
+                                                        viewModel.toggleCategoryExpansion(category)
+                                                    }
+                                                }
+                                            )
                                             .padding(
                                                 top = 8.dp,
                                                 bottom = if (isExpanded) 8.dp else 0.dp

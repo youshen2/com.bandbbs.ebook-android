@@ -64,6 +64,7 @@ fun SettingsScreen(
     val showConnectionError by viewModel.showConnectionError.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
+    val quickRenameCategoryEnabled by viewModel.quickRenameCategoryEnabled.collectAsState()
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
 
@@ -148,6 +149,15 @@ fun SettingsScreen(
                         description = "在书籍条目上左滑直接修改本地分类",
                         checked = quickEditCategoryEnabled,
                         onCheckedChange = { viewModel.setQuickEditCategory(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    SettingItem(
+                        title = "长按分类卡片快速改名",
+                        description = "长按分类卡片快速重命名整个分类",
+                        checked = quickRenameCategoryEnabled,
+                        onCheckedChange = { viewModel.setQuickRenameCategory(it) }
                     )
                 }
             }
