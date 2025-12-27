@@ -97,6 +97,13 @@ import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.bandbbs.ebook.database.AppDatabase
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 
 
 private enum class ItemType {
@@ -152,6 +159,31 @@ fun MainScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val lastChapterNames = remember { mutableStateMapOf<String, String>() }
+    
+    LaunchedEffect(expandedBookPath) {
+        if (expandedBookPath != null) {
+            val book = books.find { it.path == expandedBookPath }
+            if (book != null && !lastChapterNames.containsKey(book.path)) {
+                val lastChapterName = withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(context)
+                    val bookEntity = db.bookDao().getBookByPath(book.path)
+                    if (bookEntity != null) {
+                        val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
+                        if (chapters.isNotEmpty()) {
+                            val lastChapter = chapters.maxByOrNull { it.index }
+                            lastChapter?.name
+                        } else null
+                    } else null
+                }
+                lastChapterName?.let {
+                    lastChapterNames[book.path] = it
+                }
+            }
+        }
+    }
+    
     val categorySheetState = rememberModalBottomSheetState()
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1137,7 +1169,8 @@ fun MainScreen(
                                                         onEditInfoClick = {
                                                             viewModel.showEditBookInfo(book)
                                                         },
-                                                        isSyncEnabled = connectionState.isConnected
+                                                        isSyncEnabled = connectionState.isConnected,
+                                                        lastChapterName = lastChapterNames[book.path]
                                                     )
                                                 }
                                             } else {
@@ -1166,7 +1199,8 @@ fun MainScreen(
                                                     onEditInfoClick = {
                                                         viewModel.showEditBookInfo(book)
                                                     },
-                                                    isSyncEnabled = connectionState.isConnected
+                                                    isSyncEnabled = connectionState.isConnected,
+                                                    lastChapterName = lastChapterNames[book.path]
                                                 )
                                             }
                                         }
@@ -1263,7 +1297,8 @@ fun MainScreen(
                                                         onEditInfoClick = {
                                                             viewModel.showEditBookInfo(book)
                                                         },
-                                                        isSyncEnabled = connectionState.isConnected
+                                                        isSyncEnabled = connectionState.isConnected,
+                                                        lastChapterName = lastChapterNames[book.path]
                                                     )
                                                 }
                                             } else {
@@ -1292,7 +1327,8 @@ fun MainScreen(
                                                     onEditInfoClick = {
                                                         viewModel.showEditBookInfo(book)
                                                     },
-                                                    isSyncEnabled = connectionState.isConnected
+                                                    isSyncEnabled = connectionState.isConnected,
+                                                    lastChapterName = lastChapterNames[book.path]
                                                 )
                                             }
                                         }

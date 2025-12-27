@@ -69,7 +69,8 @@ fun BookItem(
     onContinueReadingClick: () -> Unit,
     onImportCoverClick: () -> Unit = {},
     onEditInfoClick: () -> Unit = {},
-    isSyncEnabled: Boolean
+    isSyncEnabled: Boolean,
+    lastChapterName: String? = null
 ) {
     var showCoverDialog by remember { mutableStateOf(false) }
 
@@ -256,6 +257,24 @@ fun BookItem(
                                 text = "${String.format("%.1f", book.chapterProgressPercent)}%",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    if (lastChapterName != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column {
+                            Text(
+                                text = "最后一章",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = lastChapterName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

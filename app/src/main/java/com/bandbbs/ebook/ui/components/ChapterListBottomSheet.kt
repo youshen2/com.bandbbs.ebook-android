@@ -3,6 +3,7 @@ package com.bandbbs.ebook.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ModeEdit
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
@@ -50,6 +54,15 @@ import com.bandbbs.ebook.ui.model.Book
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private enum class SortType {
+    INDEX_ASC,
+    INDEX_DESC,
+    NAME_ASC,
+    NAME_DESC,
+    WORD_COUNT_ASC,
+    WORD_COUNT_DESC
+}
+
 @Composable
 fun ChapterListBottomSheet(
     book: Book,
@@ -71,30 +84,37 @@ fun ChapterListBottomSheet(
     var showAddPanel by remember { mutableStateOf(false) }
     var showBatchRename by remember { mutableStateOf(false) }
     var editingChapterId by remember { mutableStateOf<Int?>(null) }
+    var sortType by remember { mutableStateOf(SortType.INDEX_ASC) }
+    var showSortMenu by remember { mutableStateOf(false) }
     val orderedChapters = remember { mutableStateListOf<ChapterInfo>() }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(chapters) {
+    fun sortChapters(chapters: List<ChapterInfo>): List<ChapterInfo> {
+        return when (sortType) {
+            SortType.INDEX_ASC -> chapters.sortedBy { it.index }
+            SortType.INDEX_DESC -> chapters.sortedByDescending { it.index }
+            SortType.NAME_ASC -> chapters.sortedBy { it.name }
+            SortType.NAME_DESC -> chapters.sortedByDescending { it.name }
+            SortType.WORD_COUNT_ASC -> chapters.sortedBy { it.wordCount }
+            SortType.WORD_COUNT_DESC -> chapters.sortedByDescending { it.wordCount }
+        }
+    }
 
-
+    LaunchedEffect(chapters, sortType) {
         val currentIds = orderedChapters.map { it.id }.toSet()
         val newIds = chapters.map { it.id }.toSet()
-        val sortedChapters = chapters.sortedBy { it.index }
+        val sortedChapters = sortChapters(chapters)
+        val wasOrderChanged = currentIds == newIds && currentIds.isNotEmpty() && orderedChapters.map { it.id } != sortedChapters.map { it.id }
 
         if (currentIds != newIds) {
-
             orderedChapters.replaceWith(sortedChapters)
         } else if (currentIds.isEmpty()) {
-
             orderedChapters.replaceWith(sortedChapters)
         } else {
-
-
             val currentOrder = orderedChapters.map { it.id }
             val newOrder = sortedChapters.map { it.id }
 
             if (currentOrder == newOrder) {
-
                 val chapterMap = sortedChapters.associateBy { it.id }
                 orderedChapters.forEachIndexed { index, existingChapter ->
                     chapterMap[existingChapter.id]?.let { updatedChapter ->
@@ -104,7 +124,6 @@ fun ChapterListBottomSheet(
                     }
                 }
             } else {
-
                 orderedChapters.replaceWith(sortedChapters)
             }
         }
@@ -113,6 +132,10 @@ fun ChapterListBottomSheet(
         selected = selected.filter { ids.contains(it) }.toSet()
         if (selected.isEmpty()) {
             showBatchRename = false
+        }
+
+        if (wasOrderChanged && orderedChapters.isNotEmpty()) {
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -229,13 +252,48 @@ fun ChapterListBottomSheet(
                 }
             }
         } else {
-
             if (!readOnly) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box {
+                        TextButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Outlined.Sort, contentDescription = "排序")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("排序")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("按索引升序") },
+                                onClick = { sortType = SortType.INDEX_ASC; showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("按索引降序") },
+                                onClick = { sortType = SortType.INDEX_DESC; showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("按名称升序") },
+                                onClick = { sortType = SortType.NAME_ASC; showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("按名称降序") },
+                                onClick = { sortType = SortType.NAME_DESC; showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("按字数升序") },
+                                onClick = { sortType = SortType.WORD_COUNT_ASC; showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("按字数降序") },
+                                onClick = { sortType = SortType.WORD_COUNT_DESC; showSortMenu = false }
+                            )
+                        }
+                    }
                     TextButton(onClick = { isEditMode = true }) {
                         Icon(Icons.Outlined.ModeEdit, contentDescription = "编辑模式")
                         Spacer(modifier = Modifier.width(4.dp))
