@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.zip.ZipInputStream
 
 class ImportHandler(
     private val application: Application,
@@ -51,6 +52,18 @@ class ImportHandler(
 
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
+                    if (isWordFile(context, uri)) {
+                        withContext(Dispatchers.Main) {
+                            importingState.value = ImportingState(
+                                bookName = sourceFile.nameWithoutExtension,
+                                statusText = "${sourceFile.name} 不支持的文件格式\n禁止导入 WORD 格式（DOC、DOCX 等）",
+                                progress = 0f
+                            )
+                        }
+                        delay(2000)
+                        return@let
+                    }
+
                     val fileName = sourceFile.name.lowercase()
                     val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
 
@@ -327,6 +340,42 @@ class ImportHandler(
                 }
             }
             Log.e("MainViewModel", "Import failed", e)
+        }
+    }
+
+    private fun isWordFile(context: Context, uri: Uri): Boolean {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val header = ByteArray(8)
+                val read = inputStream.read(header)
+                if (read < 8) return false
+
+                val docMagic = byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11.toByte(), 0xE0.toByte(), 0xA1.toByte(), 0xB1.toByte(), 0x1A.toByte(), 0xE1.toByte())
+                if (header.contentEquals(docMagic)) {
+                    return true
+                }
+
+                val zipMagic = byteArrayOf(0x50.toByte(), 0x4B.toByte(), 0x03.toByte(), 0x04.toByte())
+                if (header.take(4).toByteArray().contentEquals(zipMagic)) {
+                    context.contentResolver.openInputStream(uri)?.use { zipStream ->
+                        ZipInputStream(zipStream).use { zip ->
+                            var entry = zip.nextEntry
+                            var checkedCount = 0
+                            while (entry != null && checkedCount < 20) {
+                                if (entry.name == "word/document.xml" || entry.name.startsWith("word/")) {
+                                    return true
+                                }
+                                zip.closeEntry()
+                                entry = zip.nextEntry
+                                checkedCount++
+                            }
+                        }
+                    }
+                }
+                false
+            } ?: false
+        } catch (e: Exception) {
+            false
         }
     }
 
