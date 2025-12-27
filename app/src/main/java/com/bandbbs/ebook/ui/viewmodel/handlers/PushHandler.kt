@@ -329,6 +329,8 @@ class PushHandler(
                                     isTransferring = true
                                 )
                             }
+                            ForegroundTransferService.startService(appContext, "重试中", "传输中断，5秒后重连...", null)
+                            LiveNotificationManager.showTransferNotification("重试中", "传输中断，5秒后重连...", null)
                             scope.launch {
                                 retryTransfer(count)
                             }
@@ -409,12 +411,23 @@ class PushHandler(
     }
 
     private suspend fun retryTransfer(failedChapterIndex: Int) {
-        while (isRetrying && currentTransferBook != null && currentTransferChapters != null) {
+        val maxRetryCount = 10
+        var retryCount = 0
+        while (isRetrying && currentTransferBook != null && currentTransferChapters != null && retryCount < maxRetryCount) {
+            retryCount++
+            withContext(Dispatchers.Main) {
+                ForegroundTransferService.startService(appContext, "重试中", "等待重连... (第${retryCount}/${maxRetryCount}次)", null)
+                LiveNotificationManager.showTransferNotification("重试中", "等待重连... (第${retryCount}/${maxRetryCount}次)", null)
+            }
             delay(5000)
             
             if (!isRetrying) break
             
             try {
+                withContext(Dispatchers.Main) {
+                    ForegroundTransferService.startService(appContext, "重试中", "正在重连...", null)
+                    LiveNotificationManager.showTransferNotification("重试中", "正在重连...", null)
+                }
                 connectionHandler.reconnect()
                 delay(500)
                 
@@ -441,6 +454,9 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
+                        ForegroundTransferService.startService(appContext, "重试失败", "无法找到书籍信息", null)
+                        LiveNotificationManager.showTransferNotification("重试失败", "无法找到书籍信息", null)
+                        delay(2000)
                         ForegroundTransferService.stopService(appContext)
                     }
                     resetTransferState()
@@ -473,6 +489,9 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
+                        ForegroundTransferService.startService(appContext, "重试失败", "章节列表为空", null)
+                        LiveNotificationManager.showTransferNotification("重试失败", "章节列表为空", null)
+                        delay(2000)
                         ForegroundTransferService.stopService(appContext)
                     }
                     resetTransferState()
@@ -515,6 +534,8 @@ class PushHandler(
                                         isTransferring = true
                                     )
                                 }
+                                ForegroundTransferService.startService(appContext, "重试中", "传输中断，5秒后重连...", null)
+                                LiveNotificationManager.showTransferNotification("重试中", "传输中断，5秒后重连...", null)
                                 scope.launch {
                                     retryTransfer(count)
                                 }
@@ -596,22 +617,45 @@ class PushHandler(
                 return
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    addTransferLog("[重试] 重连失败: ${e.message}，5秒后再次尝试...")
+                    if (retryCount < maxRetryCount) {
+                        addTransferLog("[重试] 重连失败: ${e.message}，5秒后再次尝试... (第${retryCount}/${maxRetryCount}次)")
+                        ForegroundTransferService.startService(appContext, "重试失败", "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)", null)
+                        LiveNotificationManager.showTransferNotification("重试失败", "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)", null)
+                    } else {
+                        addTransferLog("[错误] 已达到最大重试次数(${maxRetryCount}次)，传输失败")
+                        pushState.update {
+                            it.copy(
+                                statusText = "已达到最大重试次数，传输失败",
+                                isFinished = true,
+                                isSuccess = false,
+                                isTransferring = false
+                            )
+                        }
+                        ForegroundTransferService.startService(appContext, "传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                        LiveNotificationManager.showTransferNotification("传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                        delay(2000)
+                        ForegroundTransferService.stopService(appContext)
+                        resetTransferState()
+                        isRetrying = false
+                    }
                 }
             }
         }
         
         if (isRetrying) {
             withContext(Dispatchers.Main) {
-                addTransferLog("[错误] 重试超时，传输失败")
+                addTransferLog("[错误] 已达到最大重试次数(${maxRetryCount}次)，传输失败")
                 pushState.update {
                     it.copy(
-                        statusText = "重试超时，传输失败",
+                        statusText = "已达到最大重试次数，传输失败",
                         isFinished = true,
                         isSuccess = false,
                         isTransferring = false
                     )
                 }
+                ForegroundTransferService.startService(appContext, "传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                LiveNotificationManager.showTransferNotification("传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                delay(2000)
                 ForegroundTransferService.stopService(appContext)
             }
             resetTransferState()
