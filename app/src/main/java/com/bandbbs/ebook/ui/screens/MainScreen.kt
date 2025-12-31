@@ -43,6 +43,8 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,6 +70,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,6 +101,8 @@ import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
 import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
+import com.bandbbs.ebook.utils.bytesToReadable
+import com.bandbbs.ebook.utils.StorageUtils
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -158,9 +163,12 @@ fun MainScreen(
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
+    val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
+
+    var showStorageHelpDialog by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedRecentBookPath by remember { mutableStateOf<String?>(null) }
@@ -169,6 +177,13 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
+    
+    LaunchedEffect(bandStorageInfo.totalStorage) {
+        if (bandStorageInfo.totalStorage > 0 && !bandStorageInfo.isLoading) {
+            kotlinx.coroutines.delay(100)
+            scrollState.animateScrollToItem(0)
+        }
+    }
     
     LaunchedEffect(expandedBookPath) {
         if (expandedBookPath != null) {
@@ -1105,6 +1120,127 @@ fun MainScreen(
                             bottom = 80.dp
                         )
                     ) {
+                        if (connectionState.isConnected && !bandStorageInfo.isLoading) {
+                            item(key = "storage_info") {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (bandStorageInfo.showWarning) {
+                                            MaterialTheme.colorScheme.errorContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainerLow
+                                        }
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                if (bandStorageInfo.showWarning) {
+                                                    Icon(
+                                                        Icons.Outlined.Warning,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "手环存储空间",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (bandStorageInfo.showWarning) {
+                                                        MaterialTheme.colorScheme.onErrorContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurface
+                                                    }
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { showStorageHelpDialog = true },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Outlined.HelpOutline,
+                                                    contentDescription = "帮助",
+                                                    modifier = Modifier.size(20.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "实际可用",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = bytesToReadable(bandStorageInfo.actualAvailable),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (bandStorageInfo.showWarning) {
+                                                    MaterialTheme.colorScheme.onErrorContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
+                                        if (bandStorageInfo.totalStorage > 0) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            val usableSpace = bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
+                                            val progress = if (usableSpace > 0) {
+                                                (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(0f, 1f)
+                                            } else {
+                                                0f
+                                            }
+                                            LinearProgressIndicator(
+                                                progress = progress,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(8.dp),
+                                                color = if (bandStorageInfo.showWarning) {
+                                                    MaterialTheme.colorScheme.error
+                                                } else {
+                                                    MaterialTheme.colorScheme.primary
+                                                },
+                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${bytesToReadable(usableSpace)}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            )
+                                        }
+                                        if (bandStorageInfo.showWarning) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "存储空间不足，可能影响功能使用",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         itemsIndexed(
                             items = listItems,
                             key = { _, item ->
@@ -1604,6 +1740,28 @@ fun MainScreen(
             }
         }
 
+        if (showStorageHelpDialog) {
+            AlertDialog(
+                onDismissRequest = { showStorageHelpDialog = false },
+                title = { Text("预留空间说明") },
+                text = {
+                    Column {
+                        Text("预留空间是为了系统更新而保留的存储空间。")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("当前设备预留空间：${StorageUtils.getReservedStorageText(bandStorageInfo.product)}")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("实际可用空间 = 总空间 - 预留空间 - 已用空间", style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("注意：预留空间大小是往大了设计的，实际可能不需要这么多。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showStorageHelpDialog = false }) {
+                        Text("知道了")
+                    }
+                }
+            )
+        }
 
     }
 }

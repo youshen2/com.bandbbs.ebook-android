@@ -3,6 +3,7 @@ package com.bandbbs.ebook.ui.viewmodel
 import android.net.Uri
 import com.bandbbs.ebook.database.ChapterInfo
 import com.bandbbs.ebook.ui.model.Book
+import com.bandbbs.ebook.utils.StorageUtils
 
 data class ConnectionState(
     val statusText: String = "手环连接中",
@@ -141,3 +142,15 @@ data class IpCollectionPermissionState(
     val showSheet: Boolean = false,
     val isFirstTime: Boolean = true
 )
+
+data class BandStorageInfo(
+    val product: String? = null,
+    val totalStorage: Long = 0,
+    val availableStorage: Long = 0,
+    val reservedStorage: Long = 0,
+    val usedStorage: Long = 0,
+    val actualAvailable: Long = 0,
+    val isLoading: Boolean = false
+) {
+    val showWarning: Boolean get() = StorageUtils.isStorageLow(actualAvailable) && !isLoading
+}

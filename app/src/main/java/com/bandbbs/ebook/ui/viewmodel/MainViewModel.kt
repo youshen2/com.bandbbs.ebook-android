@@ -132,6 +132,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _ipCollectionPermissionState = MutableStateFlow(IpCollectionPermissionState())
     val ipCollectionPermissionState = _ipCollectionPermissionState.asStateFlow()
 
+    private val _bandStorageInfo = MutableStateFlow(BandStorageInfo(isLoading = false))
+    val bandStorageInfo = _bandStorageInfo.asStateFlow()
+
     private val IP_COLLECTION_PERMISSION_KEY = "ip_collection_permission"
     private val IP_COLLECTION_PERMISSION_ASKED_KEY = "ip_collection_permission_asked"
     private val SHOW_RECENT_IMPORT_KEY = "show_recent_import"
@@ -215,6 +218,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ).apply {
         onBandConnected = { deviceName ->
             if (FIRST_AUTO_CHECK) autoCheckUpdates()
+            refreshBandStorageInfo()
         }
         onBandVersionReceived = { bandVersion ->
             checkBandUpdateOnly(bandVersion)
@@ -391,6 +395,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setConnection(connection: InterHandshake) = connectionHandler.setConnection(connection)
 
     fun reconnect() = connectionHandler.reconnect()
+
+    fun refreshBandStorageInfo() {
+        if (!connectionHandler.isConnected()) {
+            _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _bandStorageInfo.value = _bandStorageInfo.value.copy(isLoading = true)
+                val fileConnection = connectionHandler.getFileConnection()
+                fileConnection.onStorageInfo = { storageInfo ->
+                    _bandStorageInfo.value = BandStorageInfo(
+                        product = storageInfo.product,
+                        totalStorage = storageInfo.totalStorage,
+                        availableStorage = storageInfo.availableStorage,
+                        reservedStorage = storageInfo.reservedStorage,
+                        usedStorage = storageInfo.usedStorage,
+                        actualAvailable = storageInfo.actualAvailable,
+                        isLoading = false
+                    )
+                }
+                fileConnection.getStorageInfo()
+            } catch (e: Exception) {
+                _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+            }
+        }
+    }
 
     fun dismissConnectionError() = connectionHandler.dismissConnectionError()
 

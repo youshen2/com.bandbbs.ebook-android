@@ -21,6 +21,15 @@ data class ReadingDataResult(
     val readingTime: String? = null
 )
 
+data class BandStorageInfoData(
+    val product: String? = null,
+    val totalStorage: Long = 0,
+    val availableStorage: Long = 0,
+    val reservedStorage: Long = 0,
+    val usedStorage: Long = 0,
+    val actualAvailable: Long = 0
+)
+
 class InterconnetFile(private val conn: InterHandshake) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -52,6 +61,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var deleteChaptersSuccessCallback: ((String) -> Unit)? = null
     private var deleteChaptersErrorCallback: ((String) -> Unit)? = null
     private var transferStartChapterIndex: Int = 0
+    var onStorageInfo: ((BandStorageInfoData) -> Unit)? = null
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()
     private var currentCoverChunkIndex: Int = 0
@@ -260,6 +270,21 @@ class InterconnetFile(private val conn: InterHandshake) {
                         }
                     }
 
+                    "storage_info" -> {
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.StorageInfo>(it)
+                        onStorageInfo?.invoke(
+                            BandStorageInfoData(
+                                product = jsonMessage.product,
+                                totalStorage = jsonMessage.totalStorage,
+                                availableStorage = jsonMessage.availableStorage,
+                                reservedStorage = jsonMessage.reservedStorage,
+                                usedStorage = jsonMessage.usedStorage,
+                                actualAvailable = jsonMessage.actualAvailable
+                            )
+                        )
+                    }
+
                     "usuage" -> TODO()
                 }
             } catch (e: Exception) {
@@ -331,6 +356,12 @@ class InterconnetFile(private val conn: InterHandshake) {
             progress = result.progress,
             readingTime = result.readingTime
         )
+    }
+
+    suspend fun getStorageInfo() {
+        conn.init()
+        delay(500L)
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetStorageInfo())).await()
     }
 
     suspend fun setReadingData(
@@ -922,6 +953,17 @@ class InterconnetFile(private val conn: InterHandshake) {
             val message: String,
             val count: Int
         ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class StorageInfo(
+            val type: String = "storage_info",
+            val product: String? = null,
+            val totalStorage: Long = 0,
+            val availableStorage: Long = 0,
+            val reservedStorage: Long = 0,
+            val usedStorage: Long = 0,
+            val actualAvailable: Long = 0
+        ) : FileMessagesFromDevice()
     }
 
     @Serializable
@@ -1039,6 +1081,12 @@ class InterconnetFile(private val conn: InterHandshake) {
             val stat: String = "delete_chapters",
             val filename: String,
             val chapterIndices: List<Int>
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class GetStorageInfo(
+            val tag: String = "file",
+            val stat: String = "get_storage_info"
         ) : FileMessagesToSend()
     }
 }
