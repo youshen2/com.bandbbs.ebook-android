@@ -26,10 +26,13 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -62,6 +65,15 @@ import coil.compose.AsyncImage
 import com.bandbbs.ebook.ui.viewmodel.SyncOptionsState
 import java.io.File
 
+private enum class ChapterSortType {
+    INDEX_ASC,
+    INDEX_DESC,
+    NAME_ASC,
+    NAME_DESC,
+    WORD_COUNT_ASC,
+    WORD_COUNT_DESC
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncOptionsBottomSheet(
@@ -74,7 +86,24 @@ fun SyncOptionsBottomSheet(
     var selectedChapters by remember { mutableStateOf(setOf<Int>()) }
     var syncCover by remember { mutableStateOf(true) }
     var quickSelectText by remember { mutableStateOf("") }
+    var sortType by remember { mutableStateOf(ChapterSortType.INDEX_ASC) }
+    var showSortMenu by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+
+    fun sortChapters(chapters: List<com.bandbbs.ebook.database.ChapterInfo>): List<com.bandbbs.ebook.database.ChapterInfo> {
+        return when (sortType) {
+            ChapterSortType.INDEX_ASC -> chapters.sortedBy { it.index }
+            ChapterSortType.INDEX_DESC -> chapters.sortedByDescending { it.index }
+            ChapterSortType.NAME_ASC -> chapters.sortedBy { it.name }
+            ChapterSortType.NAME_DESC -> chapters.sortedByDescending { it.name }
+            ChapterSortType.WORD_COUNT_ASC -> chapters.sortedBy { it.wordCount }
+            ChapterSortType.WORD_COUNT_DESC -> chapters.sortedByDescending { it.wordCount }
+        }
+    }
+
+    val sortedChapters = remember(state.chapters, sortType) {
+        sortChapters(state.chapters)
+    }
 
     LaunchedEffect(state.syncedChapterIndices, state.totalChapters, state.chapters) {
         if (state.chapters.isNotEmpty() && selectedChapters.isEmpty()) {
@@ -364,18 +393,64 @@ fun SyncOptionsBottomSheet(
 
 
                 item {
-                    ChapterListHeader()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "章节列表",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Outlined.Sort, contentDescription = "排序")
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("按索引升序") },
+                                    onClick = { sortType = ChapterSortType.INDEX_ASC; showSortMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("按索引降序") },
+                                    onClick = { sortType = ChapterSortType.INDEX_DESC; showSortMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("按名称升序") },
+                                    onClick = { sortType = ChapterSortType.NAME_ASC; showSortMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("按名称降序") },
+                                    onClick = { sortType = ChapterSortType.NAME_DESC; showSortMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("按字数升序") },
+                                    onClick = { sortType = ChapterSortType.WORD_COUNT_ASC; showSortMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("按字数降序") },
+                                    onClick = { sortType = ChapterSortType.WORD_COUNT_DESC; showSortMenu = false }
+                                )
+                            }
+                        }
+                    }
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
 
                 itemsIndexed(
-                    items = state.chapters,
+                    items = sortedChapters,
                     key = { _, chapter -> chapter.id }
                 ) { index, chapter ->
 
                     val isFirst = index == 0
-                    val isLast = index == state.chapters.size - 1
+                    val isLast = index == sortedChapters.size - 1
                     val shape = when {
                         isFirst && isLast -> RoundedCornerShape(16.dp)
                         isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
@@ -391,7 +466,7 @@ fun SyncOptionsBottomSheet(
                         ChapterItem(
                             chapter = chapter,
                             index = index,
-                            totalChapters = state.chapters.size,
+                            totalChapters = sortedChapters.size,
                             syncedChapterIndices = state.syncedChapterIndices,
                             isSelected = selectedChapters.contains(chapter.index),
                             currentSelection = selectedChapters,
@@ -409,22 +484,6 @@ fun SyncOptionsBottomSheet(
     }
 }
 
-@Composable
-private fun ChapterListHeader() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Text(
-            text = "章节列表",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
 
 @Composable
 private fun ChapterItem(

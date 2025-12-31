@@ -70,7 +70,8 @@ fun BookItem(
     onImportCoverClick: () -> Unit = {},
     onEditInfoClick: () -> Unit = {},
     isSyncEnabled: Boolean,
-    lastChapterName: String? = null
+    lastChapterName: String? = null,
+    isSelected: Boolean = false
 ) {
     var showCoverDialog by remember { mutableStateOf(false) }
 
@@ -104,8 +105,11 @@ fun BookItem(
         onClick = onExpandClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isExpanded) MaterialTheme.colorScheme.surfaceContainerHigh
-            else MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = when {
+                isSelected -> MaterialTheme.colorScheme.primaryContainer
+                isExpanded -> MaterialTheme.colorScheme.surfaceContainerHigh
+                else -> MaterialTheme.colorScheme.surfaceContainerLow
+            }
         ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(

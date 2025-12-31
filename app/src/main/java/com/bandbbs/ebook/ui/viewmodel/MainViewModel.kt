@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.database.ChapterInfo
@@ -92,6 +93,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _bookToDelete = MutableStateFlow<Book?>(null)
     val bookToDelete = _bookToDelete.asStateFlow()
+
+    private val _booksToDelete = MutableStateFlow<List<Book>>(emptyList())
+    val booksToDelete = _booksToDelete.asStateFlow()
 
     private val _syncOptionsState = MutableStateFlow<SyncOptionsState?>(null)
     val syncOptionsState = _syncOptionsState.asStateFlow()
@@ -184,6 +188,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _quickRenameCategoryEnabled =
         MutableStateFlow(prefs.getBoolean(QUICK_RENAME_CATEGORY_KEY, false))
     val quickRenameCategoryEnabled = _quickRenameCategoryEnabled.asStateFlow()
+
+    private val _isMultiSelectMode = MutableStateFlow(false)
+    val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
+
+    private val _selectedBooks = MutableStateFlow<Set<String>>(emptySet())
+    val selectedBooks = _selectedBooks.asStateFlow()
 
     enum class ThemeMode {
         LIGHT, DARK, SYSTEM
@@ -320,6 +330,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectCategory(category: String?) = categoryHandler.selectCategory(category)
 
     fun dismissCategorySelector() = categoryHandler.dismissCategorySelector()
+
+    fun enterMultiSelectMode() {
+        _isMultiSelectMode.value = true
+        _selectedBooks.value = emptySet()
+    }
+
+    fun exitMultiSelectMode() {
+        _isMultiSelectMode.value = false
+        _selectedBooks.value = emptySet()
+    }
+
+    fun selectBook(bookPath: String) {
+        val current = _selectedBooks.value.toMutableSet()
+        if (current.contains(bookPath)) {
+            current.remove(bookPath)
+        } else {
+            current.add(bookPath)
+        }
+        _selectedBooks.value = current
+    }
+
+    fun requestDeleteSelectedBooks() {
+        val selectedPaths = _selectedBooks.value
+        if (selectedPaths.isEmpty()) return
+        
+        val booksToDelete = _books.value.filter { it.path in selectedPaths }
+        if (booksToDelete.isEmpty()) return
+        
+        _booksToDelete.value = booksToDelete
+    }
+
+    fun cancelDeleteSelectedBooks() {
+        _booksToDelete.value = emptyList()
+    }
+
+    fun confirmDeleteSelectedBooks() {
+        val booksToDelete = _booksToDelete.value
+        if (booksToDelete.isEmpty()) return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            booksToDelete.forEach { book ->
+                File(book.path).delete()
+                val bookEntity = db.bookDao().getBookByPath(book.path)
+                if (bookEntity != null) {
+                    val context = application.applicationContext
+                    ChapterContentManager.deleteBookChapters(context, bookEntity.id)
+                    db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+                    db.bookDao().delete(bookEntity)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                _booksToDelete.value = emptyList()
+                loadBooks()
+                exitMultiSelectMode()
+            }
+        }
+    }
 
     fun setConnection(connection: InterHandshake) = connectionHandler.setConnection(connection)
 
