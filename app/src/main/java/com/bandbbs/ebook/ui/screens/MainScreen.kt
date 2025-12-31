@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -162,6 +163,9 @@ fun MainScreen(
     val expandedCategories by viewModel.expandedCategories.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var expandedRecentBookPath by remember { mutableStateOf<String?>(null) }
+    var expandedRecentUpdateBookPath by remember { mutableStateOf<String?>(null) }
+    val scrollState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
@@ -1093,6 +1097,7 @@ fun MainScreen(
                     }
 
                     LazyColumn(
+                        state = scrollState,
                         contentPadding = PaddingValues(
                             start = 16.dp,
                             top = 8.dp,
@@ -1177,8 +1182,9 @@ fun MainScreen(
                                     }
                                 }
 
-                                ItemType.RECENT_BOOK, ItemType.RECENT_UPDATE_BOOK -> {
+                                ItemType.RECENT_BOOK -> {
                                     val book = item.book!!
+                                    val isExpanded = expandedRecentBookPath == book.path
                                     AnimatedVisibility(
                                         visible = true,
                                         enter = scaleIn() + expandVertically(),
@@ -1239,12 +1245,116 @@ fun MainScreen(
                                             ) {
                                                 BookItem(
                                                     book = book,
-                                                    isExpanded = expandedBookPath == book.path,
+                                                    isExpanded = isExpanded,
                                                     onExpandClick = {
                                                         if (isMultiSelectMode) {
                                                             viewModel.selectBook(book.path)
                                                         } else {
-                                                            viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                            expandedRecentBookPath = if (isExpanded) null else book.path
+                                                            if (expandedRecentBookPath != null) {
+                                                                viewModel.setExpandedBook(null)
+                                                            }
+                                                        }
+                                                    },
+                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                    onSyncClick = { viewModel.startPush(book) },
+                                                    onChapterListClick = {
+                                                        viewModel.showChapterList(
+                                                            book
+                                                        )
+                                                    },
+                                                    onContinueReadingClick = {
+                                                        viewModel.continueReading(
+                                                            book
+                                                        )
+                                                    },
+                                                    onImportCoverClick = {
+                                                        viewModel.requestImportCover(book)
+                                                        onImportCoverClick()
+                                                    },
+                                                    onEditInfoClick = {
+                                                        viewModel.showEditBookInfo(book)
+                                                    },
+                                                    isSyncEnabled = connectionState.isConnected,
+                                                    lastChapterName = lastChapterNames[book.path]
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                ItemType.RECENT_UPDATE_BOOK -> {
+                                    val book = item.book!!
+                                    val isExpanded = expandedRecentUpdateBookPath == book.path
+                                    AnimatedVisibility(
+                                        visible = true,
+                                        enter = scaleIn() + expandVertically(),
+                                        exit = scaleOut()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(
+                                                top = 8.dp,
+                                                bottom = 8.dp
+                                            )
+                                        ) {
+                                            val dismissState = rememberDismissState(confirmStateChange = { newState ->
+                                                if (newState == DismissValue.DismissedToStart) {
+                                                    if (quickEditCategoryEnabled) {
+                                                        viewModel.showCategorySelector(book)
+                                                    } else {
+                                                        viewModel.enterMultiSelectMode()
+                                                        viewModel.selectBook(book.path)
+                                                    }
+                                                    false
+                                                } else {
+                                                    true
+                                                }
+                                            })
+
+                                            SwipeToDismiss(
+                                                state = dismissState,
+                                                directions = setOf(DismissDirection.EndToStart),
+                                                background = {
+                                                    val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
+                                                    val color = when (direction) {
+                                                        DismissDirection.EndToStart -> MaterialTheme.colorScheme.primaryContainer
+                                                        else -> MaterialTheme.colorScheme.surface
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .padding(16.dp),
+                                                        contentAlignment = Alignment.CenterEnd
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            Icon(
+                                                                if (quickEditCategoryEnabled) Icons.Outlined.Edit else Icons.Outlined.CheckCircle,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            )
+                                                            Text(
+                                                                if (quickEditCategoryEnabled) "修改分类" else "多选",
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                                style = MaterialTheme.typography.bodyLarge
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            ) {
+                                                BookItem(
+                                                    book = book,
+                                                    isExpanded = isExpanded,
+                                                    onExpandClick = {
+                                                        if (isMultiSelectMode) {
+                                                            viewModel.selectBook(book.path)
+                                                        } else {
+                                                            expandedRecentUpdateBookPath = if (isExpanded) null else book.path
+                                                            if (expandedRecentUpdateBookPath != null) {
+                                                                viewModel.setExpandedBook(null)
+                                                            }
                                                         }
                                                     },
                                                     onDeleteClick = { viewModel.requestDeleteBook(book) },
@@ -1351,7 +1461,12 @@ fun MainScreen(
                                                         if (isMultiSelectMode) {
                                                             viewModel.selectBook(book.path)
                                                         } else {
+                                                            val willExpand = expandedBookPath != book.path
                                                             viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
+                                                            if (willExpand) {
+                                                                expandedRecentBookPath = null
+                                                                expandedRecentUpdateBookPath = null
+                                                            }
                                                         }
                                                     },
                                                     onDeleteClick = { viewModel.requestDeleteBook(book) },
