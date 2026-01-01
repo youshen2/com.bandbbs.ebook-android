@@ -123,6 +123,11 @@ data class SyncReadingDataState(
     val readingTimeSyncMode: SyncMode = SyncMode.AUTO
 )
 
+data class SyncResultState(
+    val changedBooks: List<String> = emptyList(),
+    val syncedCount: Int = 0
+)
+
 data class VersionIncompatibleState(
     val currentVersion: Int,
     val requiredVersion: Int

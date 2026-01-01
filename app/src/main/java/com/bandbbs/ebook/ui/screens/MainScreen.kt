@@ -98,6 +98,7 @@ import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
+import com.bandbbs.ebook.ui.components.SyncResultBottomSheet
 import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
@@ -162,6 +163,7 @@ fun MainScreen(
     val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
+    val syncResultState by viewModel.syncResultState.collectAsState()
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
 
@@ -220,6 +222,7 @@ fun MainScreen(
     val editBookInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val versionIncompatibleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val syncReadingDataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val syncResultSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     bookToDelete?.let { book ->
         AlertDialog(
@@ -536,6 +539,31 @@ fun MainScreen(
                     scope.launch {
                         syncReadingDataSheetState.hide()
                         viewModel.clearSyncReadingDataState()
+                    }
+                }
+            )
+        }
+    }
+
+    syncResultState?.let { state ->
+        LaunchedEffect(state) {
+            syncResultSheetState.show()
+        }
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch {
+                    syncResultSheetState.hide()
+                    viewModel.dismissSyncResult()
+                }
+            },
+            sheetState = syncResultSheetState
+        ) {
+            SyncResultBottomSheet(
+                state = state,
+                onDismiss = {
+                    scope.launch {
+                        syncResultSheetState.hide()
+                        viewModel.dismissSyncResult()
                     }
                 }
             )
@@ -875,22 +903,6 @@ fun MainScreen(
                                 Text("取消")
                             }
                         } else {
-                            val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
-                            val isEnabled =
-                                connectionState.isConnected && !syncReadingDataState.isSyncing
-                            FilledTonalButton(
-                                onClick = { viewModel.syncAllReadingData() },
-                                enabled = isEnabled,
-                                modifier = Modifier.padding(end = 6.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Sync,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("同步数据")
-                            }
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
                             }
@@ -899,8 +911,20 @@ fun MainScreen(
                                 onDismissRequest = { showMenu = false }
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text("同步数据") },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.syncAllReadingData()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Sync, contentDescription = null)
+                                    },
+                                    enabled = connectionState.isConnected && !viewModel.syncReadingDataState.value.isSyncing
+                                )
+                                DropdownMenuItem(
                                     text = { Text("重新连接手环") },
                                     onClick = {
+                                        showMenu = false
                                         viewModel.reconnect()
                                     },
                                     leadingIcon = {
@@ -1117,7 +1141,7 @@ fun MainScreen(
                             start = 16.dp,
                             top = 8.dp,
                             end = 16.dp,
-                            bottom = 80.dp
+                            bottom = 100.dp
                         )
                     ) {
                         if (connectionState.isConnected && !bandStorageInfo.isLoading) {
@@ -1332,89 +1356,41 @@ fun MainScreen(
                                                 bottom = 8.dp
                                             )
                                         ) {
-                                            val dismissState = rememberDismissState(confirmStateChange = { newState ->
-                                                if (newState == DismissValue.DismissedToStart) {
-                                                    if (quickEditCategoryEnabled) {
-                                                        viewModel.showCategorySelector(book)
-                                                    } else {
-                                                        viewModel.enterMultiSelectMode()
+                                            BookItem(
+                                                book = book,
+                                                isExpanded = isExpanded,
+                                                onExpandClick = {
+                                                    if (isMultiSelectMode) {
                                                         viewModel.selectBook(book.path)
-                                                    }
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            })
-
-                                            SwipeToDismiss(
-                                                state = dismissState,
-                                                directions = setOf(DismissDirection.EndToStart),
-                                                background = {
-                                                    val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
-                                                    val color = when (direction) {
-                                                        DismissDirection.EndToStart -> MaterialTheme.colorScheme.primaryContainer
-                                                        else -> MaterialTheme.colorScheme.surface
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
-                                                            .padding(16.dp),
-                                                        contentAlignment = Alignment.CenterEnd
-                                                    ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            Icon(
-                                                                if (quickEditCategoryEnabled) Icons.Outlined.Edit else Icons.Outlined.CheckCircle,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                                            )
-                                                            Text(
-                                                                if (quickEditCategoryEnabled) "修改分类" else "多选",
-                                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                                style = MaterialTheme.typography.bodyLarge
-                                                            )
+                                                    } else {
+                                                        expandedRecentBookPath = if (isExpanded) null else book.path
+                                                        if (expandedRecentBookPath != null) {
+                                                            viewModel.setExpandedBook(null)
                                                         }
                                                     }
-                                                }
-                                            ) {
-                                                BookItem(
-                                                    book = book,
-                                                    isExpanded = isExpanded,
-                                                    onExpandClick = {
-                                                        if (isMultiSelectMode) {
-                                                            viewModel.selectBook(book.path)
-                                                        } else {
-                                                            expandedRecentBookPath = if (isExpanded) null else book.path
-                                                            if (expandedRecentBookPath != null) {
-                                                                viewModel.setExpandedBook(null)
-                                                            }
-                                                        }
-                                                    },
-                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
-                                                    onSyncClick = { viewModel.startPush(book) },
-                                                    onChapterListClick = {
-                                                        viewModel.showChapterList(
-                                                            book
-                                                        )
-                                                    },
-                                                    onContinueReadingClick = {
-                                                        viewModel.continueReading(
-                                                            book
-                                                        )
-                                                    },
-                                                    onImportCoverClick = {
-                                                        viewModel.requestImportCover(book)
-                                                        onImportCoverClick()
-                                                    },
-                                                    onEditInfoClick = {
-                                                        viewModel.showEditBookInfo(book)
-                                                    },
-                                                    isSyncEnabled = connectionState.isConnected,
-                                                    lastChapterName = lastChapterNames[book.path]
-                                                )
-                                            }
+                                                },
+                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                onSyncClick = { viewModel.startPush(book) },
+                                                onChapterListClick = {
+                                                    viewModel.showChapterList(
+                                                        book
+                                                    )
+                                                },
+                                                onContinueReadingClick = {
+                                                    viewModel.continueReading(
+                                                        book
+                                                    )
+                                                },
+                                                onImportCoverClick = {
+                                                    viewModel.requestImportCover(book)
+                                                    onImportCoverClick()
+                                                },
+                                                onEditInfoClick = {
+                                                    viewModel.showEditBookInfo(book)
+                                                },
+                                                isSyncEnabled = connectionState.isConnected,
+                                                lastChapterName = lastChapterNames[book.path]
+                                            )
                                         }
                                     }
                                 }
@@ -1433,89 +1409,41 @@ fun MainScreen(
                                                 bottom = 8.dp
                                             )
                                         ) {
-                                            val dismissState = rememberDismissState(confirmStateChange = { newState ->
-                                                if (newState == DismissValue.DismissedToStart) {
-                                                    if (quickEditCategoryEnabled) {
-                                                        viewModel.showCategorySelector(book)
-                                                    } else {
-                                                        viewModel.enterMultiSelectMode()
+                                            BookItem(
+                                                book = book,
+                                                isExpanded = isExpanded,
+                                                onExpandClick = {
+                                                    if (isMultiSelectMode) {
                                                         viewModel.selectBook(book.path)
-                                                    }
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            })
-
-                                            SwipeToDismiss(
-                                                state = dismissState,
-                                                directions = setOf(DismissDirection.EndToStart),
-                                                background = {
-                                                    val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
-                                                    val color = when (direction) {
-                                                        DismissDirection.EndToStart -> MaterialTheme.colorScheme.primaryContainer
-                                                        else -> MaterialTheme.colorScheme.surface
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
-                                                            .padding(16.dp),
-                                                        contentAlignment = Alignment.CenterEnd
-                                                    ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            Icon(
-                                                                if (quickEditCategoryEnabled) Icons.Outlined.Edit else Icons.Outlined.CheckCircle,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                                            )
-                                                            Text(
-                                                                if (quickEditCategoryEnabled) "修改分类" else "多选",
-                                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                                style = MaterialTheme.typography.bodyLarge
-                                                            )
+                                                    } else {
+                                                        expandedRecentUpdateBookPath = if (isExpanded) null else book.path
+                                                        if (expandedRecentUpdateBookPath != null) {
+                                                            viewModel.setExpandedBook(null)
                                                         }
                                                     }
-                                                }
-                                            ) {
-                                                BookItem(
-                                                    book = book,
-                                                    isExpanded = isExpanded,
-                                                    onExpandClick = {
-                                                        if (isMultiSelectMode) {
-                                                            viewModel.selectBook(book.path)
-                                                        } else {
-                                                            expandedRecentUpdateBookPath = if (isExpanded) null else book.path
-                                                            if (expandedRecentUpdateBookPath != null) {
-                                                                viewModel.setExpandedBook(null)
-                                                            }
-                                                        }
-                                                    },
-                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
-                                                    onSyncClick = { viewModel.startPush(book) },
-                                                    onChapterListClick = {
-                                                        viewModel.showChapterList(
-                                                            book
-                                                        )
-                                                    },
-                                                    onContinueReadingClick = {
-                                                        viewModel.continueReading(
-                                                            book
-                                                        )
-                                                    },
-                                                    onImportCoverClick = {
-                                                        viewModel.requestImportCover(book)
-                                                        onImportCoverClick()
-                                                    },
-                                                    onEditInfoClick = {
-                                                        viewModel.showEditBookInfo(book)
-                                                    },
-                                                    isSyncEnabled = connectionState.isConnected,
-                                                    lastChapterName = lastChapterNames[book.path]
-                                                )
-                                            }
+                                                },
+                                                onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                onSyncClick = { viewModel.startPush(book) },
+                                                onChapterListClick = {
+                                                    viewModel.showChapterList(
+                                                        book
+                                                    )
+                                                },
+                                                onContinueReadingClick = {
+                                                    viewModel.continueReading(
+                                                        book
+                                                    )
+                                                },
+                                                onImportCoverClick = {
+                                                    viewModel.requestImportCover(book)
+                                                    onImportCoverClick()
+                                                },
+                                                onEditInfoClick = {
+                                                    viewModel.showEditBookInfo(book)
+                                                },
+                                                isSyncEnabled = connectionState.isConnected,
+                                                lastChapterName = lastChapterNames[book.path]
+                                            )
                                         }
                                     }
                                 }

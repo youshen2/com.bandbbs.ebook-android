@@ -121,6 +121,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _syncReadingDataState = MutableStateFlow(SyncReadingDataState())
     val syncReadingDataState = _syncReadingDataState.asStateFlow()
 
+    private val _syncResultState = MutableStateFlow<SyncResultState?>(null)
+    val syncResultState = _syncResultState.asStateFlow()
+
     private var syncReadingDataJob: Job? = null
 
     private val _versionIncompatibleState = MutableStateFlow<VersionIncompatibleState?>(null)
@@ -914,6 +917,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 val fileConn = connectionHandler.getFileConnection()
                 var syncedCount = 0
+                val changedBooks = mutableListOf<String>()
 
                 for ((index, book) in allBooks.withIndex()) {
 
@@ -1139,7 +1143,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
 
-
                         val finalReadingTime = when (currentReadingTimeMode) {
                             SyncMode.AUTO -> {
                                 val merged = mergeReadingTime(phoneReadingTime, bandReadingTime)
@@ -1159,6 +1162,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 Log.d("MainViewModel", "Using phone reading time for ${book.name}")
                                 phoneReadingTime
                             }
+                        }
+
+                        val hasProgressChange = when (currentProgressMode) {
+                            SyncMode.AUTO -> finalProgress != phoneProgress
+                            SyncMode.BAND_ONLY -> bandProgress != null
+                            SyncMode.PHONE_ONLY -> false
+                        }
+
+                        val hasReadingTimeChange = when (currentReadingTimeMode) {
+                            SyncMode.AUTO -> {
+                                val phoneTotal = (phoneReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
+                                val bandTotal = (bandReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
+                                val finalTotal = (finalReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
+                                finalTotal != phoneTotal || (bandTotal > 0 && finalTotal != bandTotal)
+                            }
+                            SyncMode.BAND_ONLY -> bandReadingTime != null
+                            SyncMode.PHONE_ONLY -> false
+                        }
+
+                        if (hasProgressChange || hasReadingTimeChange) {
+                            changedBooks.add(book.name)
                         }
 
 
@@ -1296,6 +1320,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         totalBooks = allBooks.size,
                         syncedBooks = syncedCount
                     )
+                    if (changedBooks.isNotEmpty()) {
+                        _syncResultState.value = SyncResultState(
+                            changedBooks = changedBooks,
+                            syncedCount = syncedCount
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) {
@@ -1330,6 +1360,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSyncReadingDataState() {
         _syncReadingDataState.value = SyncReadingDataState()
+    }
+
+    fun dismissSyncResult() {
+        _syncResultState.value = null
     }
 
     fun dismissSyncModeDialog() {

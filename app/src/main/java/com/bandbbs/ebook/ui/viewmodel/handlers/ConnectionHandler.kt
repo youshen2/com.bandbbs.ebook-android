@@ -83,7 +83,7 @@ class ConnectionHandler(
                     connection.destroy().await()
                     val deviceName = connection.connect().await().replace(" ", "")
 
-                    val unsupportedDevices = listOf("小米手环8", "小米手环9")
+                    val unsupportedDevices = listOf("小米手环8")
                     val isUnsupported = unsupportedDevices.any { deviceName == it }
 
                     if (isUnsupported) {
