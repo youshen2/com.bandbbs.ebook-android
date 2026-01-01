@@ -6,8 +6,10 @@ object StorageUtils {
         return when {
             product == "REDMI Watch 6" -> 120 * 1024 * 1024
             product == "REDMI Watch 5" -> 120 * 1024 * 1024
+            product == "Xiaomi Smart Band 9" -> 64 * 1024 * 1024
             product == "Xiaomi Smart Band 9 Pro" -> 64 * 1024 * 1024
             product == "Xiaomi Smart Band 8 Pro" -> 84 * 1024 * 1024
+            product == "o65m" -> 1024 * 1024 * 1024
             product.contains("Xiaomi Smart Band 10") -> 90 * 1024 * 1024
             else -> 0
         }

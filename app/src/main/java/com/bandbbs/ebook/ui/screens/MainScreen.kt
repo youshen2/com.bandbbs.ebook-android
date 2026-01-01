@@ -1752,7 +1752,7 @@ fun MainScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("实际可用空间 = 总空间 - 预留空间 - 已用空间", style = MaterialTheme.typography.bodySmall)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("注意：预留空间大小是往大了设计的，实际可能不需要这么多。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("注意：预留空间大小是往大了标注的，实际可能没有这么多。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 confirmButton = {
