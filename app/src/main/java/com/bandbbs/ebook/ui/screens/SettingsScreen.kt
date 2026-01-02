@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
@@ -64,7 +66,9 @@ import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onBackupClick: () -> Unit = {},
+    onRestoreClick: () -> Unit = {}
 ) {
     val showRecentImport by viewModel.showRecentImport.collectAsState()
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
@@ -103,7 +107,7 @@ fun SettingsScreen(
                 start = 16.dp,
                 top = 8.dp,
                 end = 16.dp,
-                bottom = 100.dp
+                bottom = 40.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -249,6 +253,18 @@ fun SettingsScreen(
             item {
                 SettingsGroup(title = "高级") {
                     SettingsActionTile(
+                        icon = Icons.Outlined.Upload,
+                        title = "导出数据",
+                        description = "备份阅读时长和阅读进度",
+                        onClick = onBackupClick
+                    )
+                    SettingsActionTile(
+                        icon = Icons.Outlined.Download,
+                        title = "导入数据",
+                        description = "恢复备份的阅读数据",
+                        onClick = onRestoreClick
+                    )
+                    SettingsActionTile(
                         icon = Icons.Outlined.DeleteForever,
                         title = "清除阅读记录",
                         description = "删除本地所有阅读时长数据(不可恢复)",
@@ -390,8 +406,10 @@ fun SettingsActionTile(
     onClick: () -> Unit,
     isDestructive: Boolean = false
 ) {
-    val contentColor = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    val titleColor = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val contentColor =
+        if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val titleColor =
+        if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
 
     ListItem(
         headlineContent = {
@@ -441,9 +459,12 @@ fun ThemeSelectionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    val backgroundColor =
+        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val contentColor =
+        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val borderColor =
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
 
     Surface(
         onClick = onClick,

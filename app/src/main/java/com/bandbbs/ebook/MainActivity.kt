@@ -1,13 +1,15 @@
 package com.bandbbs.ebook
 
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
-import android.view.WindowManager
-import android.app.NotificationManager
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
-import androidx.core.content.ContextCompat
+import android.os.Bundle
+import android.provider.Settings
+import android.view.WindowManager
+import android.widget.Toast
+import android.app.NotificationManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,16 +21,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.with
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -36,6 +39,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +50,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -53,7 +60,6 @@ import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
 import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
-import com.bandbbs.ebook.BookStatisticsActivity
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
@@ -61,9 +67,9 @@ import com.bandbbs.ebook.ui.screens.StatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
-import android.provider.Settings
-import android.content.Context
-import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -74,10 +80,8 @@ class MainActivity : ComponentActivity() {
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             if (uris.size == 1) {
-
                 viewModel.startImport(uris[0])
             } else {
-
                 viewModel.startImportBatch(uris)
             }
         }
@@ -88,6 +92,22 @@ class MainActivity : ComponentActivity() {
     ) { uri: Uri? ->
         uri?.let {
             viewModel.importCoverForBook(it)
+        }
+    }
+
+    private val createDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.backupData(it)
+        }
+    }
+
+    private val openDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.restoreData(it)
         }
     }
 
@@ -104,9 +124,16 @@ class MainActivity : ComponentActivity() {
         (application as App).conn = conn
         viewModel.setConnection(conn)
         val notifManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        com.bandbbs.ebook.notifications.LiveNotificationManager.initialize(applicationContext, notifManager)
+        com.bandbbs.ebook.notifications.LiveNotificationManager.initialize(
+            applicationContext,
+            notifManager
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
@@ -115,6 +142,7 @@ class MainActivity : ComponentActivity() {
         fun markTutorialShown() {
             prefs.edit().putBoolean("tutorial_shown", true).apply()
         }
+
         fun openAppNotificationSettings() {
             try {
                 val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
@@ -138,11 +166,17 @@ class MainActivity : ComponentActivity() {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
                     if (pushState.isTransferring) {
-                        val progressPercent = if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
+                        val progressPercent =
+                            if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
                         val preview = pushState.preview
                         val title = if (progressPercent != null) "$progressPercent%" else "传输中"
                         val content = preview
-                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(applicationContext, title, content, progressPercent)
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(
+                            applicationContext,
+                            title,
+                            content,
+                            progressPercent
+                        )
                         if (!wasTransferring) {
                             val autoMinimize = viewModel.autoMinimizeOnTransfer.value
                             if (autoMinimize && !pushState.isFinished) {
@@ -152,7 +186,9 @@ class MainActivity : ComponentActivity() {
                         }
                     } else {
                         wasTransferring = false
-                        com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(applicationContext)
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(
+                            applicationContext
+                        )
                     }
                 }
             }
@@ -162,13 +198,33 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.syncReadingDataState.collect { syncState ->
                     val pushActive = viewModel.pushState.value.isTransferring
-                if (syncState.isSyncing && !pushActive) {
+                    if (syncState.isSyncing && !pushActive) {
                         val progressPercent = (syncState.progress * 100).toInt()
                         val title = "$progressPercent%"
-                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(applicationContext, title, "数据同步中", progressPercent)
+                        com.bandbbs.ebook.notifications.ForegroundTransferService.startService(
+                            applicationContext,
+                            title,
+                            "数据同步中",
+                            progressPercent
+                        )
                     } else {
                         if (!pushActive) {
-                            com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(applicationContext)
+                            com.bandbbs.ebook.notifications.ForegroundTransferService.stopService(
+                                applicationContext
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.backupRestoreState.collect { state ->
+                    state?.let {
+                        if (it.message.isNotEmpty()) {
+                            Toast.makeText(this@MainActivity, it.message, Toast.LENGTH_SHORT).show()
+                            viewModel.clearBackupRestoreState()
                         }
                     }
                 }
@@ -182,7 +238,7 @@ class MainActivity : ComponentActivity() {
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
                 MainViewModel.ThemeMode.DARK -> true
-                MainViewModel.ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+                MainViewModel.ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
             EbookTheme(darkTheme = darkTheme) {
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
@@ -193,8 +249,10 @@ class MainActivity : ComponentActivity() {
 
                 val scope = rememberCoroutineScope()
                 val chapterListSheetState = rememberModalBottomSheetState()
-                val ipCollectionPermissionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                val updateCheckSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val ipCollectionPermissionSheetState =
+                    rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val updateCheckSheetState =
+                    rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
                 val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
                 val updateCheckState by viewModel.updateCheckState.collectAsState()
@@ -214,7 +272,7 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "主页"
                                         )
                                     },
-                                    label = { androidx.compose.material3.Text("主页") },
+                                    label = { Text("主页") },
                                     selected = currentScreen == "home",
                                     onClick = { currentScreen = "home" }
                                 )
@@ -225,7 +283,7 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "统计"
                                         )
                                     },
-                                    label = { androidx.compose.material3.Text("统计") },
+                                    label = { Text("统计") },
                                     selected = currentScreen == "statistics",
                                     onClick = { currentScreen = "statistics" }
                                 )
@@ -236,7 +294,7 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "设置"
                                         )
                                     },
-                                    label = { androidx.compose.material3.Text("设置") },
+                                    label = { Text("设置") },
                                     selected = currentScreen == "settings",
                                     onClick = { currentScreen = "settings" }
                                 )
@@ -260,8 +318,8 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                ) { paddingValues ->
+                    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         if (showTutorial) {
                             AlertDialog(
                                 onDismissRequest = {
@@ -273,7 +331,7 @@ class MainActivity : ComponentActivity() {
                                         markTutorialShown()
                                         showTutorial = false
                                     }) {
-                                        androidx.compose.material3.Text("我知道了")
+                                        Text("我知道了")
                                     }
                                 },
                                 dismissButton = {
@@ -281,14 +339,14 @@ class MainActivity : ComponentActivity() {
                                         markTutorialShown()
                                         showTutorial = false
                                     }) {
-                                        androidx.compose.material3.Text("关闭")
+                                        Text("关闭")
                                     }
                                 },
                                 title = {
-                                    androidx.compose.material3.Text("首次使用提示")
+                                    Text("首次使用提示")
                                 },
                                 text = {
-                                    androidx.compose.material3.Text(
+                                    Text(
                                         "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\n" +
                                                 "ColorOS14及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。"
                                     )
@@ -391,7 +449,10 @@ class MainActivity : ComponentActivity() {
                                     StatisticsScreen(
                                         onBackClick = { currentScreen = "home" },
                                         onBookStatClick = { bookName ->
-                                            BookStatisticsActivity.start(this@MainActivity, bookName)
+                                            BookStatisticsActivity.start(
+                                                this@MainActivity,
+                                                bookName
+                                            )
                                         },
                                         scrollState = statisticsScrollState
                                     )
@@ -400,7 +461,15 @@ class MainActivity : ComponentActivity() {
                                 "settings" -> {
                                     SettingsScreen(
                                         viewModel = viewModel,
-                                        onBackClick = { currentScreen = "home" }
+                                        onBackClick = { currentScreen = "home" },
+                                        onBackupClick = {
+                                            val formatter = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                                            val dateStr = formatter.format(Date())
+                                            createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
+                                        },
+                                        onRestoreClick = {
+                                            openDocumentLauncher.launch(arrayOf("application/json"))
+                                        }
                                     )
                                 }
                             }

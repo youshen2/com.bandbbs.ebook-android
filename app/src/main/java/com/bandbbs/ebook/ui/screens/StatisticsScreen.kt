@@ -158,7 +158,7 @@ fun StatisticsScreen(
                         start = 16.dp,
                         top = 16.dp,
                         end = 16.dp,
-                        bottom = 100.dp
+                        bottom = 40.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {

@@ -21,6 +21,7 @@ import com.bandbbs.ebook.ui.viewmodel.handlers.LibraryHandler
 import com.bandbbs.ebook.ui.viewmodel.handlers.PushHandler
 import com.bandbbs.ebook.utils.BookInfoParser
 import com.bandbbs.ebook.utils.ChapterContentManager
+import com.bandbbs.ebook.utils.DataBackupManager
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.VersionChecker
@@ -137,6 +138,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _bandStorageInfo = MutableStateFlow(BandStorageInfo(isLoading = false))
     val bandStorageInfo = _bandStorageInfo.asStateFlow()
+
+    private val _backupRestoreState = MutableStateFlow<BackupRestoreResult?>(null)
+    val backupRestoreState = _backupRestoreState.asStateFlow()
 
     private val IP_COLLECTION_PERMISSION_KEY = "ip_collection_permission"
     private val IP_COLLECTION_PERMISSION_ASKED_KEY = "ip_collection_permission_asked"
@@ -2040,5 +2044,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _recentUpdatedBook.value = recentUpdatedBook
             }
         }
+    }
+
+    fun backupData(uri: Uri) {
+        viewModelScope.launch {
+            val result = DataBackupManager.backupData(getApplication(), uri, db)
+            _backupRestoreState.value = if (result.isSuccess) {
+                BackupRestoreResult(success = true, message = "备份成功")
+            } else {
+                BackupRestoreResult(success = false, message = "备份失败: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    fun restoreData(uri: Uri) {
+        viewModelScope.launch {
+            val result = DataBackupManager.restoreData(getApplication(), uri, db)
+            if (result.isSuccess) {
+                loadBooks()
+                _backupRestoreState.value = BackupRestoreResult(success = true, message = "恢复成功")
+            } else {
+                _backupRestoreState.value = BackupRestoreResult(success = false, message = "恢复失败: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    fun clearBackupRestoreState() {
+        _backupRestoreState.value = null
     }
 }

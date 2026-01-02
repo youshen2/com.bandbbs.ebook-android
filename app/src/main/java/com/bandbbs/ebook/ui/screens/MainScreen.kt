@@ -1274,7 +1274,7 @@ fun MainScreen(
                                     ItemType.RECENT_UPDATE_HEADER -> "header_recent_update"
                                     ItemType.RECENT_UPDATE_BOOK -> "recent_update_${item.book!!.id}"
                                     ItemType.CATEGORY_HEADER -> "category_${item.category}"
-                                    ItemType.BOOK -> "${item.category}_${item.book!!.path}"
+                                    ItemType.BOOK -> "${item.category}_${item.book!!.id}"
                                 }
                             }
                         ) { index, item ->

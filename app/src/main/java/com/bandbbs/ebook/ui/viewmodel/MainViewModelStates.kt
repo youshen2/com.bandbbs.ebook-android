@@ -79,7 +79,7 @@ data class SyncOptionsState(
     val hasCover: Boolean = false,
     val isCoverSynced: Boolean = false
 ) {
-    
+
     val syncedChapters: Int get() = syncedChapterIndices.size
 }
 
@@ -159,3 +159,8 @@ data class BandStorageInfo(
 ) {
     val showWarning: Boolean get() = StorageUtils.isStorageLow(actualAvailable) && !isLoading
 }
+
+data class BackupRestoreResult(
+    val success: Boolean,
+    val message: String
+)
