@@ -159,7 +159,7 @@ fun StatisticsScreen(
                         start = 16.dp,
                         top = 16.dp,
                         end = 16.dp,
-                        bottom = 80.dp
+                        bottom = 100.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -435,14 +435,10 @@ fun BookStatRow(
     }
 }
 
-// ... WeeklyStatsChart, DailyStatsChart, BookReadingTimeDetailDialog, calculate functions ...
-// (Keep existing implementations of these functions as they handle the drawing logic)
-
 @Composable
 fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
     val maxSeconds = weeklyStats.maxOfOrNull { it.seconds } ?: 1L
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val dayFormat = SimpleDateFormat("dd", Locale.getDefault())
     val weekDayFormat = SimpleDateFormat("E", Locale.getDefault())
 
     Row(
@@ -504,7 +500,7 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
         verticalAlignment = Alignment.Bottom
     ) {
         recentStats.forEach { stat ->
@@ -516,9 +512,8 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
 
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(80.dp)
-                    .padding(horizontal = 1.dp),
+                    .width(8.dp)
+                    .height(80.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Spacer(
@@ -1120,7 +1115,7 @@ fun BookStatisticsScreen(
                         start = 16.dp,
                         top = 16.dp,
                         end = 16.dp,
-                        bottom = if (bookName.isEmpty()) 80.dp else 20.dp
+                        bottom = if (bookName.isEmpty()) 80.dp else 100.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {

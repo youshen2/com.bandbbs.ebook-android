@@ -179,14 +179,14 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
-    
+
     LaunchedEffect(bandStorageInfo.totalStorage) {
         if (bandStorageInfo.totalStorage > 0 && !bandStorageInfo.isLoading) {
             kotlinx.coroutines.delay(100)
             scrollState.animateScrollToItem(0)
         }
     }
-    
+
     LaunchedEffect(expandedBookPath) {
         if (expandedBookPath != null) {
             val book = books.find { it.path == expandedBookPath }
@@ -208,7 +208,7 @@ fun MainScreen(
             }
         }
     }
-    
+
     val categorySheetState = rememberModalBottomSheetState()
 
     val pushSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -246,7 +246,7 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteSelectedBooks() },
             title = { Text("批量删除书籍") },
-            text = { 
+            text = {
                 Column {
                     Text("确定要删除以下 ${booksToDelete.size} 本书籍吗？此操作将同时删除文件和所有章节数据，且不可恢复。")
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1141,7 +1141,7 @@ fun MainScreen(
                             start = 16.dp,
                             top = 8.dp,
                             end = 16.dp,
-                            bottom = 100.dp
+                            bottom = 120.dp
                         )
                     ) {
                         if (connectionState.isConnected && !bandStorageInfo.isLoading) {

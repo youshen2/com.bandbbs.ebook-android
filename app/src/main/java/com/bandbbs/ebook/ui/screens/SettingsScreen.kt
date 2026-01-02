@@ -103,7 +103,7 @@ fun SettingsScreen(
                 start = 16.dp,
                 top = 8.dp,
                 end = 16.dp,
-                bottom = 80.dp
+                bottom = 100.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
