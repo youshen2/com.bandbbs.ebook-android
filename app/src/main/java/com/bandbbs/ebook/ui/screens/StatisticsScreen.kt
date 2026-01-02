@@ -168,7 +168,7 @@ fun StatisticsScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             ),
                             shape = RoundedCornerShape(20.dp)
                         ) {

@@ -151,6 +151,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val AUTO_RETRY_ON_TRANSFER_ERROR_KEY = "auto_retry_on_transfer_error"
     private val HAS_CLICKED_TRANSFER_BUTTON_KEY = "has_clicked_transfer_button"
     private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
+    private val LAST_SPLIT_METHOD_KEY = "last_split_method"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -361,10 +362,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun requestDeleteSelectedBooks() {
         val selectedPaths = _selectedBooks.value
         if (selectedPaths.isEmpty()) return
-        
+
         val booksToDelete = _books.value.filter { it.path in selectedPaths }
         if (booksToDelete.isEmpty()) return
-        
+
         _booksToDelete.value = booksToDelete
     }
 
@@ -375,7 +376,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmDeleteSelectedBooks() {
         val booksToDelete = _booksToDelete.value
         if (booksToDelete.isEmpty()) return
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             booksToDelete.forEach { book ->
                 File(book.path).delete()
@@ -492,11 +493,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resetPushState() = pushHandler.resetPushState()
 
     fun deleteBandChapters(book: Book, chapterIndices: Set<Int>) {
-        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { 
+        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
             Log.e("MainViewModel", "Cannot get file connection")
             return
         }
-        
+
         if (fileConn.busy) {
             Log.w("MainViewModel", "File connection is busy")
             return
@@ -557,7 +558,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 )
-                
+
                 if (!success) {
                     withContext(Dispatchers.Main) {
                         val currentState = _pushState.value
@@ -1436,6 +1437,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         editor.putBoolean(IP_COLLECTION_PERMISSION_KEY, allowed)
         editor.putBoolean(IP_COLLECTION_PERMISSION_ASKED_KEY, true)
         editor.apply()
+
+        _ipCollectionAllowed.value = allowed
 
         _ipCollectionPermissionState.value = IpCollectionPermissionState(showSheet = false)
 

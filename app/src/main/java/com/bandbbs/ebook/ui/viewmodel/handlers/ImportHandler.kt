@@ -40,6 +40,9 @@ class ImportHandler(
     private val onBooksChanged: () -> Unit,
 ) {
 
+    private val prefs = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
+    private val LAST_SPLIT_METHOD_KEY = "last_split_method"
+
     fun startImport(uri: Uri) {
         startImportBatch(listOf(uri))
     }
@@ -99,10 +102,14 @@ class ImportHandler(
                 return@launch
             }
 
+            val defaultSplitMethod = prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
+                ?: ChapterSplitter.METHOD_DEFAULT
+
             withContext(Dispatchers.Main) {
                 importState.value = com.bandbbs.ebook.ui.viewmodel.ImportState(
                     uris = validFiles.map { it.uri },
-                    files = validFiles
+                    files = validFiles,
+                    splitMethod = defaultSplitMethod
                 )
             }
         }
@@ -125,6 +132,10 @@ class ImportHandler(
         customRegex: String = ""
     ) {
         val state = importState.value ?: return
+
+        if (!noSplit && splitMethod != ChapterSplitter.METHOD_DEFAULT) {
+            prefs.edit().putString(LAST_SPLIT_METHOD_KEY, splitMethod).apply()
+        }
 
         scope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -973,4 +984,3 @@ class ImportHandler(
         importReportState.value = null
     }
 }
-
