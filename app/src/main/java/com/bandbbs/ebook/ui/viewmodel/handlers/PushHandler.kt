@@ -1,8 +1,11 @@
 package com.bandbbs.ebook.ui.viewmodel.handlers
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.bandbbs.ebook.database.AppDatabase
+import com.bandbbs.ebook.notifications.ForegroundTransferService
+import com.bandbbs.ebook.notifications.LiveNotificationManager
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.ui.viewmodel.PushState
 import com.bandbbs.ebook.ui.viewmodel.SyncOptionsState
@@ -14,9 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.content.Context
-import com.bandbbs.ebook.notifications.ForegroundTransferService
-import com.bandbbs.ebook.notifications.LiveNotificationManager
 
 class PushHandler(
     private val db: AppDatabase,
@@ -382,7 +382,7 @@ class PushHandler(
                         val title = "$progressPercent%"
                         ForegroundTransferService.startService(appContext, title, preview, progressPercent)
                         LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
-                        
+
                         if (sortedIndices.isNotEmpty() && p > 0) {
                             val currentIndex = (p * sortedIndices.size).toInt().coerceAtMost(sortedIndices.size - 1)
                             currentTransferChapterIndex = sortedIndices[currentIndex]
@@ -420,9 +420,9 @@ class PushHandler(
                 LiveNotificationManager.showTransferNotification("重试中", "等待重连... (第${retryCount}/${maxRetryCount}次)", null)
             }
             delay(5000)
-            
+
             if (!isRetrying) break
-            
+
             try {
                 withContext(Dispatchers.Main) {
                     ForegroundTransferService.startService(appContext, "重试中", "正在重连...", null)
@@ -430,18 +430,18 @@ class PushHandler(
                 }
                 connectionHandler.reconnect()
                 delay(500)
-                
+
                 val conn = connectionHandler.getHandshake()
                 conn.init()
                 delay(500)
-                
+
                 val fileConn = connectionHandler.getFileConnection()
-                
+
                 val book = currentTransferBook!!
                 val sortedIndices = currentTransferChapters!!
                 val syncCover = currentTransferSyncCover
                 val isCoverAlreadySynced = currentTransferIsCoverAlreadySynced
-                
+
                 val bookEntity = db.bookDao().getBookByPath(book.path)
                 if (bookEntity == null) {
                     withContext(Dispatchers.Main) {
@@ -462,22 +462,23 @@ class PushHandler(
                     resetTransferState()
                     return
                 }
-                
+
                 val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
-                
-                val failedIndexInList = if (failedChapterIndex >= 0 && sortedIndices.contains(failedChapterIndex)) {
-                    sortedIndices.indexOf(failedChapterIndex)
+
+                val targetIndex = if (failedChapterIndex > 0 && sortedIndices.contains(failedChapterIndex)) {
+                    failedChapterIndex
+                } else if (currentTransferChapterIndex > 0 && sortedIndices.contains(currentTransferChapterIndex)) {
+                    currentTransferChapterIndex
+                } else if (sortedIndices.contains(failedChapterIndex)) {
+                    failedChapterIndex
                 } else {
-                    val currentIndex = if (currentTransferChapterIndex > 0 && sortedIndices.contains(currentTransferChapterIndex)) {
-                        sortedIndices.indexOf(currentTransferChapterIndex)
-                    } else {
-                        0
-                    }
-                    currentIndex
+                    sortedIndices.first()
                 }
+
+                val failedIndexInList = sortedIndices.indexOf(targetIndex)
                 val retryStartIndex = (failedIndexInList - 10).coerceAtLeast(0)
                 val retryChapters = sortedIndices.subList(retryStartIndex, sortedIndices.size)
-                
+
                 if (retryChapters.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         addTransferLog("[错误] 重试章节列表为空")
@@ -497,13 +498,13 @@ class PushHandler(
                     resetTransferState()
                     return
                 }
-                
+
                 val retryStartFromIndex = retryChapters.first()
                 val firstChapterName = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                     .find { it.index == retryStartFromIndex }?.name ?: ""
-                
-                val coverImagePath = if (syncCover && !isCoverAlreadySynced) bookEntity.coverImagePath else null
-                
+
+                val coverImagePath = if (syncCover && !isCoverAlreadySynced && retryStartIndex == 0) bookEntity.coverImagePath else null
+
                 withContext(Dispatchers.Main) {
                     addTransferLog("[重连] 重连成功，从第 ${retryStartIndex + 1} 章重新开始传输（共 ${retryChapters.size} 章）")
                     pushState.update {
@@ -512,7 +513,7 @@ class PushHandler(
                             isTransferring = true
                         )
                     }
-                    
+
                     fileConn.sentChapters(
                         book = book,
                         bookId = bookEntity.id,
@@ -587,7 +588,7 @@ class PushHandler(
                             val title = "$progressPercent%"
                             ForegroundTransferService.startService(appContext, title, preview, progressPercent)
                             LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
-                            
+
                             if (retryChapters.isNotEmpty() && p > 0) {
                                 val currentIndex = (p * retryChapters.size).toInt().coerceAtMost(retryChapters.size - 1)
                                 currentTransferChapterIndex = retryChapters[currentIndex]
@@ -612,7 +613,7 @@ class PushHandler(
                         }
                     )
                 }
-                
+
                 isRetrying = false
                 return
             } catch (e: Exception) {
@@ -641,7 +642,7 @@ class PushHandler(
                 }
             }
         }
-        
+
         if (isRetrying) {
             withContext(Dispatchers.Main) {
                 addTransferLog("[错误] 已达到最大重试次数(${maxRetryCount}次)，传输失败")
@@ -688,4 +689,3 @@ class PushHandler(
         resetTransferState()
     }
 }
-
