@@ -107,7 +107,6 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Group: Display & Interaction
             item {
                 SettingsGroup(title = "显示与交互") {
                     SettingsTile(
@@ -148,7 +147,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Group: Appearance
             item {
                 SettingsGroup(title = "外观") {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -195,7 +193,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Group: Sync & Connection
             item {
                 SettingsGroup(title = "同步与连接") {
                     SettingsTile(
@@ -222,7 +219,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Group: Updates & Privacy
             item {
                 SettingsGroup(title = "更新与隐私") {
                     SettingsTile(
@@ -250,7 +246,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Group: Advanced
             item {
                 SettingsGroup(title = "高级") {
                     SettingsActionTile(
@@ -263,7 +258,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Group: About
             item {
                 SettingsGroup {
                     SettingsActionTile(

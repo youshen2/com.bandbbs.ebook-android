@@ -230,7 +230,6 @@ fun ImportBookBottomSheet(
         if (!isBookNameExists || isMultipleFiles) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Metadata Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -249,7 +248,6 @@ fun ImportBookBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Chapter Splitting Settings Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -346,7 +344,6 @@ fun ImportBookBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Advanced Processing Card
             if (hasEpubOrNvb && !noSplit) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),

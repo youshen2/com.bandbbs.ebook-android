@@ -61,7 +61,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-// ... ReadingTimeStats, BookStat, DailyStat data classes remain the same ...
 data class ReadingTimeStats(
     val totalSeconds: Long = 0L,
     val totalFormatted: String = "0分钟",
@@ -163,7 +162,6 @@ fun StatisticsScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Hero Card: Total Time
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -200,7 +198,6 @@ fun StatisticsScreen(
                         }
                     }
 
-                    // Grid Stats
                     item {
                         StatGroup(title = "概览") {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -243,7 +240,6 @@ fun StatisticsScreen(
                         }
                     }
 
-                    // Charts
                     if (readingStats.weeklyStats.isNotEmpty()) {
                         item {
                             StatGroup(title = "本周趋势") {
@@ -264,7 +260,6 @@ fun StatisticsScreen(
                         }
                     }
 
-                    // Book List
                     if (readingStats.bookStats.isNotEmpty()) {
                         item {
                             StatGroup(title = "书籍排行") {
@@ -621,9 +616,6 @@ fun InfoRow(
         )
     }
 }
-
-// ... formatDuration, calculateReadingTimeStats, calculateBookReadingTimeStats ...
-// (Keep existing implementations logic)
 
 suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     val readingTimePrefs = context.getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
@@ -1123,7 +1115,7 @@ fun BookStatisticsScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             ),
                             shape = RoundedCornerShape(20.dp)
                         ) {
