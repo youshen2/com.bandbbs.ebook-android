@@ -42,6 +42,7 @@ class ImportHandler(
 
     private val prefs = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
+    private val LAST_CUSTOM_REGEX_KEY = "last_custom_regex"
 
     fun startImport(uri: Uri) {
         startImportBatch(listOf(uri))
@@ -104,12 +105,14 @@ class ImportHandler(
 
             val defaultSplitMethod = prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
                 ?: ChapterSplitter.METHOD_DEFAULT
+            val savedCustomRegex = prefs.getString(LAST_CUSTOM_REGEX_KEY, "") ?: ""
 
             withContext(Dispatchers.Main) {
                 importState.value = com.bandbbs.ebook.ui.viewmodel.ImportState(
                     uris = validFiles.map { it.uri },
                     files = validFiles,
-                    splitMethod = defaultSplitMethod
+                    splitMethod = defaultSplitMethod,
+                    customRegex = savedCustomRegex
                 )
             }
         }
@@ -135,6 +138,9 @@ class ImportHandler(
 
         if (!noSplit && splitMethod != ChapterSplitter.METHOD_DEFAULT) {
             prefs.edit().putString(LAST_SPLIT_METHOD_KEY, splitMethod).apply()
+        }
+        if (!noSplit && splitMethod == ChapterSplitter.METHOD_CUSTOM && customRegex.isNotBlank()) {
+            prefs.edit().putString(LAST_CUSTOM_REGEX_KEY, customRegex).apply()
         }
 
         scope.launch(Dispatchers.IO) {

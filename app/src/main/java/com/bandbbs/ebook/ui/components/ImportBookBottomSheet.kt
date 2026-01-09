@@ -130,6 +130,12 @@ fun ImportBookBottomSheet(
         selectedCategory = state.selectedCategory
     }
 
+    androidx.compose.runtime.LaunchedEffect(state.customRegex) {
+        if (splitMethod == ChapterSplitter.METHOD_CUSTOM && state.customRegex.isNotBlank()) {
+            customRegex = state.customRegex
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,7 +181,6 @@ fun ImportBookBottomSheet(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // File Information Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -318,7 +323,7 @@ fun ImportBookBottomSheet(
                         if (splitMethod == ChapterSplitter.METHOD_CUSTOM) {
                             androidx.compose.runtime.LaunchedEffect(splitMethod) {
                                 if (customRegex.isBlank()) {
-                                    customRegex = """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$"""
+                                    customRegex = state.customRegex.ifBlank { """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$""" }
                                 }
                             }
                             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
