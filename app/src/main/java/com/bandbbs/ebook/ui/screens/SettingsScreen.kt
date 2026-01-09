@@ -118,7 +118,7 @@ fun SettingsScreen(
                     SettingsActionTile(
                         icon = Icons.Outlined.Settings,
                         title = "手环端设置",
-                        description = "修改手环端阅读器的各项参数",
+                        description = "修改手环端的各项设置项",
                         onClick = onBandSettingsClick
                     )
                 }

@@ -33,21 +33,54 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.json.JSONObject
 import java.io.File
 import kotlin.math.abs
 
 data class BandSettingsState(
-    val fontSize: Int = 28,
+    val fontSize: Int = 30,
     val opacity: Int = 100,
     val boldEnabled: Boolean = true,
     val verticalMargin: Int = 10,
     val timeFormat: String = "24h",
     val readMode: String = "scroll",
-    val txtSizePage: Int = 800,
+    val txtSizePage: Int = 400,
     val showProgressBar: Boolean = true,
     val showProgressBarPercent: Boolean = false,
+    val progressBarOpacity: Int = 100,
+    val progressBarHeight: Int = 8,
     val preloadChapter: Boolean = false,
-    val preventParagraphSplitting: Boolean = false
+    val preventParagraphSplitting: Boolean = false,
+    val brightness: Int = 128,
+    val brightnessFollowSystem: Boolean = true,
+    val alwaysShowTime: Boolean = false,
+    val alwaysShowBattery: Boolean = true,
+    val alwaysShowTimeSensitivity: Int = 200,
+    val chapterStartEmptyLines: Boolean = false,
+    val chapterStartNumber: Boolean = false,
+    val chapterStartName: Boolean = false,
+    val chapterStartWordCount: Boolean = false,
+    val chapterSwitchStyle: String = "button",
+    val chapterSwitchHeight: Int = 80,
+    val chapterSwitchSensitivity: Int = 50,
+    val chapterSwitchShowInfo: Boolean = false,
+    val swipeSensitivity: Int = 80,
+    val swipe: String = "column",
+    val autoReadEnabled: Boolean = false,
+    val autoReadSpeed: Int = 10,
+    val autoReadDistance: Int = 100,
+    val gesture: String = "single",
+    val progressSaveMode: String = "exit",
+    val progressSaveInterval: Int = 10,
+    val shelfMarqueeEnabled: Boolean = false,
+    val bookmarkMarqueeEnabled: Boolean = false,
+    val bookinfoMarqueeEnabled: Boolean = true,
+    val chapterListMarqueeEnabled: Boolean = false,
+    val textReaderMarqueeEnabled: Boolean = false,
+    val detailMarqueeEnabled: Boolean = false,
+    val detailProgressMarqueeEnabled: Boolean = false,
+    val nostalgicPageTurnMode: String = "topBottomClick",
+    val teacherScreenEnabled: Boolean = false
 )
 
 data class GlobalLoadingState(
@@ -2056,23 +2089,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "EBOOK_FONT", "EBOOK_OPACITY", "EBOOK_BOLD_ENABLED",
                     "EBOOK_VERTICAL_MARGIN", "EBOOK_TIME_FORMAT", "EBOOK_READ_MODE",
                     "EBOOK_TXTSZPAGE", "EBOOK_SHOW_PROGRESS_BAR",
-                    "EBOOK_SHOW_PROGRESS_BAR_PERCENT", "EBOOK_PRELOAD_CHAPTER",
-                    "EBOOK_PREVENT_PARAGRAPH_SPLITTING"
+                    "EBOOK_SHOW_PROGRESS_BAR_PERCENT", "EBOOK_PROGRESS_BAR_OPACITY",
+                    "EBOOK_PROGRESS_BAR_HEIGHT", "EBOOK_PRELOAD_CHAPTER",
+                    "EBOOK_PREVENT_PARAGRAPH_SPLITTING", "EBOOK_BRIGHTNESS",
+                    "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", "EBOOK_ALWAYS_SHOW_TIME",
+                    "EBOOK_ALWAYS_SHOW_BATTERY", "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY",
+                    "EBOOK_CHAPTER_START_EMPTY_LINES", "EBOOK_CHAPTER_START_NUMBER",
+                    "EBOOK_CHAPTER_START_NAME", "EBOOK_CHAPTER_START_WORD_COUNT",
+                    "EBOOK_CHAPTER_SWITCH_STYLE", "EBOOK_CHAPTER_SWITCH_HEIGHT",
+                    "EBOOK_CHAPTER_SWITCH_SENSITIVITY", "EBOOK_CHAPTER_SWITCH_SHOW_INFO",
+                    "EBOOK_SWIPE_SENSITIVITY", "EBOOK_SWIPE", "EBOOK_AUTO",
+                    "EBOOK_AUTO_READ_DISTANCE", "EBOOK_GESTURE",
+                    "EBOOK_PROGRESS_SAVE_MODE", "EBOOK_PROGRESS_SAVE_INTERVAL",
+                    "EBOOK_SHELF_MARQUEE_ENABLED", "EBOOK_BOOKMARK_MARQUEE_ENABLED",
+                    "EBOOK_BOOKINFO_MARQUEE_ENABLED", "EBOOK_CHAPTER_LIST_MARQUEE_ENABLED",
+                    "EBOOK_TEXT_READER_MARQUEE_ENABLED", "EBOOK_DETAIL_MARQUEE_ENABLED",
+                    "EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED", "EBOOK_NOSTALGIC_PAGE_TURN_MODE",
+                    "EBOOK_TEACHER_SCREEN_ENABLED"
                 ))
+
+                val autoReadData = try {
+                    settings["EBOOK_AUTO"]?.let { json ->
+                        val jsonObj = JSONObject(json)
+                        Pair(jsonObj.optBoolean("enable", false), jsonObj.optInt("speed", 10))
+                    } ?: Pair(false, 10)
+                } catch (e: Exception) {
+                    Pair(false, 10)
+                }
 
                 withContext(Dispatchers.Main) {
                     _bandSettingsState.value = BandSettingsState(
-                        fontSize = settings["EBOOK_FONT"]?.toIntOrNull() ?: 28,
+                        fontSize = settings["EBOOK_FONT"]?.toIntOrNull() ?: 30,
                         opacity = settings["EBOOK_OPACITY"]?.toIntOrNull() ?: 100,
-                        boldEnabled = settings["EBOOK_BOLD_ENABLED"] != "false",
+                        boldEnabled = settings["EBOOK_BOLD_ENABLED"]?.let { it != "false" } ?: true,
                         verticalMargin = settings["EBOOK_VERTICAL_MARGIN"]?.toIntOrNull() ?: 10,
                         timeFormat = settings["EBOOK_TIME_FORMAT"] ?: "24h",
                         readMode = settings["EBOOK_READ_MODE"] ?: "scroll",
-                        txtSizePage = settings["EBOOK_TXTSZPAGE"]?.toIntOrNull() ?: 800,
-                        showProgressBar = settings["EBOOK_SHOW_PROGRESS_BAR"] != "false",
+                        txtSizePage = settings["EBOOK_TXTSZPAGE"]?.toIntOrNull() ?: 400,
+                        showProgressBar = settings["EBOOK_SHOW_PROGRESS_BAR"]?.let { it == "true" } ?: true,
                         showProgressBarPercent = settings["EBOOK_SHOW_PROGRESS_BAR_PERCENT"] == "true",
+                        progressBarOpacity = settings["EBOOK_PROGRESS_BAR_OPACITY"]?.toIntOrNull() ?: 100,
+                        progressBarHeight = settings["EBOOK_PROGRESS_BAR_HEIGHT"]?.toIntOrNull() ?: 8,
                         preloadChapter = settings["EBOOK_PRELOAD_CHAPTER"] == "true",
-                        preventParagraphSplitting = settings["EBOOK_PREVENT_PARAGRAPH_SPLITTING"] == "true"
+                        preventParagraphSplitting = settings["EBOOK_PREVENT_PARAGRAPH_SPLITTING"] == "true",
+                        brightness = settings["EBOOK_BRIGHTNESS"]?.toIntOrNull() ?: 128,
+                        brightnessFollowSystem = settings["EBOOK_BRIGHTNESS_FOLLOW_SYSTEM"]?.let { it != "false" } ?: true,
+                        alwaysShowTime = settings["EBOOK_ALWAYS_SHOW_TIME"] == "true",
+                        alwaysShowBattery = settings["EBOOK_ALWAYS_SHOW_BATTERY"]?.let { it != "false" } ?: true,
+                        alwaysShowTimeSensitivity = settings["EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY"]?.toIntOrNull() ?: 200,
+                        chapterStartEmptyLines = settings["EBOOK_CHAPTER_START_EMPTY_LINES"] == "true",
+                        chapterStartNumber = settings["EBOOK_CHAPTER_START_NUMBER"] == "true",
+                        chapterStartName = settings["EBOOK_CHAPTER_START_NAME"] == "true",
+                        chapterStartWordCount = settings["EBOOK_CHAPTER_START_WORD_COUNT"] == "true",
+                        chapterSwitchStyle = settings["EBOOK_CHAPTER_SWITCH_STYLE"] ?: "button",
+                        chapterSwitchHeight = settings["EBOOK_CHAPTER_SWITCH_HEIGHT"]?.toIntOrNull() ?: 80,
+                        chapterSwitchSensitivity = settings["EBOOK_CHAPTER_SWITCH_SENSITIVITY"]?.toIntOrNull() ?: 50,
+                        chapterSwitchShowInfo = settings["EBOOK_CHAPTER_SWITCH_SHOW_INFO"] == "true",
+                        swipeSensitivity = settings["EBOOK_SWIPE_SENSITIVITY"]?.toIntOrNull() ?: 80,
+                        swipe = settings["EBOOK_SWIPE"] ?: "column",
+                        autoReadEnabled = autoReadData.first,
+                        autoReadSpeed = autoReadData.second,
+                        autoReadDistance = settings["EBOOK_AUTO_READ_DISTANCE"]?.toIntOrNull() ?: 100,
+                        gesture = settings["EBOOK_GESTURE"] ?: "single",
+                        progressSaveMode = settings["EBOOK_PROGRESS_SAVE_MODE"] ?: "exit",
+                        progressSaveInterval = settings["EBOOK_PROGRESS_SAVE_INTERVAL"]?.toIntOrNull() ?: 10,
+                        shelfMarqueeEnabled = settings["EBOOK_SHELF_MARQUEE_ENABLED"] == "true",
+                        bookmarkMarqueeEnabled = settings["EBOOK_BOOKMARK_MARQUEE_ENABLED"] == "true",
+                        bookinfoMarqueeEnabled = settings["EBOOK_BOOKINFO_MARQUEE_ENABLED"]?.let { it == "true" } ?: true,
+                        chapterListMarqueeEnabled = settings["EBOOK_CHAPTER_LIST_MARQUEE_ENABLED"] == "true",
+                        textReaderMarqueeEnabled = settings["EBOOK_TEXT_READER_MARQUEE_ENABLED"] == "true",
+                        detailMarqueeEnabled = settings["EBOOK_DETAIL_MARQUEE_ENABLED"] == "true",
+                        detailProgressMarqueeEnabled = settings["EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED"] == "true",
+                        nostalgicPageTurnMode = settings["EBOOK_NOSTALGIC_PAGE_TURN_MODE"] ?: "topBottomClick",
+                        teacherScreenEnabled = settings["EBOOK_TEACHER_SCREEN_ENABLED"] == "true"
                     )
                     _globalLoadingState.value = GlobalLoadingState(isLoading = false)
                 }
@@ -2097,8 +2186,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "EBOOK_TXTSZPAGE" -> current.copy(txtSizePage = value.toInt())
                 "EBOOK_SHOW_PROGRESS_BAR" -> current.copy(showProgressBar = value.toBoolean())
                 "EBOOK_SHOW_PROGRESS_BAR_PERCENT" -> current.copy(showProgressBarPercent = value.toBoolean())
+                "EBOOK_PROGRESS_BAR_OPACITY" -> current.copy(progressBarOpacity = value.toInt())
                 "EBOOK_PRELOAD_CHAPTER" -> current.copy(preloadChapter = value.toBoolean())
                 "EBOOK_PREVENT_PARAGRAPH_SPLITTING" -> current.copy(preventParagraphSplitting = value.toBoolean())
+                "EBOOK_BRIGHTNESS" -> current.copy(brightness = value.toInt())
+                "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM" -> current.copy(brightnessFollowSystem = value.toBoolean())
+                "EBOOK_ALWAYS_SHOW_TIME" -> current.copy(alwaysShowTime = value.toBoolean())
+                "EBOOK_ALWAYS_SHOW_BATTERY" -> current.copy(alwaysShowBattery = value.toBoolean())
+                "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY" -> current.copy(alwaysShowTimeSensitivity = value.toInt())
+                "EBOOK_CHAPTER_START_EMPTY_LINES" -> current.copy(chapterStartEmptyLines = value.toBoolean())
+                "EBOOK_CHAPTER_START_NUMBER" -> current.copy(chapterStartNumber = value.toBoolean())
+                "EBOOK_CHAPTER_START_NAME" -> current.copy(chapterStartName = value.toBoolean())
+                "EBOOK_CHAPTER_START_WORD_COUNT" -> current.copy(chapterStartWordCount = value.toBoolean())
+                "EBOOK_CHAPTER_SWITCH_STYLE" -> current.copy(chapterSwitchStyle = value)
+                "EBOOK_CHAPTER_SWITCH_HEIGHT" -> current.copy(chapterSwitchHeight = value.toInt())
+                "EBOOK_CHAPTER_SWITCH_SENSITIVITY" -> current.copy(chapterSwitchSensitivity = value.toInt())
+                "EBOOK_CHAPTER_SWITCH_SHOW_INFO" -> current.copy(chapterSwitchShowInfo = value.toBoolean())
+                "EBOOK_SWIPE_SENSITIVITY" -> current.copy(swipeSensitivity = value.toInt())
+                "EBOOK_SWIPE" -> current.copy(swipe = value)
+                "EBOOK_AUTO_READ_DISTANCE" -> current.copy(autoReadDistance = value.toInt())
+                "EBOOK_PROGRESS_BAR_HEIGHT" -> current.copy(progressBarHeight = value.toInt())
+                "EBOOK_GESTURE" -> current.copy(gesture = value)
+                "EBOOK_PROGRESS_SAVE_MODE" -> current.copy(progressSaveMode = value)
+                "EBOOK_PROGRESS_SAVE_INTERVAL" -> current.copy(progressSaveInterval = value.toInt())
+                "EBOOK_SHELF_MARQUEE_ENABLED" -> current.copy(shelfMarqueeEnabled = value.toBoolean())
+                "EBOOK_BOOKMARK_MARQUEE_ENABLED" -> current.copy(bookmarkMarqueeEnabled = value.toBoolean())
+                "EBOOK_BOOKINFO_MARQUEE_ENABLED" -> current.copy(bookinfoMarqueeEnabled = value.toBoolean())
+                "EBOOK_CHAPTER_LIST_MARQUEE_ENABLED" -> current.copy(chapterListMarqueeEnabled = value.toBoolean())
+                "EBOOK_TEXT_READER_MARQUEE_ENABLED" -> current.copy(textReaderMarqueeEnabled = value.toBoolean())
+                "EBOOK_DETAIL_MARQUEE_ENABLED" -> current.copy(detailMarqueeEnabled = value.toBoolean())
+                "EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED" -> current.copy(detailProgressMarqueeEnabled = value.toBoolean())
+                "EBOOK_NOSTALGIC_PAGE_TURN_MODE" -> current.copy(nostalgicPageTurnMode = value)
+                "EBOOK_TEACHER_SCREEN_ENABLED" -> current.copy(teacherScreenEnabled = value.toBoolean())
                 else -> current
             }
         }
@@ -2117,6 +2236,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error updating band setting", e)
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(getApplication(), "保存超时或失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                loadBandSettings()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    _globalLoadingState.value = GlobalLoadingState(isLoading = false)
+                }
+            }
+        }
+    }
+
+    fun updateAutoReadSetting(enabled: Boolean, speed: Int) {
+        _bandSettingsState.value?.let { current ->
+            _bandSettingsState.value = current.copy(autoReadEnabled = enabled, autoReadSpeed = speed)
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _globalLoadingState.value = GlobalLoadingState(isLoading = true, message = "正在保存设置...")
+            }
+            try {
+                withTimeout(5000L) {
+                    val conn = connectionHandler.getFileConnection()
+                    val autoValue = JSONObject().apply {
+                        put("enable", enabled)
+                        put("speed", speed)
+                    }.toString()
+                    val success = conn.setSettings(mapOf("EBOOK_AUTO" to autoValue))
+                    if (!success) {
+                        throw Exception("设备返回失败")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error updating auto read setting", e)
                 withContext(Dispatchers.Main) {
                     android.widget.Toast.makeText(getApplication(), "保存超时或失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }

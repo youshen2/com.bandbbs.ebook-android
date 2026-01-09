@@ -1167,28 +1167,40 @@ fun MainScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            Column(
+                                                modifier = Modifier.weight(1f)
                                             ) {
-                                                if (bandStorageInfo.showWarning) {
-                                                    Icon(
-                                                        Icons.Outlined.Warning,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                                                        modifier = Modifier.size(20.dp)
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    if (bandStorageInfo.showWarning) {
+                                                        Icon(
+                                                            Icons.Outlined.Warning,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = "手环存储空间",
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (bandStorageInfo.showWarning) {
+                                                            MaterialTheme.colorScheme.onErrorContainer
+                                                        } else {
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        }
                                                     )
                                                 }
-                                                Text(
-                                                    text = "手环存储空间",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (bandStorageInfo.showWarning) {
-                                                        MaterialTheme.colorScheme.onErrorContainer
-                                                    } else {
-                                                        MaterialTheme.colorScheme.onSurface
-                                                    }
-                                                )
+                                                if (bandStorageInfo.product != null) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = bandStorageInfo.product!!,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
                                             }
                                             IconButton(
                                                 onClick = { showStorageHelpDialog = true },

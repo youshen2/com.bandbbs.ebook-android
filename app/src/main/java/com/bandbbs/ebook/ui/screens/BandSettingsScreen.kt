@@ -193,6 +193,33 @@ fun BandSettingsScreen(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
+                        if (settings.readMode == "nostalgic") {
+                            ListItem(
+                                headlineContent = { Text("怀旧模式翻页方式") },
+                                trailingContent = {
+                                    DropdownMenuBox(
+                                        options = listOf("swipe" to "左右滑动", "sideClick" to "两侧点击", "topBottomClick" to "上下点击"),
+                                        selectedKey = settings.nostalgicPageTurnMode,
+                                        onSelected = { viewModel.updateBandSetting("EBOOK_NOSTALGIC_PAGE_TURN_MODE", it) }
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+
+                        ListItem(
+                            headlineContent = { Text("手势模式") },
+                            supportingContent = { Text("单击或双击屏幕切换UI") },
+                            trailingContent = {
+                                DropdownMenuBox(
+                                    options = listOf("single" to "单击切换", "double" to "双击切换"),
+                                    selectedKey = settings.gesture,
+                                    onSelected = { viewModel.updateBandSetting("EBOOK_GESTURE", it) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
                         ListItem(
                             headlineContent = { Text("显示进度条") },
                             trailingContent = {
@@ -215,6 +242,292 @@ fun BandSettingsScreen(
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
+
+                            var progressBarOpacity by remember(settings.progressBarOpacity) { mutableFloatStateOf(settings.progressBarOpacity.toFloat()) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("进度条透明度: ${progressBarOpacity.toInt()}%", style = MaterialTheme.typography.bodyLarge)
+                                Slider(
+                                    value = progressBarOpacity,
+                                    onValueChange = { progressBarOpacity = it },
+                                    onValueChangeFinished = {
+                                        viewModel.updateBandSetting("EBOOK_PROGRESS_BAR_OPACITY", progressBarOpacity.toInt().toString())
+                                    },
+                                    valueRange = 0f..100f,
+                                    steps = 99
+                                )
+                            }
+
+                            var progressBarHeight by remember(settings.progressBarHeight) { mutableFloatStateOf(settings.progressBarHeight.toFloat()) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("进度条高度: ${progressBarHeight.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                Slider(
+                                    value = progressBarHeight,
+                                    onValueChange = { progressBarHeight = it },
+                                    onValueChangeFinished = {
+                                        viewModel.updateBandSetting("EBOOK_PROGRESS_BAR_HEIGHT", progressBarHeight.toInt().toString())
+                                    },
+                                    valueRange = 5f..50f,
+                                    steps = 44
+                                )
+                            }
+                        }
+
+                        ListItem(
+                            headlineContent = { Text("屏幕亮度") },
+                            supportingContent = { Text(if (settings.brightnessFollowSystem) "跟随系统" else "自定义: ${settings.brightness}") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.brightnessFollowSystem,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        if (!settings.brightnessFollowSystem) {
+                            var brightness by remember(settings.brightness) { mutableFloatStateOf(settings.brightness.toFloat()) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("自定义亮度: ${brightness.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                Slider(
+                                    value = brightness,
+                                    onValueChange = { brightness = it },
+                                    onValueChangeFinished = {
+                                        viewModel.updateBandSetting("EBOOK_BRIGHTNESS", brightness.toInt().toString())
+                                    },
+                                    valueRange = 10f..255f,
+                                    steps = 244
+                                )
+                            }
+                        }
+
+                        ListItem(
+                            headlineContent = { Text("时间常驻") },
+                            supportingContent = { Text("在阅读页始终显示时间") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.alwaysShowTime,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_TIME", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        if (settings.alwaysShowTime && settings.readMode != "nostalgic") {
+                            ListItem(
+                                headlineContent = { Text("显示电量") },
+                                supportingContent = { Text("在时间常驻时显示电量") },
+                                trailingContent = {
+                                    Switch(
+                                        checked = settings.alwaysShowBattery,
+                                        onCheckedChange = { viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_BATTERY", it.toString()) }
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+
+                            var timeSensitivity by remember(settings.alwaysShowTimeSensitivity) { mutableFloatStateOf(settings.alwaysShowTimeSensitivity.toFloat()) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("调整距离: ${timeSensitivity.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                Slider(
+                                    value = timeSensitivity,
+                                    onValueChange = { timeSensitivity = it },
+                                    onValueChangeFinished = {
+                                        viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY", timeSensitivity.toInt().toString())
+                                    },
+                                    valueRange = 0f..500f,
+                                    steps = 49
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsSection(title = "额外内容") {
+                        ListItem(
+                            headlineContent = { Text("章节开头空行") },
+                            supportingContent = { Text("每章开头增加空行") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.chapterStartEmptyLines,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_EMPTY_LINES", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("显示章节编号") },
+                            supportingContent = { Text("每章开头显示编号") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.chapterStartNumber,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_NUMBER", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("显示章节名称") },
+                            supportingContent = { Text("每章开头显示名称") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.chapterStartName,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_NAME", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("显示章节字数") },
+                            supportingContent = { Text("每章开头显示字数") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.chapterStartWordCount,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_WORD_COUNT", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    }
+                }
+
+                item {
+                    SettingsSection(title = "翻章设置") {
+                        if (settings.readMode != "nostalgic") {
+                            ListItem(
+                                headlineContent = { Text("翻章方式") },
+                                trailingContent = {
+                                    DropdownMenuBox(
+                                        options = listOf("button" to "按钮", "boundary" to "越界", "swipe" to "滑动"),
+                                        selectedKey = settings.chapterSwitchStyle,
+                                        onSelected = { viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_STYLE", it) }
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+
+                            if (settings.chapterSwitchStyle == "button") {
+                                var switchHeight by remember(settings.chapterSwitchHeight) { mutableFloatStateOf(settings.chapterSwitchHeight.toFloat()) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("按钮高度: ${switchHeight.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                    Slider(
+                                        value = switchHeight,
+                                        onValueChange = { switchHeight = it },
+                                        onValueChangeFinished = {
+                                            viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_HEIGHT", switchHeight.toInt().toString())
+                                        },
+                                        valueRange = 40f..120f,
+                                        steps = 7
+                                    )
+                                }
+
+                                ListItem(
+                                    headlineContent = { Text("显示章节信息") },
+                                    supportingContent = { Text("按钮上显示章节信息") },
+                                    trailingContent = {
+                                        Switch(
+                                            checked = settings.chapterSwitchShowInfo,
+                                            onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_SHOW_INFO", it.toString()) }
+                                        )
+                                    },
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                )
+                            }
+
+                            if (settings.chapterSwitchStyle == "boundary") {
+                                var boundarySensitivity by remember(settings.chapterSwitchSensitivity) { mutableFloatStateOf(settings.chapterSwitchSensitivity.toFloat()) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("越界灵敏度: ${boundarySensitivity.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                    Slider(
+                                        value = boundarySensitivity,
+                                        onValueChange = { boundarySensitivity = it },
+                                        onValueChangeFinished = {
+                                            viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_SENSITIVITY", boundarySensitivity.toInt().toString())
+                                        },
+                                        valueRange = 0f..100f,
+                                        steps = 99
+                                    )
+                                }
+                            }
+
+                            if (settings.chapterSwitchStyle == "swipe") {
+                                var swipeSensitivity by remember(settings.swipeSensitivity) { mutableFloatStateOf(settings.swipeSensitivity.toFloat()) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("滑动灵敏度: ${swipeSensitivity.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                    Slider(
+                                        value = swipeSensitivity,
+                                        onValueChange = { swipeSensitivity = it },
+                                        onValueChangeFinished = {
+                                            viewModel.updateBandSetting("EBOOK_SWIPE_SENSITIVITY", swipeSensitivity.toInt().toString())
+                                        },
+                                        valueRange = 0f..100f,
+                                        steps = 99
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsSection(title = "滑动与翻页") {
+                        if (settings.readMode != "nostalgic") {
+                            ListItem(
+                                headlineContent = { Text("滑动翻页") },
+                                trailingContent = {
+                                    DropdownMenuBox(
+                                        options = listOf("off" to "关闭", "column" to "上下滑动", "row" to "左右滑动"),
+                                        selectedKey = settings.swipe,
+                                        onSelected = { viewModel.updateBandSetting("EBOOK_SWIPE", it) }
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+
+                            ListItem(
+                                headlineContent = { Text("自动翻页") },
+                                supportingContent = { Text(if (settings.autoReadEnabled) "间隔: ${settings.autoReadSpeed}秒" else "长按文本以启动自动翻页") },
+                                trailingContent = {
+                                    Switch(
+                                        checked = settings.autoReadEnabled,
+                                        onCheckedChange = { viewModel.updateAutoReadSetting(it, settings.autoReadSpeed) }
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+
+                            if (settings.autoReadEnabled) {
+                                var autoReadSpeed by remember(settings.autoReadSpeed) { mutableFloatStateOf(settings.autoReadSpeed.toFloat()) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("间隔时间: ${autoReadSpeed.toInt()}秒", style = MaterialTheme.typography.bodyLarge)
+                                    Slider(
+                                        value = autoReadSpeed,
+                                        onValueChange = { autoReadSpeed = it },
+                                        onValueChangeFinished = {
+                                            viewModel.updateAutoReadSetting(settings.autoReadEnabled, autoReadSpeed.toInt())
+                                        },
+                                        valueRange = 1f..60f,
+                                        steps = 58
+                                    )
+                                }
+
+                                var autoReadDistance by remember(settings.autoReadDistance) { mutableFloatStateOf(settings.autoReadDistance.toFloat()) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("翻页距离: ${autoReadDistance.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                    Slider(
+                                        value = autoReadDistance,
+                                        onValueChange = { autoReadDistance = it },
+                                        onValueChangeFinished = {
+                                            viewModel.updateBandSetting("EBOOK_AUTO_READ_DISTANCE", autoReadDistance.toInt().toString())
+                                        },
+                                        valueRange = 0f..500f,
+                                        steps = 49
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -254,6 +567,130 @@ fun BandSettingsScreen(
                                 Switch(
                                     checked = settings.preventParagraphSplitting,
                                     onCheckedChange = { viewModel.updateBandSetting("EBOOK_PREVENT_PARAGRAPH_SPLITTING", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("进度保存模式") },
+                            trailingContent = {
+                                DropdownMenuBox(
+                                    options = listOf("exit" to "退出时保存", "periodic" to "定时保存"),
+                                    selectedKey = settings.progressSaveMode,
+                                    onSelected = { viewModel.updateBandSetting("EBOOK_PROGRESS_SAVE_MODE", it) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        if (settings.progressSaveMode == "periodic") {
+                            var saveInterval by remember(settings.progressSaveInterval) { mutableFloatStateOf(settings.progressSaveInterval.toFloat()) }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("保存间隔: ${saveInterval.toInt()}秒", style = MaterialTheme.typography.bodyLarge)
+                                Slider(
+                                    value = saveInterval,
+                                    onValueChange = { saveInterval = it },
+                                    onValueChangeFinished = {
+                                        viewModel.updateBandSetting("EBOOK_PROGRESS_SAVE_INTERVAL", saveInterval.toInt().toString())
+                                    },
+                                    valueRange = 1f..60f,
+                                    steps = 58
+                                )
+                            }
+                        }
+
+                        ListItem(
+                            headlineContent = { Text("书架跑马灯") },
+                            supportingContent = { Text("内容滚动显示") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.shelfMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_SHELF_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("书签列表跑马灯") },
+                            supportingContent = { Text("页面标题滚动") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.bookmarkMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BOOKMARK_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("书籍详情跑马灯") },
+                            supportingContent = { Text("内容滚动显示") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.bookinfoMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BOOKINFO_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("章节列表跑马灯") },
+                            supportingContent = { Text("页面标题滚动") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.chapterListMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_LIST_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("书籍阅读器跑马灯") },
+                            supportingContent = { Text("页面标题滚动") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.textReaderMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_TEXT_READER_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("文本阅读页跑马灯") },
+                            supportingContent = { Text("页面标题滚动") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.detailMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_DETAIL_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("详情页进度跑马灯") },
+                            supportingContent = { Text("底部进度滚动") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.detailProgressMarqueeEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED", it.toString()) }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+
+                        ListItem(
+                            headlineContent = { Text("快速退出应用") },
+                            supportingContent = { Text("连续点击三次屏幕退出") },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.teacherScreenEnabled,
+                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_TEACHER_SCREEN_ENABLED", it.toString()) }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
