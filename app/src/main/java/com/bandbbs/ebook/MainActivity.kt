@@ -59,7 +59,9 @@ import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.components.ChapterContentEditorPanel
 import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionBottomSheet
+import com.bandbbs.ebook.ui.components.LoadingDialog
 import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
+import com.bandbbs.ebook.ui.screens.BandSettingsScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
@@ -256,6 +258,7 @@ class MainActivity : ComponentActivity() {
 
                 val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
                 val updateCheckState by viewModel.updateCheckState.collectAsState()
+                val globalLoadingState by viewModel.globalLoadingState.collectAsState()
 
                 var currentScreen by remember { mutableStateOf("home") }
                 val isReaderOpen = chapterToPreview != null
@@ -263,7 +266,7 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     bottomBar = {
-                        if (!isReaderOpen) {
+                        if (!isReaderOpen && currentScreen != "band_settings") {
                             NavigationBar {
                                 NavigationBarItem(
                                     icon = {
@@ -319,7 +322,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { paddingValues ->
-                    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                         if (showTutorial) {
                             AlertDialog(
                                 onDismissRequest = {
@@ -353,13 +356,18 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+
+                        val targetScreenState = if (isReaderOpen) "reader" else currentScreen
+
                         AnimatedContent(
-                            targetState = if (isReaderOpen) "reader" else currentScreen,
+                            targetState = targetScreenState,
                             transitionSpec = {
                                 val isEnteringReader = targetState == "reader"
                                 val isExitingReader = initialState == "reader"
+                                val isEnteringBandSettings = targetState == "band_settings"
+                                val isExitingBandSettings = initialState == "band_settings"
 
-                                if (isEnteringReader) {
+                                if (isEnteringReader || isEnteringBandSettings) {
                                     slideInHorizontally(
                                         initialOffsetX = { it },
                                         animationSpec = tween(300)
@@ -368,7 +376,7 @@ class MainActivity : ComponentActivity() {
                                                 targetOffsetX = { -it },
                                                 animationSpec = tween(300)
                                             )
-                                } else if (isExitingReader) {
+                                } else if (isExitingReader || isExitingBandSettings) {
                                     slideInHorizontally(
                                         initialOffsetX = { -it },
                                         animationSpec = tween(300)
@@ -403,7 +411,10 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             },
-                            label = "ScreenTransition"
+                            label = "ScreenTransition",
+                            modifier = if (targetScreenState != "reader" && targetScreenState != "band_settings")
+                                Modifier.padding(bottom = paddingValues.calculateBottomPadding())
+                            else Modifier
                         ) { screen ->
                             when (screen) {
                                 "reader" -> {
@@ -469,7 +480,22 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRestoreClick = {
                                             openDocumentLauncher.launch(arrayOf("application/json"))
+                                        },
+                                        onBandSettingsClick = {
+                                            if (viewModel.connectionState.value.isConnected) {
+                                                viewModel.loadBandSettings()
+                                                currentScreen = "band_settings"
+                                            } else {
+                                                Toast.makeText(context, "请先连接手环", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
+                                    )
+                                }
+
+                                "band_settings" -> {
+                                    BandSettingsScreen(
+                                        viewModel = viewModel,
+                                        onBackClick = { currentScreen = "settings" }
                                     )
                                 }
                             }
@@ -594,6 +620,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
+                        }
+
+                        if (globalLoadingState.isLoading) {
+                            LoadingDialog(
+                                message = globalLoadingState.message
+                            )
                         }
                     }
                 }

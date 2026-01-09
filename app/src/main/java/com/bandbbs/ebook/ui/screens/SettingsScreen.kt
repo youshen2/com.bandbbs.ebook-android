@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
@@ -68,7 +69,8 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     onBackClick: () -> Unit,
     onBackupClick: () -> Unit = {},
-    onRestoreClick: () -> Unit = {}
+    onRestoreClick: () -> Unit = {},
+    onBandSettingsClick: () -> Unit = {}
 ) {
     val showRecentImport by viewModel.showRecentImport.collectAsState()
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
@@ -111,6 +113,17 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                SettingsGroup(title = "设备") {
+                    SettingsActionTile(
+                        icon = Icons.Outlined.Settings,
+                        title = "手环端设置",
+                        description = "修改手环端阅读器的各项参数",
+                        onClick = onBandSettingsClick
+                    )
+                }
+            }
+
             item {
                 SettingsGroup(title = "显示与交互") {
                     SettingsTile(

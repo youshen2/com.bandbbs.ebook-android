@@ -62,6 +62,10 @@ class InterconnetFile(private val conn: InterHandshake) {
     private var deleteChaptersErrorCallback: ((String) -> Unit)? = null
     private var transferStartChapterIndex: Int = 0
     var onStorageInfo: ((BandStorageInfoData) -> Unit)? = null
+
+    private var settingsCompleter: CompletableDeferred<Map<String, String>>? = null
+    private var settingsUpdateCompleter: CompletableDeferred<Boolean>? = null
+
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()
     private var currentCoverChunkIndex: Int = 0
@@ -89,6 +93,10 @@ class InterconnetFile(private val conn: InterHandshake) {
         currentCoverChunkIndex = 0
         hasPendingCoverTransfer = false
         isCoverOnlyTransfer = false
+        settingsCompleter?.cancel()
+        settingsCompleter = null
+        settingsUpdateCompleter?.cancel()
+        settingsUpdateCompleter = null
     }
 
     init {
@@ -125,6 +133,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                             deleteChaptersProgressCallback = null
                             deleteChaptersSuccessCallback = null
                             deleteChaptersErrorCallback = null
+                        } else if (settingsCompleter != null) {
+                            settingsCompleter?.completeExceptionally(Exception(jsonMessage.message))
+                            settingsCompleter = null
+                        } else if (settingsUpdateCompleter != null) {
+                            settingsUpdateCompleter?.complete(false)
+                            settingsUpdateCompleter = null
                         } else {
                             if (::onError.isInitialized) {
                                 onError(jsonMessage.message, jsonMessage.count)
@@ -142,6 +156,9 @@ class InterconnetFile(private val conn: InterHandshake) {
                             deleteChaptersProgressCallback = null
                             deleteChaptersSuccessCallback = null
                             deleteChaptersErrorCallback = null
+                        } else if (settingsUpdateCompleter != null) {
+                            settingsUpdateCompleter?.complete(true)
+                            settingsUpdateCompleter = null
                         } else {
                             if (::onSuccess.isInitialized) {
                                 onSuccess(jsonMessage.message, jsonMessage.count)
@@ -285,6 +302,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                         )
                     }
 
+                    "settings_data" -> {
+                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SettingsData>(it)
+                        settingsCompleter?.complete(jsonMessage.settings)
+                        settingsCompleter = null
+                    }
+
                     "usuage" -> TODO()
                 }
             } catch (e: Exception) {
@@ -303,19 +326,19 @@ class InterconnetFile(private val conn: InterHandshake) {
         return try {
             conn.init()
             delay(500L)
-            
+
             deleteChaptersCompleter = CompletableDeferred()
             deleteChaptersProgressCallback = onProgress
             deleteChaptersSuccessCallback = onSuccess
             deleteChaptersErrorCallback = onError
-            
+
             val message = FileMessagesToSend.DeleteChapters(
                 filename = bookName,
                 chapterIndices = chapterIndices
             )
             conn.sendMessage(json.encodeToString(message)).await()
             Log.d("File", "Sent delete_chapters command for ${chapterIndices.size} chapters")
-            
+
             val result = deleteChaptersCompleter?.await() ?: false
             deleteChaptersCompleter = null
             deleteChaptersProgressCallback = null
@@ -362,6 +385,22 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.init()
         delay(500L)
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetStorageInfo())).await()
+    }
+
+    suspend fun getSettings(keys: List<String>): Map<String, String> {
+        conn.init()
+        delay(500L)
+        settingsCompleter = CompletableDeferred()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetSettings(keys = keys))).await()
+        return settingsCompleter!!.await()
+    }
+
+    suspend fun setSettings(settings: Map<String, String>): Boolean {
+        conn.init()
+        delay(200L)
+        settingsUpdateCompleter = CompletableDeferred()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings))).await()
+        return settingsUpdateCompleter!!.await()
     }
 
     suspend fun setReadingData(
@@ -964,6 +1003,12 @@ class InterconnetFile(private val conn: InterHandshake) {
             val usedStorage: Long = 0,
             val actualAvailable: Long = 0
         ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class SettingsData(
+            val type: String = "settings_data",
+            val settings: Map<String, String>
+        ) : FileMessagesFromDevice()
     }
 
     @Serializable
@@ -1088,6 +1133,20 @@ class InterconnetFile(private val conn: InterHandshake) {
             val tag: String = "file",
             val stat: String = "get_storage_info"
         ) : FileMessagesToSend()
+
+        @Serializable
+        data class GetSettings(
+            val tag: String = "file",
+            val stat: String = "get_settings",
+            val keys: List<String>
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class SetSettings(
+            val tag: String = "file",
+            val stat: String = "set_settings",
+            val settings: Map<String, String>
+        ) : FileMessagesToSend()
     }
 }
 
@@ -1100,3 +1159,4 @@ private data class ChapterForTransfer(
     val chunkNum: Int = 0,
     val totalChunks: Int = 1
 )
+

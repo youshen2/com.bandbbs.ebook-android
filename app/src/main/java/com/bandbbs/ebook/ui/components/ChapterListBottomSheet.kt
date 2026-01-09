@@ -22,15 +22,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ModeEdit
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -151,6 +153,7 @@ fun ChapterListBottomSheet(
     }
 
     val selectedDetails = orderedChapters.filter { selected.contains(it.id) }
+    val isAllSelected = selected.size == orderedChapters.size && orderedChapters.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -193,8 +196,19 @@ fun ChapterListBottomSheet(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium
                         )
-                        TextButton(onClick = { isEditMode = false }) {
-                            Text("完成")
+                        Row {
+                            TextButton(onClick = {
+                                selected = if (isAllSelected) {
+                                    emptySet()
+                                } else {
+                                    orderedChapters.map { it.id }.toSet()
+                                }
+                            }) {
+                                Text(if (isAllSelected) "取消全选" else "全选")
+                            }
+                            TextButton(onClick = { isEditMode = false }) {
+                                Text("完成")
+                            }
                         }
                     }
                     Row(
