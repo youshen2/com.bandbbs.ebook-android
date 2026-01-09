@@ -13,6 +13,7 @@ import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.ui.viewmodel.ImportingState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.utils.BookInfoParser
+import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
@@ -103,8 +104,9 @@ class ImportHandler(
                 return@launch
             }
 
-            val defaultSplitMethod = prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
-                ?: ChapterSplitter.METHOD_DEFAULT
+            val defaultSplitMethod =
+                prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
+                    ?: ChapterSplitter.METHOD_DEFAULT
             val savedCustomRegex = prefs.getString(LAST_CUSTOM_REGEX_KEY, "") ?: ""
 
             withContext(Dispatchers.Main) {
@@ -282,7 +284,7 @@ class ImportHandler(
         val bookEntity = db.bookDao().getBookByPath(book.path)
         if (bookEntity != null) {
             val context = application.applicationContext
-            com.bandbbs.ebook.utils.ChapterContentManager.deleteBookChapters(context, bookEntity.id)
+            ChapterContentManager.deleteBookChapters(context, bookEntity.id)
             db.chapterDao().deleteChaptersByBookId(bookEntity.id)
             db.bookDao().delete(bookEntity)
         }
@@ -360,6 +362,56 @@ class ImportHandler(
         }
     }
 
+    /**
+     * 清理并合并空章节 (0字或空内容)
+     * 这是强制执行的逻辑，不管设置如何
+     */
+    private suspend fun cleanAndMergeChapters(
+        context: Context,
+        bookId: Int,
+        chapters: List<Chapter>
+    ): Pair<List<Chapter>, List<String>> {
+        if (chapters.isEmpty()) return Pair(emptyList(), emptyList())
+
+        val cleanedChapters = mutableListOf<Chapter>()
+        val mergedTitles = mutableListOf<String>()
+
+        for (chapter in chapters) {
+            val content = ChapterContentManager.readChapterContent(chapter.contentFilePath)
+
+            if (chapter.wordCount == 0 && content.isBlank()) {
+                if (cleanedChapters.isNotEmpty()) {
+                    val lastChapter = cleanedChapters.last()
+                    val lastContent = ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
+
+                    val mergedContent = lastContent.trimEnd() + "\n\n" + chapter.name.trim()
+
+                    ChapterContentManager.saveChapterContent(
+                        context, bookId, lastChapter.index, mergedContent
+                    )
+
+                    cleanedChapters[cleanedChapters.size - 1] = lastChapter.copy(
+                        wordCount = mergedContent.length
+                    )
+
+                    ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
+                    mergedTitles.add(chapter.name)
+                } else {
+                    ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
+                    mergedTitles.add("${chapter.name} (首章为空，已跳过)")
+                }
+            } else {
+                cleanedChapters.add(chapter)
+            }
+        }
+
+        val reIndexedChapters = cleanedChapters.mapIndexed { index, chapter ->
+            chapter.copy(index = index)
+        }
+
+        return Pair(reIndexedChapters, mergedTitles)
+    }
+
     private fun isWordFile(context: Context, uri: Uri): Boolean {
         return try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -367,12 +419,22 @@ class ImportHandler(
                 val read = inputStream.read(header)
                 if (read < 8) return false
 
-                val docMagic = byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11.toByte(), 0xE0.toByte(), 0xA1.toByte(), 0xB1.toByte(), 0x1A.toByte(), 0xE1.toByte())
+                val docMagic = byteArrayOf(
+                    0xD0.toByte(),
+                    0xCF.toByte(),
+                    0x11.toByte(),
+                    0xE0.toByte(),
+                    0xA1.toByte(),
+                    0xB1.toByte(),
+                    0x1A.toByte(),
+                    0xE1.toByte()
+                )
                 if (header.contentEquals(docMagic)) {
                     return true
                 }
 
-                val zipMagic = byteArrayOf(0x50.toByte(), 0x4B.toByte(), 0x03.toByte(), 0x04.toByte())
+                val zipMagic =
+                    byteArrayOf(0x50.toByte(), 0x4B.toByte(), 0x03.toByte(), 0x04.toByte())
                 if (header.take(4).toByteArray().contentEquals(zipMagic)) {
                     context.contentResolver.openInputStream(uri)?.use { zipStream ->
                         ZipInputStream(zipStream).use { zip ->
@@ -447,16 +509,16 @@ class ImportHandler(
             if (currentChapter.wordCount < minWords && mergedChapters.isNotEmpty()) {
                 val lastChapter = mergedChapters.last()
                 val lastContent =
-                    com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
+                    ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
                 val currentContent =
-                    com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(currentChapter.contentFilePath)
+                    ChapterContentManager.readChapterContent(currentChapter.contentFilePath)
                 val mergedContent =
                     lastContent.trimEnd() + "\n\n" + currentChapter.name + "\n\n" + currentContent.trimStart()
 
-                com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                ChapterContentManager.saveChapterContent(
                     context, bookId, lastChapter.index, mergedContent
                 )
-                com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(currentChapter.contentFilePath)
+                ChapterContentManager.deleteChapterContent(currentChapter.contentFilePath)
 
                 mergedChapters[mergedChapters.size - 1] = lastChapter.copy(
                     wordCount = mergedContent.length
@@ -586,7 +648,7 @@ class ImportHandler(
                 }
                 val totalWordCount = processedChapters.sumOf { it.wordCount }
                 val contentFilePath =
-                    com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    ChapterContentManager.saveChapterContent(
                         context, bookId.toInt(), 0, allContent
                     )
                 listOf(
@@ -611,7 +673,7 @@ class ImportHandler(
                         }
 
                         val contentFilePath =
-                            com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                            ChapterContentManager.saveChapterContent(
                                 context, bookId.toInt(), currentIndex, nvbChapter.content
                             )
                         newChapters.add(
@@ -627,23 +689,23 @@ class ImportHandler(
                     }
                 }
 
-                var processedChapters: List<Chapter> = newChapters
-                if (enableChapterMerge && processedChapters.isNotEmpty()) {
+                var processedList: List<Chapter> = newChapters
+                if (enableChapterMerge && processedList.isNotEmpty()) {
                     importingState.update {
                         it?.copy(
                             statusText = "正在合并短章节...",
                             progress = 0.85f
                         )
                     }
-                    processedChapters = mergeShortChapters(
+                    processedList = mergeShortChapters(
                         context,
                         bookId.toInt(),
-                        processedChapters,
+                        processedList,
                         mergeMinWords
                     )
                 }
 
-                processedChapters
+                processedList
             }
 
             var finalChapters: List<Chapter> = chapters
@@ -658,14 +720,29 @@ class ImportHandler(
                     mergeShortChapters(context, bookId.toInt(), finalChapters, mergeMinWords)
             }
 
+            importingState.update { it?.copy(statusText = "正在清理空章节...", progress = 0.88f) }
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), finalChapters)
+
             importingState.update {
                 it?.copy(
-                    statusText = if (existingBook != null) "正在保存新章节 (${finalChapters.size} 章)..." else "正在保存章节...",
+                    statusText = if (existingBook != null) "正在保存新章节 (${cleanedChapters.size} 章)..." else "正在保存章节...",
                     progress = 0.9f
                 )
             }
-            if (finalChapters.isNotEmpty()) {
-                db.chapterDao().insertAll(finalChapters)
+            if (cleanedChapters.isNotEmpty()) {
+                db.chapterDao().insertAll(cleanedChapters)
+            }
+
+            if (mergedTitles.isNotEmpty()) {
+                val reportMessage =
+                    "有 ${mergedTitles.size} 个章节因内容为空，已自动合并到上一章:\n\n" +
+                            mergedTitles.joinToString("\n") { "- $it" }
+                withContext(Dispatchers.Main) {
+                    importReportState.value = ImportReportState(
+                        bookName = finalBookName,
+                        mergedChaptersInfo = reportMessage
+                    )
+                }
             }
 
             sourceFile.delete()
@@ -782,7 +859,7 @@ class ImportHandler(
                 }
                 val totalWordCount = processedEpubChapters.sumOf { it.wordCount }
                 val contentFilePath =
-                    com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    ChapterContentManager.saveChapterContent(
                         context, bookId.toInt(), 0, allContent
                     )
                 listOf(
@@ -807,7 +884,7 @@ class ImportHandler(
                         }
 
                         val contentFilePath =
-                            com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                            ChapterContentManager.saveChapterContent(
                                 context, bookId.toInt(), currentIndex, epubChapter.content
                             )
                         newChapters.add(
@@ -823,23 +900,23 @@ class ImportHandler(
                     }
                 }
 
-                var processedChapters: List<Chapter> = newChapters
-                if (enableChapterMerge && processedChapters.isNotEmpty()) {
+                var processedList: List<Chapter> = newChapters
+                if (enableChapterMerge && processedList.isNotEmpty()) {
                     importingState.update {
                         it?.copy(
                             statusText = "正在合并短章节...",
                             progress = 0.85f
                         )
                     }
-                    processedChapters = mergeShortChapters(
+                    processedList = mergeShortChapters(
                         context,
                         bookId.toInt(),
-                        processedChapters,
+                        processedList,
                         mergeMinWords
                     )
                 }
 
-                processedChapters
+                processedList
             }
 
             var finalChapters: List<Chapter> = chapters
@@ -854,14 +931,29 @@ class ImportHandler(
                     mergeShortChapters(context, bookId.toInt(), finalChapters, mergeMinWords)
             }
 
+            importingState.update { it?.copy(statusText = "正在清理空章节...", progress = 0.88f) }
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), finalChapters)
+
             importingState.update {
                 it?.copy(
-                    statusText = if (existingBook != null) "正在保存新章节 (${finalChapters.size} 章)..." else "正在保存章节...",
+                    statusText = if (existingBook != null) "正在保存新章节 (${cleanedChapters.size} 章)..." else "正在保存章节...",
                     progress = 0.9f
                 )
             }
-            if (finalChapters.isNotEmpty()) {
-                db.chapterDao().insertAll(finalChapters)
+            if (cleanedChapters.isNotEmpty()) {
+                db.chapterDao().insertAll(cleanedChapters)
+            }
+
+            if (mergedTitles.isNotEmpty()) {
+                val reportMessage =
+                    "有 ${mergedTitles.size} 个章节因内容为空，已自动合并到上一章:\n\n" +
+                            mergedTitles.joinToString("\n") { "- $it" }
+                withContext(Dispatchers.Main) {
+                    importReportState.value = ImportReportState(
+                        bookName = finalBookName,
+                        mergedChaptersInfo = reportMessage
+                    )
+                }
             }
 
             sourceFile.delete()
@@ -898,7 +990,7 @@ class ImportHandler(
                 importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.5f) }
                 val content = ChapterSplitter.readTextFromUri(context, uri)
                 val contentFilePath =
-                    com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
+                    ChapterContentManager.saveChapterContent(
                         context, bookId.toInt(), 0, content.trim()
                     )
                 listOf(
@@ -930,50 +1022,18 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
-            val finalChapters = mutableListOf<Chapter>()
-            val mergedChapterTitles = mutableListOf<String>()
 
-            for (chapter in initialChapters) {
-                val chapterContent =
-                    com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(chapter.contentFilePath)
-                if (chapter.wordCount == 0 && chapterContent.isBlank()) {
-                    if (finalChapters.isNotEmpty()) {
-                        val lastChapter = finalChapters.last()
-                        val lastContent =
-                            com.bandbbs.ebook.utils.ChapterContentManager.readChapterContent(
-                                lastChapter.contentFilePath
-                            )
-                        val updatedContent = lastContent.trimEnd() + "\n\n" + chapter.name.trim()
-                        com.bandbbs.ebook.utils.ChapterContentManager.saveChapterContent(
-                            context, bookId.toInt(), lastChapter.index, updatedContent
-                        )
-                        finalChapters[finalChapters.size - 1] = lastChapter.copy(
-                            wordCount = updatedContent.length
-                        )
-                        com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
-                        mergedChapterTitles.add(chapter.name)
-                    } else {
-                        com.bandbbs.ebook.utils.ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
-                        mergedChapterTitles.add("${chapter.name} (因内容为空已被跳过)")
-                    }
-                } else {
-                    finalChapters.add(chapter)
-                }
-            }
-
-            val reIndexedChapters = finalChapters.mapIndexed { index, chapter ->
-                chapter.copy(index = index)
-            }
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), initialChapters)
 
             importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
-            db.chapterDao().insertAll(reIndexedChapters)
+            db.chapterDao().insertAll(cleanedChapters)
 
             sourceFile.delete()
 
-            if (mergedChapterTitles.isNotEmpty()) {
+            if (mergedTitles.isNotEmpty()) {
                 val reportMessage =
-                    "有 ${mergedChapterTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
-                            mergedChapterTitles.joinToString("\n") { "- $it" }
+                    "有 ${mergedTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
+                            mergedTitles.joinToString("\n") { "- $it" }
                 withContext(Dispatchers.Main) {
                     importReportState.value = ImportReportState(
                         bookName = finalBookName,
