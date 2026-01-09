@@ -21,8 +21,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 40700
-        versionName = "4.7.0"
+        versionCode = 126101
+        versionName = "V26.1.1"
     }
 
     signingConfigs {
