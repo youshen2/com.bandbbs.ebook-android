@@ -25,6 +25,8 @@ import com.bandbbs.ebook.utils.DataBackupManager
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.VersionChecker
+import com.bandbbs.ebook.database.BookmarkEntity
+import com.bandbbs.ebook.utils.BookmarkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -940,10 +942,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         setSyncModesAndStart(mode, mode)
     }
 
-    fun setSyncModesAndStart(progressMode: SyncMode, readingTimeMode: SyncMode) {
+    fun setSyncModesAndStart(progressMode: SyncMode, readingTimeMode: SyncMode, bookmarkMode: SyncMode = SyncMode.AUTO) {
         Log.d(
             "MainViewModel",
-            "setSyncModesAndStart() called with progressMode: $progressMode, readingTimeMode: $readingTimeMode"
+            "setSyncModesAndStart() called with progressMode: $progressMode, readingTimeMode: $readingTimeMode, bookmarkMode: $bookmarkMode"
         )
         syncReadingDataJob?.cancel()
 
@@ -952,12 +954,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 val currentProgressMode = progressMode
                 val currentReadingTimeMode = readingTimeMode
+                val currentBookmarkMode = bookmarkMode
 
                 withContext(Dispatchers.Main) {
                     _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         showModeDialog = false,
                         progressSyncMode = currentProgressMode,
-                        readingTimeSyncMode = currentReadingTimeMode
+                        readingTimeSyncMode = currentReadingTimeMode,
+                        bookmarkSyncMode = currentBookmarkMode
                     )
                 }
 
@@ -1365,6 +1369,97 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 "MainViewModel",
                                 "No reading data to send to band for ${book.name}"
                             )
+                        }
+
+                        try {
+                            val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
+                            val bandBookmarks = try {
+                                fileConn.getBookmarks(book.name)
+                            } catch (e: Exception) {
+                                Log.e("MainViewModel", "Failed to get bookmarks from band for ${book.name}", e)
+                                emptyList()
+                            }
+
+                            val currentBookmarkMode = _syncReadingDataState.value.bookmarkSyncMode
+                            when (currentBookmarkMode) {
+                                SyncMode.PHONE_ONLY -> {
+                                    if (phoneBookmarks.isNotEmpty()) {
+                                        val bookmarkData = phoneBookmarks.map { bm ->
+                                            com.bandbbs.ebook.logic.BookmarkData(
+                                                name = bm.name,
+                                                chapterIndex = bm.chapterIndex,
+                                                chapterName = bm.chapterName,
+                                                offsetInChapter = bm.offsetInChapter,
+                                                scrollOffset = bm.scrollOffset,
+                                                time = bm.time
+                                            )
+                                        }
+                                        fileConn.setBookmarks(book.name, bookmarkData)
+                                        Log.d("MainViewModel", "Synced ${bookmarkData.size} bookmarks from phone to band for ${book.name}")
+                                    }
+                                }
+                                SyncMode.BAND_ONLY -> {
+                                    if (bandBookmarks.isNotEmpty()) {
+                                        val bookmarkEntities = bandBookmarks.map { bm ->
+                                            BookmarkEntity(
+                                                bookId = book.id,
+                                                name = bm.name,
+                                                chapterIndex = bm.chapterIndex,
+                                                chapterName = bm.chapterName,
+                                                offsetInChapter = bm.offsetInChapter,
+                                                scrollOffset = bm.scrollOffset,
+                                                time = bm.time
+                                            )
+                                        }
+                                        BookmarkManager.syncBookmarksFromBand(getApplication(), book.id, bookmarkEntities)
+                                        Log.d("MainViewModel", "Synced ${bookmarkEntities.size} bookmarks from band to phone for ${book.name}")
+                                    }
+                                }
+                                SyncMode.AUTO -> {
+                                    val mergedBookmarks = mutableListOf<BookmarkEntity>()
+                                    val bandBookmarkMap = bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+                                    val phoneBookmarkMap = phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+
+                                    bandBookmarks.forEach { bm ->
+                                        mergedBookmarks.add(
+                                            BookmarkEntity(
+                                                bookId = book.id,
+                                                name = bm.name,
+                                                chapterIndex = bm.chapterIndex,
+                                                chapterName = bm.chapterName,
+                                                offsetInChapter = bm.offsetInChapter,
+                                                scrollOffset = bm.scrollOffset,
+                                                time = bm.time
+                                            )
+                                        )
+                                    }
+
+                                    phoneBookmarks.forEach { bm ->
+                                        val key = "${bm.chapterIndex}_${bm.offsetInChapter}"
+                                        if (!bandBookmarkMap.containsKey(key)) {
+                                            mergedBookmarks.add(bm)
+                                        }
+                                    }
+
+                                    if (mergedBookmarks.isNotEmpty()) {
+                                        val bookmarkData = mergedBookmarks.map { bm ->
+                                            com.bandbbs.ebook.logic.BookmarkData(
+                                                name = bm.name,
+                                                chapterIndex = bm.chapterIndex,
+                                                chapterName = bm.chapterName,
+                                                offsetInChapter = bm.offsetInChapter,
+                                                scrollOffset = bm.scrollOffset,
+                                                time = bm.time
+                                            )
+                                        }
+                                        fileConn.setBookmarks(book.name, bookmarkData)
+                                        BookmarkManager.syncBookmarksFromBand(getApplication(), book.id, mergedBookmarks)
+                                        Log.d("MainViewModel", "Merged and synced ${mergedBookmarks.size} bookmarks for ${book.name}")
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainViewModel", "Failed to sync bookmarks for ${book.name}", e)
                         }
 
                         syncedCount++

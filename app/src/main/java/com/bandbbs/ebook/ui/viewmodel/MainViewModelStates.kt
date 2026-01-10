@@ -120,7 +120,8 @@ data class SyncReadingDataState(
     val showConfirmDialog: Boolean = false,
     val showModeDialog: Boolean = false,
     val progressSyncMode: SyncMode = SyncMode.AUTO,
-    val readingTimeSyncMode: SyncMode = SyncMode.AUTO
+    val readingTimeSyncMode: SyncMode = SyncMode.AUTO,
+    val bookmarkSyncMode: SyncMode = SyncMode.AUTO
 )
 
 data class SyncResultState(

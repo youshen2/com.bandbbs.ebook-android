@@ -1,6 +1,7 @@
 package com.bandbbs.ebook.logic
 
 import android.util.Log
+import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.database.Chapter
 import com.bandbbs.ebook.database.ChapterDao
 import com.bandbbs.ebook.ui.model.Book
@@ -65,6 +66,8 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     private var settingsCompleter: CompletableDeferred<Map<String, String>>? = null
     private var settingsUpdateCompleter: CompletableDeferred<Boolean>? = null
+    private var bookmarksCompleter: CompletableDeferred<List<BookmarkData>>? = null
+    private var bookmarksUpdateCompleter: CompletableDeferred<Boolean>? = null
 
     private var chapterIndexMap: Map<Int, Int> = emptyMap()
     private var coverImageChunks: List<String> = emptyList()
@@ -97,6 +100,10 @@ class InterconnetFile(private val conn: InterHandshake) {
         settingsCompleter = null
         settingsUpdateCompleter?.cancel()
         settingsUpdateCompleter = null
+        bookmarksCompleter?.cancel()
+        bookmarksCompleter = null
+        bookmarksUpdateCompleter?.cancel()
+        bookmarksUpdateCompleter = null
     }
 
     init {
@@ -308,6 +315,17 @@ class InterconnetFile(private val conn: InterHandshake) {
                         settingsCompleter = null
                     }
 
+                    "bookmarks_data" -> {
+                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.BookmarksData>(it)
+                        bookmarksCompleter?.complete(jsonMessage.bookmarks)
+                        bookmarksCompleter = null
+                    }
+
+                    "bookmarks_saved" -> {
+                        bookmarksUpdateCompleter?.complete(true)
+                        bookmarksUpdateCompleter = null
+                    }
+
                     "usuage" -> TODO()
                 }
             } catch (e: Exception) {
@@ -401,6 +419,26 @@ class InterconnetFile(private val conn: InterHandshake) {
         settingsUpdateCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings))).await()
         return settingsUpdateCompleter!!.await()
+    }
+
+    suspend fun getBookmarks(bookName: String): List<BookmarkData> {
+        conn.init()
+        delay(500L)
+        bookmarksCompleter = CompletableDeferred()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookmarks(filename = bookName))).await()
+        val result = bookmarksCompleter!!.await()
+        bookmarksCompleter = null
+        return result
+    }
+
+    suspend fun setBookmarks(bookName: String, bookmarks: List<BookmarkData>): Boolean {
+        conn.init()
+        delay(200L)
+        bookmarksUpdateCompleter = CompletableDeferred()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetBookmarks(filename = bookName, bookmarks = bookmarks))).await()
+        val result = bookmarksUpdateCompleter!!.await()
+        bookmarksUpdateCompleter = null
+        return result
     }
 
     suspend fun setReadingData(
@@ -1009,6 +1047,12 @@ class InterconnetFile(private val conn: InterHandshake) {
             val type: String = "settings_data",
             val settings: Map<String, String>
         ) : FileMessagesFromDevice()
+
+        @Serializable
+        data class BookmarksData(
+            val type: String = "bookmarks_data",
+            val bookmarks: List<BookmarkData>
+        ) : FileMessagesFromDevice()
     }
 
     @Serializable
@@ -1147,8 +1191,33 @@ class InterconnetFile(private val conn: InterHandshake) {
             val stat: String = "set_settings",
             val settings: Map<String, String>
         ) : FileMessagesToSend()
+
+        @Serializable
+        data class GetBookmarks(
+            val tag: String = "file",
+            val stat: String = "get_bookmarks",
+            val filename: String
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class SetBookmarks(
+            val tag: String = "file",
+            val stat: String = "set_bookmarks",
+            val filename: String,
+            val bookmarks: List<BookmarkData>
+        ) : FileMessagesToSend()
     }
 }
+
+@Serializable
+data class BookmarkData(
+    val name: String,
+    val chapterIndex: Int,
+    val chapterName: String,
+    val offsetInChapter: Int = 0,
+    val scrollOffset: Int = 0,
+    val time: Long = 0
+)
 
 @Serializable
 private data class ChapterForTransfer(

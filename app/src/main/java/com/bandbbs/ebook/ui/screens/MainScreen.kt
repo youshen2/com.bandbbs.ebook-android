@@ -287,6 +287,7 @@ fun MainScreen(
     if (syncReadingDataState.showModeDialog) {
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
+        var selectedBookmarkMode by remember { mutableStateOf(syncReadingDataState.bookmarkSyncMode) }
 
         AlertDialog(
             onDismissRequest = {
@@ -396,6 +397,97 @@ fun MainScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
+                        text = "书签",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedBookmarkMode = SyncMode.AUTO }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedBookmarkMode == SyncMode.AUTO,
+                            onClick = { selectedBookmarkMode = SyncMode.AUTO }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "自动处理（默认）",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "合并两端书签，优先保留手环端书签",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedBookmarkMode = SyncMode.BAND_ONLY }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedBookmarkMode == SyncMode.BAND_ONLY,
+                            onClick = { selectedBookmarkMode = SyncMode.BAND_ONLY }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "手环端",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "将手环端书签单向同步到手机端",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedBookmarkMode = SyncMode.PHONE_ONLY }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedBookmarkMode == SyncMode.PHONE_ONLY,
+                            onClick = { selectedBookmarkMode = SyncMode.PHONE_ONLY }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "手机端",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "将手机端书签单向同步到手环端",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
                         text = "阅读时长",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -490,7 +582,8 @@ fun MainScreen(
                     onClick = {
                         viewModel.setSyncModesAndStart(
                             selectedProgressMode,
-                            selectedReadingTimeMode
+                            selectedReadingTimeMode,
+                            selectedBookmarkMode
                         )
                     }
                 ) {

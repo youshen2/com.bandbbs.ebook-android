@@ -36,6 +36,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,9 +73,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.bandbbs.ebook.database.BookmarkEntity
+import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
 import com.bandbbs.ebook.ui.components.ReaderSettingsBottomSheet
 import com.bandbbs.ebook.ui.components.loadReaderSettings
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -129,18 +134,27 @@ fun ReaderScreen(
     val books by viewModel.books.collectAsState()
 
 
+    val bookId = remember(chapter, allChapters, books) {
+        if (allChapters.isNotEmpty()) {
+            allChapters[0].bookId
+        } else null
+    }
+
     val bookName = remember(chapter, allChapters, books) {
         if (allChapters.isNotEmpty()) {
-            val bookId = allChapters[0].bookId
-            books.find { it.id == bookId }?.name
+            val id = allChapters[0].bookId
+            books.find { it.id == id }?.name
         } else null
     }
 
 
     var showControls by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
+    var showBookmarks by remember { mutableStateOf(false) }
+    var bookmarks by remember { mutableStateOf<List<BookmarkEntity>>(emptyList()) }
     var readerSettings by remember { mutableStateOf(loadReaderSettings(context)) }
     val settingsSheetState = rememberModalBottomSheetState()
+    val bookmarkSheetState = rememberModalBottomSheetState()
 
 
     val currentChapterIndex = remember(chapter, allChapters) {
@@ -166,6 +180,12 @@ fun ReaderScreen(
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
+
+    LaunchedEffect(bookId) {
+        if (bookId != null) {
+            bookmarks = BookmarkManager.getBookmarks(context, bookId)
+        }
+    }
 
     BackHandler(enabled = true) {
 
@@ -512,6 +532,20 @@ fun ReaderScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = {
+                            if (bookId != null) {
+                                scope.launch {
+                                    bookmarks = BookmarkManager.getBookmarks(context, bookId)
+                                    showBookmarks = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = "书签",
+                                tint = Color(readerSettings.textColor)
+                            )
+                        }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
@@ -593,6 +627,32 @@ fun ReaderScreen(
                         )
                     }
 
+                    IconButton(onClick = {
+                        if (bookId != null && chapter != null) {
+                            scope.launch {
+                                val bookmarkName = "书签${bookmarks.size + 1}"
+                                val chapterName = chapter?.name ?: ""
+                                BookmarkManager.addBookmark(
+                                    context = context,
+                                    bookId = bookId,
+                                    name = bookmarkName,
+                                    chapterIndex = currentChapterIndex,
+                                    chapterName = chapterName,
+                                    offsetInChapter = firstVisibleItemIndex,
+                                    scrollOffset = firstVisibleItemScrollOffset
+                                )
+                                bookmarks = BookmarkManager.getBookmarks(context, bookId)
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.BookmarkAdd,
+                            contentDescription = "添加书签",
+                            tint = Color(readerSettings.textColor),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
 
                     TextButton(
                         onClick = {
@@ -648,6 +708,41 @@ fun ReaderScreen(
                 currentSettings = readerSettings,
                 onSettingsChanged = { newSettings ->
                     readerSettings = newSettings
+                }
+            )
+        }
+    }
+
+    if (showBookmarks) {
+        ModalBottomSheet(
+            onDismissRequest = { showBookmarks = false },
+            sheetState = bookmarkSheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            BookmarkListBottomSheet(
+                bookmarks = bookmarks,
+                onBookmarkClick = { bookmark ->
+                    scope.launch {
+                        val targetChapter = allChapters.find { it.index == bookmark.chapterIndex }
+                        if (targetChapter != null) {
+                            onChapterChange(targetChapter.id)
+                            kotlinx.coroutines.delay(300)
+                            listState.scrollToItem(bookmark.offsetInChapter, bookmark.scrollOffset)
+                        }
+                        showBookmarks = false
+                    }
+                },
+                onDeleteBookmark = { bookmark ->
+                    scope.launch {
+                        BookmarkManager.deleteBookmark(context, bookmark.id)
+                        bookmarks = BookmarkManager.getBookmarks(context, bookId ?: 0)
+                    }
+                },
+                onEditBookmark = { updatedBookmark ->
+                    scope.launch {
+                        BookmarkManager.updateBookmark(context, updatedBookmark)
+                        bookmarks = BookmarkManager.getBookmarks(context, bookId ?: 0)
+                    }
                 }
             )
         }
