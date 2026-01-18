@@ -549,18 +549,6 @@ fun BandSettingsScreen(
                         }
 
                         ListItem(
-                            headlineContent = { Text("预载章节") },
-                            supportingContent = { Text("预先加载完整章节，减少翻页卡顿") },
-                            trailingContent = {
-                                Switch(
-                                    checked = settings.preloadChapter,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_PRELOAD_CHAPTER", it.toString()) }
-                                )
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
-
-                        ListItem(
                             headlineContent = { Text("段落防分割") },
                             supportingContent = { Text("尽量保持段落完整") },
                             trailingContent = {

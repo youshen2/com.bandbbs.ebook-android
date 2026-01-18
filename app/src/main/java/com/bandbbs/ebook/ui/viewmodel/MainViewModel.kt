@@ -50,7 +50,6 @@ data class BandSettingsState(
     val showProgressBarPercent: Boolean = false,
     val progressBarOpacity: Int = 100,
     val progressBarHeight: Int = 8,
-    val preloadChapter: Boolean = false,
     val preventParagraphSplitting: Boolean = false,
     val brightness: Int = 128,
     val brightnessFollowSystem: Boolean = true,
@@ -2144,8 +2143,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "EBOOK_VERTICAL_MARGIN", "EBOOK_TIME_FORMAT", "EBOOK_READ_MODE",
                     "EBOOK_TXTSZPAGE", "EBOOK_SHOW_PROGRESS_BAR",
                     "EBOOK_SHOW_PROGRESS_BAR_PERCENT", "EBOOK_PROGRESS_BAR_OPACITY",
-                    "EBOOK_PROGRESS_BAR_HEIGHT", "EBOOK_PRELOAD_CHAPTER",
-                    "EBOOK_PREVENT_PARAGRAPH_SPLITTING", "EBOOK_BRIGHTNESS",
+                    "EBOOK_PROGRESS_BAR_HEIGHT", "EBOOK_PREVENT_PARAGRAPH_SPLITTING",
+                    "EBOOK_BRIGHTNESS",
                     "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", "EBOOK_ALWAYS_SHOW_TIME",
                     "EBOOK_ALWAYS_SHOW_BATTERY", "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY",
                     "EBOOK_CHAPTER_START_EMPTY_LINES", "EBOOK_CHAPTER_START_NUMBER",
@@ -2184,7 +2183,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         showProgressBarPercent = settings["EBOOK_SHOW_PROGRESS_BAR_PERCENT"]?.takeIf { it.isNotEmpty() } == "true",
                         progressBarOpacity = settings["EBOOK_PROGRESS_BAR_OPACITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 100,
                         progressBarHeight = settings["EBOOK_PROGRESS_BAR_HEIGHT"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 8,
-                        preloadChapter = settings["EBOOK_PRELOAD_CHAPTER"]?.takeIf { it.isNotEmpty() } == "true",
                         preventParagraphSplitting = settings["EBOOK_PREVENT_PARAGRAPH_SPLITTING"]?.takeIf { it.isNotEmpty() } == "true",
                         brightness = settings["EBOOK_BRIGHTNESS"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 128,
                         brightnessFollowSystem = settings["EBOOK_BRIGHTNESS_FOLLOW_SYSTEM"]?.takeIf { it.isNotEmpty() }?.let { it != "false" } ?: true,
@@ -2241,7 +2239,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "EBOOK_SHOW_PROGRESS_BAR" -> current.copy(showProgressBar = value.toBoolean())
                 "EBOOK_SHOW_PROGRESS_BAR_PERCENT" -> current.copy(showProgressBarPercent = value.toBoolean())
                 "EBOOK_PROGRESS_BAR_OPACITY" -> current.copy(progressBarOpacity = value.toInt())
-                "EBOOK_PRELOAD_CHAPTER" -> current.copy(preloadChapter = value.toBoolean())
                 "EBOOK_PREVENT_PARAGRAPH_SPLITTING" -> current.copy(preventParagraphSplitting = value.toBoolean())
                 "EBOOK_BRIGHTNESS" -> current.copy(brightness = value.toInt())
                 "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM" -> current.copy(brightnessFollowSystem = value.toBoolean())
