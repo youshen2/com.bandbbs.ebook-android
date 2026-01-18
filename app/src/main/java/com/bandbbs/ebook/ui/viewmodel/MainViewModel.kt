@@ -1520,10 +1520,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         "同步完成，共同步 $syncedCount 本书"
                     } else {
                         val failedCount = failedBooks.size
-                        val failedDetails = failedBooks.entries.joinToString("；") { (name, reason) ->
-                            "$name: $reason"
-                        }
-                        "同步完成，成功 $syncedCount 本，失败 $failedCount 本。失败原因：$failedDetails"
+                        "同步完成，成功 $syncedCount 本，失败 $failedCount 本"
                     }
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
