@@ -990,6 +990,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val fileConn = connectionHandler.getFileConnection()
                 var syncedCount = 0
                 val changedBooks = mutableListOf<String>()
+                val failedBooks = mutableMapOf<String, String>()
 
                 for ((index, book) in allBooks.withIndex()) {
 
@@ -1010,6 +1011,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             progress = index.toFloat() / allBooks.size
                         )
                     }
+
+                    val bookStatus = try {
+                        fileConn.getBookStatus(book.name)
+                    } catch (e: Exception) {
+                        Log.e("MainViewModel", "Failed to get book status for ${book.name}", e)
+                        failedBooks[book.name] = "获取书籍状态失败: ${e.message ?: "未知错误"}"
+                        withContext(Dispatchers.Main) {
+                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
+                            currentFailed[book.name] = "获取书籍状态失败: ${e.message ?: "未知错误"}"
+                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                                failedBooks = currentFailed
+                            )
+                        }
+                        continue
+                    }
+
+                    val bookExistsOnBand = bookStatus.syncedChapters.isNotEmpty() || bookStatus.hasCover
+                    if (!bookExistsOnBand) {
+                        Log.d("MainViewModel", "Book ${book.name} does not exist on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}")
+                        failedBooks[book.name] = "手环端不存在"
+                        withContext(Dispatchers.Main) {
+                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
+                            currentFailed[book.name] = "手环端不存在"
+                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                                failedBooks = currentFailed
+                            )
+                        }
+                        continue
+                    }
+
+                    Log.d("MainViewModel", "Book ${book.name} exists on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}")
 
                     try {
                         Log.d("MainViewModel", "Syncing reading data for book: ${book.name}")
@@ -1469,6 +1501,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } catch (e: Exception) {
                         Log.e("MainViewModel", "Failed to sync reading data for ${book.name}", e)
+                        failedBooks[book.name] = "同步失败: ${e.message ?: "未知错误"}"
+                        withContext(Dispatchers.Main) {
+                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
+                            currentFailed[book.name] = "同步失败: ${e.message ?: "未知错误"}"
+                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                                failedBooks = currentFailed
+                            )
+                        }
                     }
                 }
 
@@ -1476,12 +1516,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadBooks()
 
                 withContext(Dispatchers.Main) {
+                    val statusText = if (failedBooks.isEmpty()) {
+                        "同步完成，共同步 $syncedCount 本书"
+                    } else {
+                        val failedCount = failedBooks.size
+                        val failedDetails = failedBooks.entries.joinToString("；") { (name, reason) ->
+                            "$name: $reason"
+                        }
+                        "同步完成，成功 $syncedCount 本，失败 $failedCount 本。失败原因：$failedDetails"
+                    }
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
-                        statusText = "同步完成，共同步 $syncedCount 本书",
+                        statusText = statusText,
                         progress = 1f,
                         totalBooks = allBooks.size,
-                        syncedBooks = syncedCount
+                        syncedBooks = syncedCount,
+                        failedBooks = failedBooks
                     )
                     if (changedBooks.isNotEmpty()) {
                         _syncResultState.value = SyncResultState(
