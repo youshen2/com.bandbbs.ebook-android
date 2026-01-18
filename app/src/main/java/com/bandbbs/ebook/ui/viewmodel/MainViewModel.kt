@@ -37,7 +37,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.File
-import kotlin.math.abs
 
 data class BandSettingsState(
     val fontSize: Int = 30,
@@ -1822,36 +1821,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (phoneProgress == null) return bandProgress
         if (bandProgress == null) return phoneProgress
 
-
-        val phoneChapterIndex = (phoneProgress["chapterIndex"] as? Number)?.toInt()
-        val bandChapterIndex = (bandProgress["chapterIndex"] as? Number)?.toInt()
-
-
-        if (phoneChapterIndex == null || phoneChapterIndex < 0) {
-            if (bandChapterIndex != null && bandChapterIndex >= 0) {
-                return bandProgress
-            }
-            return phoneProgress
-        }
-        if (bandChapterIndex == null || bandChapterIndex < 0) {
-            return phoneProgress
-        }
-
         val phoneTimestamp = (phoneProgress["lastReadTimestamp"] as? Number)?.toLong() ?: 0L
         val bandTimestamp = (bandProgress["lastReadTimestamp"] as? Number)?.toLong() ?: 0L
 
-        if (abs(phoneTimestamp - bandTimestamp) < 60000) {
-            val phoneOffset = (phoneProgress["offsetInChapter"] as? Number)?.toInt() ?: 0
-            val bandOffset = (bandProgress["offsetInChapter"] as? Number)?.toInt() ?: 0
-
-            if (phoneChapterIndex > bandChapterIndex) return phoneProgress
-            if (bandChapterIndex > phoneChapterIndex) return bandProgress
-
-            return if (phoneOffset >= bandOffset) phoneProgress else bandProgress
-        }
-
-        val result = if (phoneTimestamp >= bandTimestamp) phoneProgress else bandProgress
-        return result
+        return if (phoneTimestamp >= bandTimestamp) phoneProgress else bandProgress
     }
 
 
@@ -2015,71 +1988,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (phoneReadingTime == null) return bandReadingTime
         if (bandReadingTime == null) return phoneReadingTime
 
-        val phoneSessions = (phoneReadingTime["sessions"] as? List<Any>) ?: emptyList()
-        val bandSessions = (bandReadingTime["sessions"] as? List<Any>) ?: emptyList()
+        val phoneTotalSeconds = (phoneReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
+        val bandTotalSeconds = (bandReadingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
 
-        val sessionMap = mutableMapOf<Long, Any>()
-
-        fun processSessions(sessions: List<Any>) {
-            sessions.forEach { session ->
-                try {
-                    val map = if (session is org.json.JSONObject) {
-                        val m = mutableMapOf<String, Any>()
-                        val keys = session.keys()
-                        while(keys.hasNext()) {
-                            val k = keys.next()
-                            m[k] = session.get(k)
-                        }
-                        m
-                    } else {
-                        session as? Map<String, Any>
-                    }
-
-                    if (map != null) {
-                        val startTime = (map["startTime"] as? Number)?.toLong() ?: 0L
-                        if (startTime > 0) {
-                            sessionMap[startTime] = map
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("MainViewModel", "Error processing session for merge", e)
-                }
-            }
-        }
-
-        processSessions(phoneSessions)
-        processSessions(bandSessions)
-
-        val mergedSessions = sessionMap.values.toList().sortedBy {
-            ((it as? Map<String, Any>)?.get("startTime") as? Number)?.toLong() ?: 0L
-        }
-
-        var totalSeconds = 0L
-        var firstDate: String? = null
-        var lastDate: String? = null
-
-        mergedSessions.forEach { session ->
-            val map = session as? Map<String, Any> ?: return@forEach
-            totalSeconds += (map["duration"] as? Number)?.toLong() ?: 0L
-            val date = map["date"] as? String
-            if (date != null) {
-                if (firstDate == null || date < firstDate!!) firstDate = date
-                if (lastDate == null || date > lastDate!!) lastDate = date
-            }
-        }
-
-        val finalSessions = if (mergedSessions.size > 100) {
-            mergedSessions.takeLast(100)
-        } else {
-            mergedSessions
-        }
-
-        return mapOf(
-            "totalSeconds" to totalSeconds,
-            "sessions" to finalSessions,
-            "firstReadDate" to (firstDate ?: ""),
-            "lastReadDate" to (lastDate ?: "")
-        )
+        return if (phoneTotalSeconds >= bandTotalSeconds) phoneReadingTime else bandReadingTime
     }
 
 
