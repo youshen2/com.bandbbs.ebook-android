@@ -58,8 +58,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 
@@ -87,6 +90,8 @@ fun SettingsScreen(
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
     var showDeleteReadingTimeDialog by remember { mutableStateOf(false) }
+    var showGetLatestVersionDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -260,6 +265,12 @@ fun SettingsScreen(
                             onClick = { viewModel.checkForUpdates() }
                         )
                     }
+                    SettingsActionTile(
+                        icon = Icons.Outlined.Download,
+                        title = "获取最新版本",
+                        description = "跳转到所有版本的下载页面",
+                        onClick = { showGetLatestVersionDialog = true }
+                    )
                 }
             }
 
@@ -334,6 +345,36 @@ fun SettingsScreen(
         ) {
             AboutBottomSheet()
         }
+    }
+
+    if (showGetLatestVersionDialog) {
+        AlertDialog(
+            onDismissRequest = { showGetLatestVersionDialog = false },
+            icon = { Icon(Icons.Outlined.Download, contentDescription = null) },
+            title = { Text("各文件夹前缀介绍") },
+            text = {
+                Text("MiBand和BandPro前缀是给小米手环8Pro、9Pro用的\nRW前缀是给REDMI Watch5、6用的\nBand9前缀是给小米手环9和9NFC用的\nBand10前缀是给小米手环10用的")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://pan.quark.cn/s/47b6d6447142"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                        }
+                        showGetLatestVersionDialog = false
+                    }
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGetLatestVersionDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 
