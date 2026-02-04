@@ -24,7 +24,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -210,7 +209,8 @@ fun SyncReadingDataBottomSheet(
             var isExpanded by remember { mutableStateOf(false) }
             val maxVisibleItems = 3
             val failedBooksList = state.failedBooks.entries.toList()
-            val visibleItems = if (isExpanded) failedBooksList else failedBooksList.take(maxVisibleItems)
+            val visibleItems =
+                if (isExpanded) failedBooksList else failedBooksList.take(maxVisibleItems)
             val hasMore = failedBooksList.size > maxVisibleItems
 
             Card(

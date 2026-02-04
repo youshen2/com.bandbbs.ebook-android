@@ -1,7 +1,6 @@
 package com.bandbbs.ebook.logic
 
 import android.util.Log
-import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.database.Chapter
 import com.bandbbs.ebook.database.ChapterDao
 import com.bandbbs.ebook.ui.model.Book
@@ -309,7 +308,10 @@ class InterconnetFile(private val conn: InterHandshake) {
                             onProgress(progressValue, jsonMessage.message, "")
                         }
                         if (deleteChaptersCompleter != null) {
-                            deleteChaptersProgressCallback?.invoke(progressValue, jsonMessage.message)
+                            deleteChaptersProgressCallback?.invoke(
+                                progressValue,
+                                jsonMessage.message
+                            )
                         }
                     }
 
@@ -329,13 +331,15 @@ class InterconnetFile(private val conn: InterHandshake) {
                     }
 
                     "settings_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SettingsData>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SettingsData>(it)
                         settingsCompleter?.complete(jsonMessage.settings)
                         settingsCompleter = null
                     }
 
                     "bookmarks_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.BookmarksData>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.BookmarksData>(it)
                         bookmarksCompleter?.complete(jsonMessage.bookmarks)
                         bookmarksCompleter = null
                     }
@@ -470,7 +474,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.init()
         delay(200L)
         settingsUpdateCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings)))
+            .await()
         return settingsUpdateCompleter!!.await()
     }
 
@@ -478,7 +483,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.init()
         delay(500L)
         bookmarksCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookmarks(filename = bookName))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookmarks(filename = bookName)))
+            .await()
         val result = bookmarksCompleter!!.await()
         bookmarksCompleter = null
         return result
@@ -488,7 +494,14 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.init()
         delay(200L)
         bookmarksUpdateCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetBookmarks(filename = bookName, bookmarks = bookmarks))).await()
+        conn.sendMessage(
+            json.encodeToString(
+                FileMessagesToSend.SetBookmarks(
+                    filename = bookName,
+                    bookmarks = bookmarks
+                )
+            )
+        ).await()
         val result = bookmarksUpdateCompleter!!.await()
         bookmarksUpdateCompleter = null
         return result

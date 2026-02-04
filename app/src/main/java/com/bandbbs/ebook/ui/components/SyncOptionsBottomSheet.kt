@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -295,7 +294,10 @@ fun SyncOptionsBottomSheet(
                                     keyboardActions = KeyboardActions(
                                         onDone = {
                                             val range =
-                                                parseChapterRange(quickSelectText, state.totalChapters)
+                                                parseChapterRange(
+                                                    quickSelectText,
+                                                    state.totalChapters
+                                                )
                                             if (range != null) {
                                                 selectedChapters = range
                                                 quickSelectText = ""
@@ -307,7 +309,8 @@ fun SyncOptionsBottomSheet(
                                 )
                                 IconButton(
                                     onClick = {
-                                        val range = parseChapterRange(quickSelectText, state.totalChapters)
+                                        val range =
+                                            parseChapterRange(quickSelectText, state.totalChapters)
                                         if (range != null) {
                                             selectedChapters = range
                                             quickSelectText = ""
@@ -328,7 +331,9 @@ fun SyncOptionsBottomSheet(
                                 QuickActionButton(
                                     icon = Icons.Outlined.SelectAll,
                                     label = "全选",
-                                    onClick = { selectedChapters = (0 until state.totalChapters).toSet() }
+                                    onClick = {
+                                        selectedChapters = (0 until state.totalChapters).toSet()
+                                    }
                                 )
                                 QuickActionButton(
                                     icon = Icons.Outlined.RadioButtonUnchecked,
@@ -342,16 +347,22 @@ fun SyncOptionsBottomSheet(
 
                                         val currentChapterIndex = state.book.chapterIndex
 
-                                        val startIndex = if (currentChapterIndex != null && currentChapterIndex >= 0) {
-                                            currentChapterIndex.coerceIn(0, state.totalChapters - 1)
-                                        } else {
+                                        val startIndex =
+                                            if (currentChapterIndex != null && currentChapterIndex >= 0) {
+                                                currentChapterIndex.coerceIn(
+                                                    0,
+                                                    state.totalChapters - 1
+                                                )
+                                            } else {
 
-                                            state.chapters.firstOrNull {
-                                                it.index !in state.syncedChapterIndices
-                                            }?.index ?: state.totalChapters
-                                        }
+                                                state.chapters.firstOrNull {
+                                                    it.index !in state.syncedChapterIndices
+                                                }?.index ?: state.totalChapters
+                                            }
                                         val endIndex = state.totalChapters
-                                        selectedChapters = (startIndex until endIndex).filter { it !in state.syncedChapterIndices }.toSet()
+                                        selectedChapters =
+                                            (startIndex until endIndex).filter { it !in state.syncedChapterIndices }
+                                                .toSet()
                                     }
                                 )
                                 QuickActionButton(
@@ -360,7 +371,9 @@ fun SyncOptionsBottomSheet(
                                     onClick = {
                                         val currentChapterIndex = state.book.chapterIndex
                                         if (currentChapterIndex != null && currentChapterIndex >= 0) {
-                                            selectedChapters = (0 until currentChapterIndex).filter { it in state.syncedChapterIndices }.toSet()
+                                            selectedChapters =
+                                                (0 until currentChapterIndex).filter { it in state.syncedChapterIndices }
+                                                    .toSet()
                                         } else {
                                             selectedChapters = emptySet()
                                         }
@@ -455,13 +468,15 @@ fun SyncOptionsBottomSheet(
                                 DropdownMenuItem(
                                     text = { Text("按字数升序") },
                                     onClick = {
-                                        sortType = ChapterSortType.WORD_COUNT_ASC; showSortMenu = false
+                                        sortType = ChapterSortType.WORD_COUNT_ASC; showSortMenu =
+                                        false
                                     }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("按字数降序") },
                                     onClick = {
-                                        sortType = ChapterSortType.WORD_COUNT_DESC; showSortMenu = false
+                                        sortType = ChapterSortType.WORD_COUNT_DESC; showSortMenu =
+                                        false
                                     }
                                 )
                             }

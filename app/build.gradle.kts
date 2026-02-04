@@ -61,12 +61,19 @@ android {
         buildConfig = true
     }
     packaging {
+        dex {
+            useLegacyPackaging = true
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += setOf(
                 "META-INF/LICENSE*",
                 "META-INF/NOTICE*",
                 "META-INF/DEPENDENCIES",
-                "META-INF/*.kotlin_module"
+                "META-INF/*.kotlin_module",
+                "META-INF/androidx.cardview_cardview.version"
             )
         }
     }
@@ -86,7 +93,6 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.4.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.loader:loader:1.1.0")
-    implementation("androidx.compose.material3:material3-window-size-class:1.4.0")
     implementation("com.github.albfernandez:juniversalchardet:2.5.0")
 
     implementation("io.coil-kt:coil-compose:2.7.0")

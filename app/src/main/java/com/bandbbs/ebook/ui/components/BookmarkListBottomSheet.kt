@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,10 +23,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,7 +55,7 @@ fun BookmarkListBottomSheet(
     var currentPage by remember { mutableIntStateOf(0) }
     var bookmarkToEdit by remember { mutableStateOf<BookmarkEntity?>(null) }
     var bookmarkToDelete by remember { mutableStateOf<BookmarkEntity?>(null) }
-    
+
     val totalPages = (bookmarks.size + PAGE_SIZE - 1) / PAGE_SIZE.coerceAtLeast(1)
     val visibleBookmarks = remember(bookmarks, currentPage) {
         val start = currentPage * PAGE_SIZE
@@ -107,7 +103,7 @@ fun BookmarkListBottomSheet(
                         onEdit = { bookmarkToEdit = bookmark }
                     )
                 }
-                
+
                 if (totalPages > 1) {
                     item {
                         Row(
@@ -291,7 +287,7 @@ private fun EditBookmarkDialog(
             Column {
                 OutlinedTextField(
                     value = bookmarkName,
-                    onValueChange = { 
+                    onValueChange = {
                         if (it.length <= 20) {
                             bookmarkName = it
                         }

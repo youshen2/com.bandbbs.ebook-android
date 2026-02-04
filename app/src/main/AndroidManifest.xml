@@ -38,6 +38,7 @@
             android:name=".BookStatisticsActivity"
             android:exported="false"
             android:theme="@style/Theme.App" />
+
         <service
             android:name=".notifications.ForegroundTransferService"
             android:exported="false"

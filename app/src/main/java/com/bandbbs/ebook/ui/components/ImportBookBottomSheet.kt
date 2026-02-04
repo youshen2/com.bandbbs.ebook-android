@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
@@ -20,16 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.MergeType
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,7 +32,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -191,7 +183,11 @@ fun ImportBookBottomSheet(
             Column(modifier = Modifier.padding(16.dp)) {
                 if (isMultipleFiles) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.LibraryBooks, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Outlined.LibraryBooks,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "待导入文件",
@@ -245,7 +241,12 @@ fun ImportBookBottomSheet(
                 ListItem(
                     headlineContent = { Text("分类") },
                     supportingContent = { Text(selectedCategory ?: "未分类") },
-                    trailingContent = { Icon(Icons.Outlined.ExpandMore, contentDescription = null) },
+                    trailingContent = {
+                        Icon(
+                            Icons.Outlined.ExpandMore,
+                            contentDescription = null
+                        )
+                    },
                     modifier = Modifier.clickable { onShowCategorySelector() },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
@@ -280,7 +281,11 @@ fun ImportBookBottomSheet(
                     if (hasTxt && !noSplit) {
                         ListItem(
                             headlineContent = { Text("分章方式") },
-                            supportingContent = { Text(ChapterSplitter.methods[splitMethod] ?: "") },
+                            supportingContent = {
+                                Text(
+                                    ChapterSplitter.methods[splitMethod] ?: ""
+                                )
+                            },
                             trailingContent = {
                                 Box {
                                     IconButton(onClick = { showSplitMethodMenu = true }) {
@@ -309,10 +314,17 @@ fun ImportBookBottomSheet(
                         )
 
                         if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Column(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            ) {
                                 OutlinedTextField(
                                     value = wordsPerChapterText,
-                                    onValueChange = { if (it.all { c -> c.isDigit() }) wordsPerChapterText = it },
+                                    onValueChange = {
+                                        if (it.all { c -> c.isDigit() }) wordsPerChapterText = it
+                                    },
                                     label = { Text("每章字数") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
@@ -323,10 +335,16 @@ fun ImportBookBottomSheet(
                         if (splitMethod == ChapterSplitter.METHOD_CUSTOM) {
                             androidx.compose.runtime.LaunchedEffect(splitMethod) {
                                 if (customRegex.isBlank()) {
-                                    customRegex = state.customRegex.ifBlank { """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$""" }
+                                    customRegex =
+                                        state.customRegex.ifBlank { """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$""" }
                                 }
                             }
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Column(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            ) {
                                 OutlinedTextField(
                                     value = customRegex,
                                     onValueChange = { customRegex = it },
@@ -340,7 +358,12 @@ fun ImportBookBottomSheet(
                         ListItem(
                             headlineContent = { Text("使用内置章节") },
                             supportingContent = { Text("EPUB/NVB 格式将按原有章节导入") },
-                            leadingContent = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Settings,
+                                    contentDescription = null
+                                )
+                            },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
@@ -369,16 +392,25 @@ fun ImportBookBottomSheet(
                             headlineContent = { Text("合并短章节") },
                             supportingContent = { Text("将字数过少的章节合并") },
                             trailingContent = {
-                                Switch(checked = enableChapterMerge, onCheckedChange = { enableChapterMerge = it })
+                                Switch(
+                                    checked = enableChapterMerge,
+                                    onCheckedChange = { enableChapterMerge = it })
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
                         if (enableChapterMerge) {
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Column(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            ) {
                                 OutlinedTextField(
                                     value = mergeMinWordsText,
-                                    onValueChange = { if (it.all { c -> c.isDigit() }) mergeMinWordsText = it },
+                                    onValueChange = {
+                                        if (it.all { c -> c.isDigit() }) mergeMinWordsText = it
+                                    },
                                     label = { Text("最小字数阈值") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
@@ -390,13 +422,20 @@ fun ImportBookBottomSheet(
                             headlineContent = { Text("重命名章节") },
                             supportingContent = { Text("使用正则替换章节标题") },
                             trailingContent = {
-                                Switch(checked = enableChapterRename, onCheckedChange = { enableChapterRename = it })
+                                Switch(
+                                    checked = enableChapterRename,
+                                    onCheckedChange = { enableChapterRename = it })
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
                         if (enableChapterRename) {
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Column(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            ) {
                                 OutlinedTextField(
                                     value = renamePattern,
                                     onValueChange = { renamePattern = it },
@@ -408,12 +447,12 @@ fun ImportBookBottomSheet(
                                 renamePreview?.let { preview ->
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = when(preview) {
+                                        text = when (preview) {
                                             is RenamePreviewResult.Success -> preview.text
                                             is RenamePreviewResult.Error -> preview.text
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if(preview is RenamePreviewResult.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                        color = if (preview is RenamePreviewResult.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }

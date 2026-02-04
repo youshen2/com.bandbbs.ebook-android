@@ -5,13 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,7 +32,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -46,10 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.ui.components.LoadingDialog
-import com.bandbbs.ebook.ui.viewmodel.BandSettingsState
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,12 +106,18 @@ fun BandSettingsScreen(
                     SettingsSection(title = "阅读设置") {
                         var fontSize by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize.toFloat()) }
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("字号: ${fontSize.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "字号: ${fontSize.toInt()}",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Slider(
                                 value = fontSize,
                                 onValueChange = { fontSize = it },
                                 onValueChangeFinished = {
-                                    viewModel.updateBandSetting("EBOOK_FONT", fontSize.toInt().toString())
+                                    viewModel.updateBandSetting(
+                                        "EBOOK_FONT",
+                                        fontSize.toInt().toString()
+                                    )
                                 },
                                 valueRange = 20f..40f,
                                 steps = 19
@@ -128,12 +126,18 @@ fun BandSettingsScreen(
 
                         var opacity by remember(settings.opacity) { mutableFloatStateOf(settings.opacity.toFloat()) }
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("字体亮度 (透明度): ${opacity.toInt()}%", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "字体亮度 (透明度): ${opacity.toInt()}%",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Slider(
                                 value = opacity,
                                 onValueChange = { opacity = it },
                                 onValueChangeFinished = {
-                                    viewModel.updateBandSetting("EBOOK_OPACITY", opacity.toInt().toString())
+                                    viewModel.updateBandSetting(
+                                        "EBOOK_OPACITY",
+                                        opacity.toInt().toString()
+                                    )
                                 },
                                 valueRange = 10f..100f,
                                 steps = 89
@@ -145,20 +149,35 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.boldEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BOLD_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_BOLD_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
-                        var margin by remember(settings.verticalMargin) { mutableFloatStateOf(settings.verticalMargin.toFloat()) }
+                        var margin by remember(settings.verticalMargin) {
+                            mutableFloatStateOf(
+                                settings.verticalMargin.toFloat()
+                            )
+                        }
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("垂直边距: ${margin.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "垂直边距: ${margin.toInt()}px",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Slider(
                                 value = margin,
                                 onValueChange = { margin = it },
                                 onValueChangeFinished = {
-                                    viewModel.updateBandSetting("EBOOK_VERTICAL_MARGIN", margin.toInt().toString())
+                                    viewModel.updateBandSetting(
+                                        "EBOOK_VERTICAL_MARGIN",
+                                        margin.toInt().toString()
+                                    )
                                 },
                                 valueRange = 0f..50f,
                                 steps = 9
@@ -175,7 +194,12 @@ fun BandSettingsScreen(
                                 DropdownMenuBox(
                                     options = listOf("24h" to "24小时制", "12h" to "12小时制"),
                                     selectedKey = settings.timeFormat,
-                                    onSelected = { viewModel.updateBandSetting("EBOOK_TIME_FORMAT", it) }
+                                    onSelected = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_TIME_FORMAT",
+                                            it
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -185,9 +209,17 @@ fun BandSettingsScreen(
                             headlineContent = { Text("阅读模式") },
                             trailingContent = {
                                 DropdownMenuBox(
-                                    options = listOf("scroll" to "滚动模式", "nostalgic" to "怀旧模式"),
+                                    options = listOf(
+                                        "scroll" to "滚动模式",
+                                        "nostalgic" to "怀旧模式"
+                                    ),
                                     selectedKey = settings.readMode,
-                                    onSelected = { viewModel.updateBandSetting("EBOOK_READ_MODE", it) }
+                                    onSelected = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_READ_MODE",
+                                            it
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -198,9 +230,18 @@ fun BandSettingsScreen(
                                 headlineContent = { Text("怀旧模式翻页方式") },
                                 trailingContent = {
                                     DropdownMenuBox(
-                                        options = listOf("swipe" to "左右滑动", "sideClick" to "两侧点击", "topBottomClick" to "上下点击"),
+                                        options = listOf(
+                                            "swipe" to "左右滑动",
+                                            "sideClick" to "两侧点击",
+                                            "topBottomClick" to "上下点击"
+                                        ),
                                         selectedKey = settings.nostalgicPageTurnMode,
-                                        onSelected = { viewModel.updateBandSetting("EBOOK_NOSTALGIC_PAGE_TURN_MODE", it) }
+                                        onSelected = {
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_NOSTALGIC_PAGE_TURN_MODE",
+                                                it
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -212,9 +253,17 @@ fun BandSettingsScreen(
                             supportingContent = { Text("单击或双击屏幕切换UI") },
                             trailingContent = {
                                 DropdownMenuBox(
-                                    options = listOf("single" to "单击切换", "double" to "双击切换"),
+                                    options = listOf(
+                                        "single" to "单击切换",
+                                        "double" to "双击切换"
+                                    ),
                                     selectedKey = settings.gesture,
-                                    onSelected = { viewModel.updateBandSetting("EBOOK_GESTURE", it) }
+                                    onSelected = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_GESTURE",
+                                            it
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -225,46 +274,76 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.showProgressBar,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_SHOW_PROGRESS_BAR", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_SHOW_PROGRESS_BAR",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
-                        if(settings.showProgressBar) {
+                        if (settings.showProgressBar) {
                             ListItem(
                                 headlineContent = { Text("显示百分比") },
                                 trailingContent = {
                                     Switch(
                                         checked = settings.showProgressBarPercent,
-                                        onCheckedChange = { viewModel.updateBandSetting("EBOOK_SHOW_PROGRESS_BAR_PERCENT", it.toString()) }
+                                        onCheckedChange = {
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_SHOW_PROGRESS_BAR_PERCENT",
+                                                it.toString()
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
 
-                            var progressBarOpacity by remember(settings.progressBarOpacity) { mutableFloatStateOf(settings.progressBarOpacity.toFloat()) }
+                            var progressBarOpacity by remember(settings.progressBarOpacity) {
+                                mutableFloatStateOf(
+                                    settings.progressBarOpacity.toFloat()
+                                )
+                            }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("进度条透明度: ${progressBarOpacity.toInt()}%", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "进度条透明度: ${progressBarOpacity.toInt()}%",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                                 Slider(
                                     value = progressBarOpacity,
                                     onValueChange = { progressBarOpacity = it },
                                     onValueChangeFinished = {
-                                        viewModel.updateBandSetting("EBOOK_PROGRESS_BAR_OPACITY", progressBarOpacity.toInt().toString())
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_PROGRESS_BAR_OPACITY",
+                                            progressBarOpacity.toInt().toString()
+                                        )
                                     },
                                     valueRange = 0f..100f,
                                     steps = 99
                                 )
                             }
 
-                            var progressBarHeight by remember(settings.progressBarHeight) { mutableFloatStateOf(settings.progressBarHeight.toFloat()) }
+                            var progressBarHeight by remember(settings.progressBarHeight) {
+                                mutableFloatStateOf(
+                                    settings.progressBarHeight.toFloat()
+                                )
+                            }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("进度条高度: ${progressBarHeight.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "进度条高度: ${progressBarHeight.toInt()}px",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                                 Slider(
                                     value = progressBarHeight,
                                     onValueChange = { progressBarHeight = it },
                                     onValueChangeFinished = {
-                                        viewModel.updateBandSetting("EBOOK_PROGRESS_BAR_HEIGHT", progressBarHeight.toInt().toString())
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_PROGRESS_BAR_HEIGHT",
+                                            progressBarHeight.toInt().toString()
+                                        )
                                     },
                                     valueRange = 5f..50f,
                                     steps = 44
@@ -278,21 +357,36 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.brightnessFollowSystem,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
                         if (!settings.brightnessFollowSystem) {
-                            var brightness by remember(settings.brightness) { mutableFloatStateOf(settings.brightness.toFloat()) }
+                            var brightness by remember(settings.brightness) {
+                                mutableFloatStateOf(
+                                    settings.brightness.toFloat()
+                                )
+                            }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("自定义亮度: ${brightness.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "自定义亮度: ${brightness.toInt()}",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                                 Slider(
                                     value = brightness,
                                     onValueChange = { brightness = it },
                                     onValueChangeFinished = {
-                                        viewModel.updateBandSetting("EBOOK_BRIGHTNESS", brightness.toInt().toString())
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_BRIGHTNESS",
+                                            brightness.toInt().toString()
+                                        )
                                     },
                                     valueRange = 10f..255f,
                                     steps = 244
@@ -306,7 +400,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.alwaysShowTime,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_TIME", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_ALWAYS_SHOW_TIME",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -319,20 +418,35 @@ fun BandSettingsScreen(
                                 trailingContent = {
                                     Switch(
                                         checked = settings.alwaysShowBattery,
-                                        onCheckedChange = { viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_BATTERY", it.toString()) }
+                                        onCheckedChange = {
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_ALWAYS_SHOW_BATTERY",
+                                                it.toString()
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
 
-                            var timeSensitivity by remember(settings.alwaysShowTimeSensitivity) { mutableFloatStateOf(settings.alwaysShowTimeSensitivity.toFloat()) }
+                            var timeSensitivity by remember(settings.alwaysShowTimeSensitivity) {
+                                mutableFloatStateOf(
+                                    settings.alwaysShowTimeSensitivity.toFloat()
+                                )
+                            }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("调整距离: ${timeSensitivity.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "调整距离: ${timeSensitivity.toInt()}px",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                                 Slider(
                                     value = timeSensitivity,
                                     onValueChange = { timeSensitivity = it },
                                     onValueChangeFinished = {
-                                        viewModel.updateBandSetting("EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY", timeSensitivity.toInt().toString())
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY",
+                                            timeSensitivity.toInt().toString()
+                                        )
                                     },
                                     valueRange = 0f..500f,
                                     steps = 49
@@ -350,7 +464,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.chapterStartEmptyLines,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_EMPTY_LINES", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_CHAPTER_START_EMPTY_LINES",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -362,7 +481,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.chapterStartNumber,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_NUMBER", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_CHAPTER_START_NUMBER",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -374,7 +498,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.chapterStartName,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_NAME", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_CHAPTER_START_NAME",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -386,7 +515,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.chapterStartWordCount,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_START_WORD_COUNT", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_CHAPTER_START_WORD_COUNT",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -401,23 +535,42 @@ fun BandSettingsScreen(
                                 headlineContent = { Text("翻章方式") },
                                 trailingContent = {
                                     DropdownMenuBox(
-                                        options = listOf("button" to "按钮", "boundary" to "越界", "swipe" to "滑动"),
+                                        options = listOf(
+                                            "button" to "按钮",
+                                            "boundary" to "越界",
+                                            "swipe" to "滑动"
+                                        ),
                                         selectedKey = settings.chapterSwitchStyle,
-                                        onSelected = { viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_STYLE", it) }
+                                        onSelected = {
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_CHAPTER_SWITCH_STYLE",
+                                                it
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
 
                             if (settings.chapterSwitchStyle == "button") {
-                                var switchHeight by remember(settings.chapterSwitchHeight) { mutableFloatStateOf(settings.chapterSwitchHeight.toFloat()) }
+                                var switchHeight by remember(settings.chapterSwitchHeight) {
+                                    mutableFloatStateOf(
+                                        settings.chapterSwitchHeight.toFloat()
+                                    )
+                                }
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("按钮高度: ${switchHeight.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "按钮高度: ${switchHeight.toInt()}px",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                     Slider(
                                         value = switchHeight,
                                         onValueChange = { switchHeight = it },
                                         onValueChangeFinished = {
-                                            viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_HEIGHT", switchHeight.toInt().toString())
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_CHAPTER_SWITCH_HEIGHT",
+                                                switchHeight.toInt().toString()
+                                            )
                                         },
                                         valueRange = 40f..120f,
                                         steps = 7
@@ -430,7 +583,12 @@ fun BandSettingsScreen(
                                     trailingContent = {
                                         Switch(
                                             checked = settings.chapterSwitchShowInfo,
-                                            onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_SHOW_INFO", it.toString()) }
+                                            onCheckedChange = {
+                                                viewModel.updateBandSetting(
+                                                    "EBOOK_CHAPTER_SWITCH_SHOW_INFO",
+                                                    it.toString()
+                                                )
+                                            }
                                         )
                                     },
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -438,14 +596,24 @@ fun BandSettingsScreen(
                             }
 
                             if (settings.chapterSwitchStyle == "boundary") {
-                                var boundarySensitivity by remember(settings.chapterSwitchSensitivity) { mutableFloatStateOf(settings.chapterSwitchSensitivity.toFloat()) }
+                                var boundarySensitivity by remember(settings.chapterSwitchSensitivity) {
+                                    mutableFloatStateOf(
+                                        settings.chapterSwitchSensitivity.toFloat()
+                                    )
+                                }
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("越界灵敏度: ${boundarySensitivity.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "越界灵敏度: ${boundarySensitivity.toInt()}",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                     Slider(
                                         value = boundarySensitivity,
                                         onValueChange = { boundarySensitivity = it },
                                         onValueChangeFinished = {
-                                            viewModel.updateBandSetting("EBOOK_CHAPTER_SWITCH_SENSITIVITY", boundarySensitivity.toInt().toString())
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_CHAPTER_SWITCH_SENSITIVITY",
+                                                boundarySensitivity.toInt().toString()
+                                            )
                                         },
                                         valueRange = 0f..100f,
                                         steps = 99
@@ -454,14 +622,24 @@ fun BandSettingsScreen(
                             }
 
                             if (settings.chapterSwitchStyle == "swipe") {
-                                var swipeSensitivity by remember(settings.swipeSensitivity) { mutableFloatStateOf(settings.swipeSensitivity.toFloat()) }
+                                var swipeSensitivity by remember(settings.swipeSensitivity) {
+                                    mutableFloatStateOf(
+                                        settings.swipeSensitivity.toFloat()
+                                    )
+                                }
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("滑动灵敏度: ${swipeSensitivity.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "滑动灵敏度: ${swipeSensitivity.toInt()}",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                     Slider(
                                         value = swipeSensitivity,
                                         onValueChange = { swipeSensitivity = it },
                                         onValueChangeFinished = {
-                                            viewModel.updateBandSetting("EBOOK_SWIPE_SENSITIVITY", swipeSensitivity.toInt().toString())
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_SWIPE_SENSITIVITY",
+                                                swipeSensitivity.toInt().toString()
+                                            )
                                         },
                                         valueRange = 0f..100f,
                                         steps = 99
@@ -479,9 +657,18 @@ fun BandSettingsScreen(
                                 headlineContent = { Text("滑动翻页") },
                                 trailingContent = {
                                     DropdownMenuBox(
-                                        options = listOf("off" to "关闭", "column" to "上下滑动", "row" to "左右滑动"),
+                                        options = listOf(
+                                            "off" to "关闭",
+                                            "column" to "上下滑动",
+                                            "row" to "左右滑动"
+                                        ),
                                         selectedKey = settings.swipe,
-                                        onSelected = { viewModel.updateBandSetting("EBOOK_SWIPE", it) }
+                                        onSelected = {
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_SWIPE",
+                                                it
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -493,35 +680,60 @@ fun BandSettingsScreen(
                                 trailingContent = {
                                     Switch(
                                         checked = settings.autoReadEnabled,
-                                        onCheckedChange = { viewModel.updateAutoReadSetting(it, settings.autoReadSpeed) }
+                                        onCheckedChange = {
+                                            viewModel.updateAutoReadSetting(
+                                                it,
+                                                settings.autoReadSpeed
+                                            )
+                                        }
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
 
                             if (settings.autoReadEnabled) {
-                                var autoReadSpeed by remember(settings.autoReadSpeed) { mutableFloatStateOf(settings.autoReadSpeed.toFloat()) }
+                                var autoReadSpeed by remember(settings.autoReadSpeed) {
+                                    mutableFloatStateOf(
+                                        settings.autoReadSpeed.toFloat()
+                                    )
+                                }
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("间隔时间: ${autoReadSpeed.toInt()}秒", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "间隔时间: ${autoReadSpeed.toInt()}秒",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                     Slider(
                                         value = autoReadSpeed,
                                         onValueChange = { autoReadSpeed = it },
                                         onValueChangeFinished = {
-                                            viewModel.updateAutoReadSetting(settings.autoReadEnabled, autoReadSpeed.toInt())
+                                            viewModel.updateAutoReadSetting(
+                                                settings.autoReadEnabled,
+                                                autoReadSpeed.toInt()
+                                            )
                                         },
                                         valueRange = 1f..60f,
                                         steps = 58
                                     )
                                 }
 
-                                var autoReadDistance by remember(settings.autoReadDistance) { mutableFloatStateOf(settings.autoReadDistance.toFloat()) }
+                                var autoReadDistance by remember(settings.autoReadDistance) {
+                                    mutableFloatStateOf(
+                                        settings.autoReadDistance.toFloat()
+                                    )
+                                }
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("翻页距离: ${autoReadDistance.toInt()}px", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "翻页距离: ${autoReadDistance.toInt()}px",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                     Slider(
                                         value = autoReadDistance,
                                         onValueChange = { autoReadDistance = it },
                                         onValueChangeFinished = {
-                                            viewModel.updateBandSetting("EBOOK_AUTO_READ_DISTANCE", autoReadDistance.toInt().toString())
+                                            viewModel.updateBandSetting(
+                                                "EBOOK_AUTO_READ_DISTANCE",
+                                                autoReadDistance.toInt().toString()
+                                            )
                                         },
                                         valueRange = 0f..500f,
                                         steps = 49
@@ -534,14 +746,24 @@ fun BandSettingsScreen(
 
                 item {
                     SettingsSection(title = "高级设置") {
-                        var pageSize by remember(settings.txtSizePage) { mutableFloatStateOf(settings.txtSizePage.toFloat()) }
+                        var pageSize by remember(settings.txtSizePage) {
+                            mutableFloatStateOf(
+                                settings.txtSizePage.toFloat()
+                            )
+                        }
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("分段大小: ${pageSize.toInt()} 字节", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "分段大小: ${pageSize.toInt()} 字节",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Slider(
                                 value = pageSize,
                                 onValueChange = { pageSize = it },
                                 onValueChangeFinished = {
-                                    viewModel.updateBandSetting("EBOOK_TXTSZPAGE", pageSize.toInt().toString())
+                                    viewModel.updateBandSetting(
+                                        "EBOOK_TXTSZPAGE",
+                                        pageSize.toInt().toString()
+                                    )
                                 },
                                 valueRange = 400f..1200f,
                                 steps = 7
@@ -554,7 +776,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.preventParagraphSplitting,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_PREVENT_PARAGRAPH_SPLITTING", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_PREVENT_PARAGRAPH_SPLITTING",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -564,23 +791,41 @@ fun BandSettingsScreen(
                             headlineContent = { Text("进度保存模式") },
                             trailingContent = {
                                 DropdownMenuBox(
-                                    options = listOf("exit" to "退出时保存", "periodic" to "定时保存"),
+                                    options = listOf(
+                                        "exit" to "退出时保存",
+                                        "periodic" to "定时保存"
+                                    ),
                                     selectedKey = settings.progressSaveMode,
-                                    onSelected = { viewModel.updateBandSetting("EBOOK_PROGRESS_SAVE_MODE", it) }
+                                    onSelected = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_PROGRESS_SAVE_MODE",
+                                            it
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
 
                         if (settings.progressSaveMode == "periodic") {
-                            var saveInterval by remember(settings.progressSaveInterval) { mutableFloatStateOf(settings.progressSaveInterval.toFloat()) }
+                            var saveInterval by remember(settings.progressSaveInterval) {
+                                mutableFloatStateOf(
+                                    settings.progressSaveInterval.toFloat()
+                                )
+                            }
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("保存间隔: ${saveInterval.toInt()}秒", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "保存间隔: ${saveInterval.toInt()}秒",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                                 Slider(
                                     value = saveInterval,
                                     onValueChange = { saveInterval = it },
                                     onValueChangeFinished = {
-                                        viewModel.updateBandSetting("EBOOK_PROGRESS_SAVE_INTERVAL", saveInterval.toInt().toString())
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_PROGRESS_SAVE_INTERVAL",
+                                            saveInterval.toInt().toString()
+                                        )
                                     },
                                     valueRange = 1f..60f,
                                     steps = 58
@@ -594,7 +839,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.shelfMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_SHELF_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_SHELF_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -606,7 +856,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.bookmarkMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BOOKMARK_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_BOOKMARK_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -618,7 +873,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.bookinfoMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_BOOKINFO_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_BOOKINFO_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -630,7 +890,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.chapterListMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_CHAPTER_LIST_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_CHAPTER_LIST_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -642,7 +907,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.textReaderMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_TEXT_READER_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_TEXT_READER_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -654,7 +924,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.detailMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_DETAIL_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_DETAIL_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -666,7 +941,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.detailProgressMarqueeEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -678,7 +958,12 @@ fun BandSettingsScreen(
                             trailingContent = {
                                 Switch(
                                     checked = settings.teacherScreenEnabled,
-                                    onCheckedChange = { viewModel.updateBandSetting("EBOOK_TEACHER_SCREEN_ENABLED", it.toString()) }
+                                    onCheckedChange = {
+                                        viewModel.updateBandSetting(
+                                            "EBOOK_TEACHER_SCREEN_ENABLED",
+                                            it.toString()
+                                        )
+                                    }
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)

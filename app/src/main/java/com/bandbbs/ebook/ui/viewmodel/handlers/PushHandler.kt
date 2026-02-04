@@ -329,8 +329,17 @@ class PushHandler(
                                     isTransferring = true
                                 )
                             }
-                            ForegroundTransferService.startService(appContext, "重试中", "传输中断，5秒后重连...", null)
-                            LiveNotificationManager.showTransferNotification("重试中", "传输中断，5秒后重连...", null)
+                            ForegroundTransferService.startService(
+                                appContext,
+                                "重试中",
+                                "传输中断，5秒后重连...",
+                                null
+                            )
+                            LiveNotificationManager.showTransferNotification(
+                                "重试中",
+                                "传输中断，5秒后重连...",
+                                null
+                            )
                             scope.launch {
                                 retryTransfer(count)
                             }
@@ -380,11 +389,21 @@ class PushHandler(
                             )
                         }
                         val title = "$progressPercent%"
-                        ForegroundTransferService.startService(appContext, title, preview, progressPercent)
-                        LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
+                        ForegroundTransferService.startService(
+                            appContext,
+                            title,
+                            preview,
+                            progressPercent
+                        )
+                        LiveNotificationManager.showTransferNotification(
+                            title,
+                            preview,
+                            progressPercent
+                        )
 
                         if (sortedIndices.isNotEmpty() && p > 0) {
-                            val currentIndex = (p * sortedIndices.size).toInt().coerceAtMost(sortedIndices.size - 1)
+                            val currentIndex = (p * sortedIndices.size).toInt()
+                                .coerceAtMost(sortedIndices.size - 1)
                             currentTransferChapterIndex = sortedIndices[currentIndex]
                         }
                     },
@@ -416,8 +435,17 @@ class PushHandler(
         while (isRetrying && currentTransferBook != null && currentTransferChapters != null && retryCount < maxRetryCount) {
             retryCount++
             withContext(Dispatchers.Main) {
-                ForegroundTransferService.startService(appContext, "重试中", "等待重连... (第${retryCount}/${maxRetryCount}次)", null)
-                LiveNotificationManager.showTransferNotification("重试中", "等待重连... (第${retryCount}/${maxRetryCount}次)", null)
+                ForegroundTransferService.startService(
+                    appContext,
+                    "重试中",
+                    "等待重连... (第${retryCount}/${maxRetryCount}次)",
+                    null
+                )
+                LiveNotificationManager.showTransferNotification(
+                    "重试中",
+                    "等待重连... (第${retryCount}/${maxRetryCount}次)",
+                    null
+                )
             }
             delay(5000)
 
@@ -425,7 +453,12 @@ class PushHandler(
 
             try {
                 withContext(Dispatchers.Main) {
-                    ForegroundTransferService.startService(appContext, "重试中", "正在重连...", null)
+                    ForegroundTransferService.startService(
+                        appContext,
+                        "重试中",
+                        "正在重连...",
+                        null
+                    )
                     LiveNotificationManager.showTransferNotification("重试中", "正在重连...", null)
                 }
                 connectionHandler.reconnect()
@@ -454,8 +487,17 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
-                        ForegroundTransferService.startService(appContext, "重试失败", "无法找到书籍信息", null)
-                        LiveNotificationManager.showTransferNotification("重试失败", "无法找到书籍信息", null)
+                        ForegroundTransferService.startService(
+                            appContext,
+                            "重试失败",
+                            "无法找到书籍信息",
+                            null
+                        )
+                        LiveNotificationManager.showTransferNotification(
+                            "重试失败",
+                            "无法找到书籍信息",
+                            null
+                        )
                         delay(2000)
                         ForegroundTransferService.stopService(appContext)
                     }
@@ -465,15 +507,19 @@ class PushHandler(
 
                 val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
 
-                val targetIndex = if (failedChapterIndex > 0 && sortedIndices.contains(failedChapterIndex)) {
-                    failedChapterIndex
-                } else if (currentTransferChapterIndex > 0 && sortedIndices.contains(currentTransferChapterIndex)) {
-                    currentTransferChapterIndex
-                } else if (sortedIndices.contains(failedChapterIndex)) {
-                    failedChapterIndex
-                } else {
-                    sortedIndices.first()
-                }
+                val targetIndex =
+                    if (failedChapterIndex > 0 && sortedIndices.contains(failedChapterIndex)) {
+                        failedChapterIndex
+                    } else if (currentTransferChapterIndex > 0 && sortedIndices.contains(
+                            currentTransferChapterIndex
+                        )
+                    ) {
+                        currentTransferChapterIndex
+                    } else if (sortedIndices.contains(failedChapterIndex)) {
+                        failedChapterIndex
+                    } else {
+                        sortedIndices.first()
+                    }
 
                 val failedIndexInList = sortedIndices.indexOf(targetIndex)
                 val retryStartIndex = (failedIndexInList - 10).coerceAtLeast(0)
@@ -490,8 +536,17 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
-                        ForegroundTransferService.startService(appContext, "重试失败", "章节列表为空", null)
-                        LiveNotificationManager.showTransferNotification("重试失败", "章节列表为空", null)
+                        ForegroundTransferService.startService(
+                            appContext,
+                            "重试失败",
+                            "章节列表为空",
+                            null
+                        )
+                        LiveNotificationManager.showTransferNotification(
+                            "重试失败",
+                            "章节列表为空",
+                            null
+                        )
                         delay(2000)
                         ForegroundTransferService.stopService(appContext)
                     }
@@ -503,7 +558,8 @@ class PushHandler(
                 val firstChapterName = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                     .find { it.index == retryStartFromIndex }?.name ?: ""
 
-                val coverImagePath = if (syncCover && !isCoverAlreadySynced && retryStartIndex == 0) bookEntity.coverImagePath else null
+                val coverImagePath =
+                    if (syncCover && !isCoverAlreadySynced && retryStartIndex == 0) bookEntity.coverImagePath else null
 
                 withContext(Dispatchers.Main) {
                     addTransferLog("[重连] 重连成功，从第 ${retryStartIndex + 1} 章重新开始传输（共 ${retryChapters.size} 章）")
@@ -535,8 +591,17 @@ class PushHandler(
                                         isTransferring = true
                                     )
                                 }
-                                ForegroundTransferService.startService(appContext, "重试中", "传输中断，5秒后重连...", null)
-                                LiveNotificationManager.showTransferNotification("重试中", "传输中断，5秒后重连...", null)
+                                ForegroundTransferService.startService(
+                                    appContext,
+                                    "重试中",
+                                    "传输中断，5秒后重连...",
+                                    null
+                                )
+                                LiveNotificationManager.showTransferNotification(
+                                    "重试中",
+                                    "传输中断，5秒后重连...",
+                                    null
+                                )
                                 scope.launch {
                                     retryTransfer(count)
                                 }
@@ -586,11 +651,21 @@ class PushHandler(
                                 )
                             }
                             val title = "$progressPercent%"
-                            ForegroundTransferService.startService(appContext, title, preview, progressPercent)
-                            LiveNotificationManager.showTransferNotification(title, preview, progressPercent)
+                            ForegroundTransferService.startService(
+                                appContext,
+                                title,
+                                preview,
+                                progressPercent
+                            )
+                            LiveNotificationManager.showTransferNotification(
+                                title,
+                                preview,
+                                progressPercent
+                            )
 
                             if (retryChapters.isNotEmpty() && p > 0) {
-                                val currentIndex = (p * retryChapters.size).toInt().coerceAtMost(retryChapters.size - 1)
+                                val currentIndex = (p * retryChapters.size).toInt()
+                                    .coerceAtMost(retryChapters.size - 1)
                                 currentTransferChapterIndex = retryChapters[currentIndex]
                             }
                         },
@@ -620,8 +695,17 @@ class PushHandler(
                 withContext(Dispatchers.Main) {
                     if (retryCount < maxRetryCount) {
                         addTransferLog("[重试] 重连失败: ${e.message}，5秒后再次尝试... (第${retryCount}/${maxRetryCount}次)")
-                        ForegroundTransferService.startService(appContext, "重试失败", "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)", null)
-                        LiveNotificationManager.showTransferNotification("重试失败", "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)", null)
+                        ForegroundTransferService.startService(
+                            appContext,
+                            "重试失败",
+                            "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)",
+                            null
+                        )
+                        LiveNotificationManager.showTransferNotification(
+                            "重试失败",
+                            "重连失败: ${e.message}，5秒后重试... (第${retryCount}/${maxRetryCount}次)",
+                            null
+                        )
                     } else {
                         addTransferLog("[错误] 已达到最大重试次数(${maxRetryCount}次)，传输失败")
                         pushState.update {
@@ -632,8 +716,17 @@ class PushHandler(
                                 isTransferring = false
                             )
                         }
-                        ForegroundTransferService.startService(appContext, "传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
-                        LiveNotificationManager.showTransferNotification("传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                        ForegroundTransferService.startService(
+                            appContext,
+                            "传输失败",
+                            "已达到最大重试次数(${maxRetryCount}次)，传输失败",
+                            null
+                        )
+                        LiveNotificationManager.showTransferNotification(
+                            "传输失败",
+                            "已达到最大重试次数(${maxRetryCount}次)，传输失败",
+                            null
+                        )
                         delay(2000)
                         ForegroundTransferService.stopService(appContext)
                         resetTransferState()
@@ -654,8 +747,17 @@ class PushHandler(
                         isTransferring = false
                     )
                 }
-                ForegroundTransferService.startService(appContext, "传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
-                LiveNotificationManager.showTransferNotification("传输失败", "已达到最大重试次数(${maxRetryCount}次)，传输失败", null)
+                ForegroundTransferService.startService(
+                    appContext,
+                    "传输失败",
+                    "已达到最大重试次数(${maxRetryCount}次)，传输失败",
+                    null
+                )
+                LiveNotificationManager.showTransferNotification(
+                    "传输失败",
+                    "已达到最大重试次数(${maxRetryCount}次)，传输失败",
+                    null
+                )
                 delay(2000)
                 ForegroundTransferService.stopService(appContext)
             }

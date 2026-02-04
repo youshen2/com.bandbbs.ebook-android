@@ -22,11 +22,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ModeEdit
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -107,7 +105,8 @@ fun ChapterListBottomSheet(
         val currentIds = orderedChapters.map { it.id }.toSet()
         val newIds = chapters.map { it.id }.toSet()
         val sortedChapters = sortChapters(chapters)
-        val wasOrderChanged = currentIds == newIds && currentIds.isNotEmpty() && orderedChapters.map { it.id } != sortedChapters.map { it.id }
+        val wasOrderChanged =
+            currentIds == newIds && currentIds.isNotEmpty() && orderedChapters.map { it.id } != sortedChapters.map { it.id }
 
         if (currentIds != newIds) {
             orderedChapters.replaceWith(sortedChapters)
@@ -311,11 +310,15 @@ fun ChapterListBottomSheet(
                             )
                             DropdownMenuItem(
                                 text = { Text("按字数升序") },
-                                onClick = { sortType = SortType.WORD_COUNT_ASC; showSortMenu = false }
+                                onClick = {
+                                    sortType = SortType.WORD_COUNT_ASC; showSortMenu = false
+                                }
                             )
                             DropdownMenuItem(
                                 text = { Text("按字数降序") },
-                                onClick = { sortType = SortType.WORD_COUNT_DESC; showSortMenu = false }
+                                onClick = {
+                                    sortType = SortType.WORD_COUNT_DESC; showSortMenu = false
+                                }
                             )
                         }
                     }

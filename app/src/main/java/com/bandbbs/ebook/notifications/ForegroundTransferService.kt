@@ -1,12 +1,12 @@
 package com.bandbbs.ebook.notifications
 
+import android.app.Notification
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.app.Notification
-import android.content.Context
-import android.content.pm.ServiceInfo
 
 class ForegroundTransferService : Service() {
 
@@ -20,10 +20,15 @@ class ForegroundTransferService : Service() {
         val progress = intent?.getIntExtra(EXTRA_PROGRESS, -1)
         val progressPercent = if (progress != null && progress >= 0) progress else null
 
-        val notification: Notification = LiveNotificationManager.buildTransferNotification(title, content, progressPercent)
+        val notification: Notification =
+            LiveNotificationManager.buildTransferNotification(title, content, progressPercent)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(LiveNotificationManager.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(
+                LiveNotificationManager.NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
         } else {
             startForeground(LiveNotificationManager.NOTIFICATION_ID, notification)
         }

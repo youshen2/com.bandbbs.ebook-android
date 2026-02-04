@@ -22,9 +22,9 @@ class BookStatisticsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
+
         val bookName = intent.getStringExtra(EXTRA_BOOK_NAME) ?: return finish()
-        
+
         setContent {
             val viewModel: MainViewModel = viewModel()
             val themeMode by viewModel.themeMode.collectAsState()
@@ -46,10 +46,10 @@ class BookStatisticsActivity : ComponentActivity() {
             }
         }
     }
-    
+
     companion object {
         private const val EXTRA_BOOK_NAME = "extra_book_name"
-        
+
         fun start(context: Context, bookName: String) {
             val intent = Intent(context, BookStatisticsActivity::class.java).apply {
                 putExtra(EXTRA_BOOK_NAME, bookName)

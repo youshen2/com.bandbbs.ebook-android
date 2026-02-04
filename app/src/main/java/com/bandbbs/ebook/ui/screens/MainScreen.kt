@@ -1,5 +1,6 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -11,9 +12,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,15 +20,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
@@ -40,25 +44,21 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.rememberDismissState
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -70,12 +70,12 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,14 +83,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
 import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
-import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
@@ -98,21 +99,16 @@ import com.bandbbs.ebook.ui.components.OverwriteConfirmBottomSheet
 import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
+import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.SyncResultBottomSheet
 import com.bandbbs.ebook.ui.components.VersionIncompatibleBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
-import com.bandbbs.ebook.utils.bytesToReadable
 import com.bandbbs.ebook.utils.StorageUtils
-import kotlinx.coroutines.launch
+import com.bandbbs.ebook.utils.bytesToReadable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.bandbbs.ebook.database.AppDatabase
-import android.content.Context
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.remember
 
 
 private enum class ItemType {
@@ -233,9 +229,15 @@ fun MainScreen(
                 Column {
                     Text("请选择删除方式：")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("· 删除手机书籍：删除本机文件和所有章节数据，不影响手环端。", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "· 删除手机书籍：删除本机文件和所有章节数据，不影响手环端。",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("· 删除手环书籍：仅删除手环端书籍数据，不删除手机端文件。", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "· 删除手环书籍：仅删除手环端书籍数据，不删除手机端文件。",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             },
             confirmButton = {
@@ -272,7 +274,10 @@ fun MainScreen(
                         Text("· ${book.name}", style = MaterialTheme.typography.bodySmall)
                     }
                     if (booksToDelete.size > 5) {
-                        Text("... 还有 ${booksToDelete.size - 5} 本", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "... 还有 ${booksToDelete.size - 5} 本",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             },
@@ -1102,7 +1107,9 @@ fun MainScreen(
                                     Text(
                                         text = "点击书籍卡片展开，然后点击传输书籍按钮进行传输",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                            alpha = 0.8f
+                                        )
                                     )
                                 }
                             }
@@ -1348,9 +1355,13 @@ fun MainScreen(
                                         }
                                         if (bandStorageInfo.totalStorage > 0) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            val usableSpace = bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
+                                            val usableSpace =
+                                                bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
                                             val progress = if (usableSpace > 0) {
-                                                (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(0f, 1f)
+                                                (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(
+                                                    0f,
+                                                    1f
+                                                )
                                             } else {
                                                 0f
                                             }
@@ -1368,7 +1379,11 @@ fun MainScreen(
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${bytesToReadable(usableSpace)}",
+                                                text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${
+                                                    bytesToReadable(
+                                                        usableSpace
+                                                    )
+                                                }",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.fillMaxWidth(),
@@ -1486,7 +1501,8 @@ fun MainScreen(
                                                     if (isMultiSelectMode) {
                                                         viewModel.selectBook(book.path)
                                                     } else {
-                                                        expandedRecentBookPath = if (isExpanded) null else book.path
+                                                        expandedRecentBookPath =
+                                                            if (isExpanded) null else book.path
                                                         if (expandedRecentBookPath != null) {
                                                             viewModel.setExpandedBook(null)
                                                         }
@@ -1539,7 +1555,8 @@ fun MainScreen(
                                                     if (isMultiSelectMode) {
                                                         viewModel.selectBook(book.path)
                                                     } else {
-                                                        expandedRecentUpdateBookPath = if (isExpanded) null else book.path
+                                                        expandedRecentUpdateBookPath =
+                                                            if (isExpanded) null else book.path
                                                         if (expandedRecentUpdateBookPath != null) {
                                                             viewModel.setExpandedBook(null)
                                                         }
@@ -1593,25 +1610,27 @@ fun MainScreen(
                                                     bottom = if (isLastItem) 16.dp else 0.dp
                                                 )
                                         ) {
-                                            val dismissState = rememberDismissState(confirmStateChange = { newState ->
-                                                if (newState == DismissValue.DismissedToEnd) {
-                                                    if (quickEditCategoryEnabled) {
-                                                        viewModel.showCategorySelector(book)
+                                            val dismissState =
+                                                rememberDismissState(confirmStateChange = { newState ->
+                                                    if (newState == DismissValue.DismissedToEnd) {
+                                                        if (quickEditCategoryEnabled) {
+                                                            viewModel.showCategorySelector(book)
+                                                        } else {
+                                                            viewModel.enterMultiSelectMode()
+                                                            viewModel.selectBook(book.path)
+                                                        }
+                                                        false
                                                     } else {
-                                                        viewModel.enterMultiSelectMode()
-                                                        viewModel.selectBook(book.path)
+                                                        true
                                                     }
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            })
+                                                })
 
                                             SwipeToDismiss(
                                                 state = dismissState,
                                                 directions = setOf(DismissDirection.StartToEnd),
                                                 background = {
-                                                    val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
+                                                    val direction = dismissState.dismissDirection
+                                                        ?: return@SwipeToDismiss
                                                     val color = when (direction) {
                                                         DismissDirection.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
                                                         else -> MaterialTheme.colorScheme.surface
@@ -1624,7 +1643,9 @@ fun MainScreen(
                                                     ) {
                                                         Row(
                                                             verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            horizontalArrangement = Arrangement.spacedBy(
+                                                                8.dp
+                                                            )
                                                         ) {
                                                             Icon(
                                                                 if (quickEditCategoryEnabled) Icons.Outlined.Edit else Icons.Outlined.CheckCircle,
@@ -1648,7 +1669,8 @@ fun MainScreen(
                                                         if (isMultiSelectMode) {
                                                             viewModel.selectBook(book.path)
                                                         } else {
-                                                            val willExpand = expandedBookPath != book.path
+                                                            val willExpand =
+                                                                expandedBookPath != book.path
                                                             viewModel.setExpandedBook(if (expandedBookPath == book.path) null else book.path)
                                                             if (willExpand) {
                                                                 expandedRecentBookPath = null
@@ -1656,7 +1678,11 @@ fun MainScreen(
                                                             }
                                                         }
                                                     },
-                                                    onDeleteClick = { viewModel.requestDeleteBook(book) },
+                                                    onDeleteClick = {
+                                                        viewModel.requestDeleteBook(
+                                                            book
+                                                        )
+                                                    },
                                                     onSyncClick = { viewModel.startPush(book) },
                                                     onChapterListClick = {
                                                         viewModel.showChapterList(
@@ -1690,7 +1716,11 @@ fun MainScreen(
                                     val isExpanded = expandedCategories.contains(category)
 
                                     var showRenameDialog by remember { mutableStateOf(false) }
-                                    var newCategoryName by remember(category) { mutableStateOf(category) }
+                                    var newCategoryName by remember(category) {
+                                        mutableStateOf(
+                                            category
+                                        )
+                                    }
 
                                     if (showRenameDialog) {
                                         AlertDialog(
@@ -1708,7 +1738,10 @@ fun MainScreen(
                                                 TextButton(
                                                     onClick = {
                                                         if (newCategoryName.isNotBlank() && newCategoryName != category) {
-                                                            viewModel.renameCategory(category, newCategoryName)
+                                                            viewModel.renameCategory(
+                                                                category,
+                                                                newCategoryName
+                                                            )
                                                             showRenameDialog = false
                                                         }
                                                     },
@@ -1733,7 +1766,9 @@ fun MainScreen(
                                                     Modifier.pointerInput(category) {
                                                         detectTapGestures(
                                                             onTap = {
-                                                                viewModel.toggleCategoryExpansion(category)
+                                                                viewModel.toggleCategoryExpansion(
+                                                                    category
+                                                                )
                                                             },
                                                             onLongPress = {
                                                                 showRenameDialog = true
@@ -1801,9 +1836,16 @@ fun MainScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("当前设备预留空间：${StorageUtils.getReservedStorageText(bandStorageInfo.product)}")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("实际可用空间 = 总空间 - 预留空间 - 已用空间", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "实际可用空间 = 总空间 - 预留空间 - 已用空间",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("注意：预留空间大小是往大了标注的，实际可能没有这么多。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "注意：预留空间大小是往大了标注的，实际可能没有这么多。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 confirmButton = {

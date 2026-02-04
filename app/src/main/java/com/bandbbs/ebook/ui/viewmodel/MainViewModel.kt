@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.bandbbs.ebook.database.AppDatabase
+import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.database.ChapterInfo
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.ui.model.Book
@@ -20,14 +21,13 @@ import com.bandbbs.ebook.ui.viewmodel.handlers.ImportHandler
 import com.bandbbs.ebook.ui.viewmodel.handlers.LibraryHandler
 import com.bandbbs.ebook.ui.viewmodel.handlers.PushHandler
 import com.bandbbs.ebook.utils.BookInfoParser
+import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.DataBackupManager
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
-import com.bandbbs.ebook.utils.VersionChecker
-import com.bandbbs.ebook.database.BookmarkEntity
-import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage
+import com.bandbbs.ebook.utils.VersionChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -643,7 +643,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     onError = { errorMessage ->
                         viewModelScope.launch(Dispatchers.Main) {
                             val currentState = _pushState.value
-                            val newLog = (currentState.transferLog + "错误: $errorMessage").takeLast(100)
+                            val newLog =
+                                (currentState.transferLog + "错误: $errorMessage").takeLast(100)
                             _pushState.value = currentState.copy(
                                 statusText = errorMessage,
                                 isFinished = true,
@@ -813,7 +814,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resyncBookInfo(book: Book) {
-        _globalLoadingState.value = GlobalLoadingState(isLoading = true, message = "正在同步书籍信息...")
+        _globalLoadingState.value =
+            GlobalLoadingState(isLoading = true, message = "正在同步书籍信息...")
         viewModelScope.launch(Dispatchers.IO) {
 
             _editBookInfoState.value?.let { currentState ->
@@ -972,7 +974,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         setSyncModesAndStart(mode, mode)
     }
 
-    fun setSyncModesAndStart(progressMode: SyncMode, readingTimeMode: SyncMode, bookmarkMode: SyncMode = SyncMode.AUTO) {
+    fun setSyncModesAndStart(
+        progressMode: SyncMode,
+        readingTimeMode: SyncMode,
+        bookmarkMode: SyncMode = SyncMode.AUTO
+    ) {
         Log.d(
             "MainViewModel",
             "setSyncModesAndStart() called with progressMode: $progressMode, readingTimeMode: $readingTimeMode, bookmarkMode: $bookmarkMode"
@@ -1049,8 +1055,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         Log.e("MainViewModel", "Failed to get book status for ${book.name}", e)
                         failedBooks[book.name] = "获取书籍状态失败: ${e.message ?: "未知错误"}"
                         withContext(Dispatchers.Main) {
-                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
-                            currentFailed[book.name] = "获取书籍状态失败: ${e.message ?: "未知错误"}"
+                            val currentFailed =
+                                _syncReadingDataState.value.failedBooks.toMutableMap()
+                            currentFailed[book.name] =
+                                "获取书籍状态失败: ${e.message ?: "未知错误"}"
                             _syncReadingDataState.value = _syncReadingDataState.value.copy(
                                 failedBooks = currentFailed
                             )
@@ -1058,12 +1066,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    val bookExistsOnBand = bookStatus.syncedChapters.isNotEmpty() || bookStatus.hasCover
+                    val bookExistsOnBand =
+                        bookStatus.syncedChapters.isNotEmpty() || bookStatus.hasCover
                     if (!bookExistsOnBand) {
-                        Log.d("MainViewModel", "Book ${book.name} does not exist on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}")
+                        Log.d(
+                            "MainViewModel",
+                            "Book ${book.name} does not exist on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}"
+                        )
                         failedBooks[book.name] = "手环端不存在"
                         withContext(Dispatchers.Main) {
-                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
+                            val currentFailed =
+                                _syncReadingDataState.value.failedBooks.toMutableMap()
                             currentFailed[book.name] = "手环端不存在"
                             _syncReadingDataState.value = _syncReadingDataState.value.copy(
                                 failedBooks = currentFailed
@@ -1072,7 +1085,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    Log.d("MainViewModel", "Book ${book.name} exists on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}")
+                    Log.d(
+                        "MainViewModel",
+                        "Book ${book.name} exists on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}"
+                    )
 
                     try {
                         Log.d("MainViewModel", "Syncing reading data for book: ${book.name}")
@@ -1307,11 +1323,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         val hasReadingTimeChange = when (currentReadingTimeMode) {
                             SyncMode.AUTO -> {
-                                val phoneTotal = (phoneReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
-                                val bandTotal = (bandReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
-                                val finalTotal = (finalReadingTime?.get("totalSeconds") as? Number)?.toLong() ?: 0L
+                                val phoneTotal =
+                                    (phoneReadingTime?.get("totalSeconds") as? Number)?.toLong()
+                                        ?: 0L
+                                val bandTotal =
+                                    (bandReadingTime?.get("totalSeconds") as? Number)?.toLong()
+                                        ?: 0L
+                                val finalTotal =
+                                    (finalReadingTime?.get("totalSeconds") as? Number)?.toLong()
+                                        ?: 0L
                                 finalTotal != phoneTotal || (bandTotal > 0 && finalTotal != bandTotal)
                             }
+
                             SyncMode.BAND_ONLY -> bandReadingTime != null
                             SyncMode.PHONE_ONLY -> false
                         }
@@ -1364,7 +1387,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                             else -> 0
                                         }
                                         var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
-                                        if (normalizedOffset % 2 == 1) normalizedOffset = Math.max(0, normalizedOffset - 1)
+                                        if (normalizedOffset % 2 == 1) normalizedOffset =
+                                            Math.max(0, normalizedOffset - 1)
                                         if (fp.containsKey("offsetInChapter")) {
                                             normalized["offsetInChapter"] = normalizedOffset
                                         }
@@ -1434,11 +1458,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         try {
-                            val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
+                            val phoneBookmarks =
+                                BookmarkManager.getBookmarksForSync(getApplication(), book.id)
                             val bandBookmarks = try {
                                 fileConn.getBookmarks(book.name)
                             } catch (e: Exception) {
-                                Log.e("MainViewModel", "Failed to get bookmarks from band for ${book.name}", e)
+                                Log.e(
+                                    "MainViewModel",
+                                    "Failed to get bookmarks from band for ${book.name}",
+                                    e
+                                )
                                 emptyList()
                             }
 
@@ -1457,9 +1486,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                             )
                                         }
                                         fileConn.setBookmarks(book.name, bookmarkData)
-                                        Log.d("MainViewModel", "Synced ${bookmarkData.size} bookmarks from phone to band for ${book.name}")
+                                        Log.d(
+                                            "MainViewModel",
+                                            "Synced ${bookmarkData.size} bookmarks from phone to band for ${book.name}"
+                                        )
                                     }
                                 }
+
                                 SyncMode.BAND_ONLY -> {
                                     if (bandBookmarks.isNotEmpty()) {
                                         val bookmarkEntities = bandBookmarks.map { bm ->
@@ -1473,14 +1506,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                                 time = bm.time
                                             )
                                         }
-                                        BookmarkManager.syncBookmarksFromBand(getApplication(), book.id, bookmarkEntities)
-                                        Log.d("MainViewModel", "Synced ${bookmarkEntities.size} bookmarks from band to phone for ${book.name}")
+                                        BookmarkManager.syncBookmarksFromBand(
+                                            getApplication(),
+                                            book.id,
+                                            bookmarkEntities
+                                        )
+                                        Log.d(
+                                            "MainViewModel",
+                                            "Synced ${bookmarkEntities.size} bookmarks from band to phone for ${book.name}"
+                                        )
                                     }
                                 }
+
                                 SyncMode.AUTO -> {
                                     val mergedBookmarks = mutableListOf<BookmarkEntity>()
-                                    val bandBookmarkMap = bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
-                                    val phoneBookmarkMap = phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+                                    val bandBookmarkMap =
+                                        bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+                                    val phoneBookmarkMap =
+                                        phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
 
                                     bandBookmarks.forEach { bm ->
                                         mergedBookmarks.add(
@@ -1515,8 +1558,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                             )
                                         }
                                         fileConn.setBookmarks(book.name, bookmarkData)
-                                        BookmarkManager.syncBookmarksFromBand(getApplication(), book.id, mergedBookmarks)
-                                        Log.d("MainViewModel", "Merged and synced ${mergedBookmarks.size} bookmarks for ${book.name}")
+                                        BookmarkManager.syncBookmarksFromBand(
+                                            getApplication(),
+                                            book.id,
+                                            mergedBookmarks
+                                        )
+                                        Log.d(
+                                            "MainViewModel",
+                                            "Merged and synced ${mergedBookmarks.size} bookmarks for ${book.name}"
+                                        )
                                     }
                                 }
                             }
@@ -1534,7 +1584,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         Log.e("MainViewModel", "Failed to sync reading data for ${book.name}", e)
                         failedBooks[book.name] = "同步失败: ${e.message ?: "未知错误"}"
                         withContext(Dispatchers.Main) {
-                            val currentFailed = _syncReadingDataState.value.failedBooks.toMutableMap()
+                            val currentFailed =
+                                _syncReadingDataState.value.failedBooks.toMutableMap()
                             currentFailed[book.name] = "同步失败: ${e.message ?: "未知错误"}"
                             _syncReadingDataState.value = _syncReadingDataState.value.copy(
                                 failedBooks = currentFailed
@@ -2242,7 +2293,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _backupRestoreState.value = if (result.isSuccess) {
                 BackupRestoreResult(success = true, message = "备份成功")
             } else {
-                BackupRestoreResult(success = false, message = "备份失败: ${result.exceptionOrNull()?.message}")
+                BackupRestoreResult(
+                    success = false,
+                    message = "备份失败: ${result.exceptionOrNull()?.message}"
+                )
             }
         }
     }
@@ -2252,9 +2306,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val result = DataBackupManager.restoreData(getApplication(), uri, db)
             if (result.isSuccess) {
                 loadBooks()
-                _backupRestoreState.value = BackupRestoreResult(success = true, message = "恢复成功")
+                _backupRestoreState.value =
+                    BackupRestoreResult(success = true, message = "恢复成功")
             } else {
-                _backupRestoreState.value = BackupRestoreResult(success = false, message = "恢复失败: ${result.exceptionOrNull()?.message}")
+                _backupRestoreState.value = BackupRestoreResult(
+                    success = false,
+                    message = "恢复失败: ${result.exceptionOrNull()?.message}"
+                )
             }
         }
     }
@@ -2264,32 +2322,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadBandSettings() {
-        _globalLoadingState.value = GlobalLoadingState(isLoading = true, message = "正在加载手环设置...")
+        _globalLoadingState.value =
+            GlobalLoadingState(isLoading = true, message = "正在加载手环设置...")
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val conn = connectionHandler.getFileConnection()
-                val settings = conn.getSettings(listOf(
-                    "EBOOK_FONT", "EBOOK_OPACITY", "EBOOK_BOLD_ENABLED",
-                    "EBOOK_VERTICAL_MARGIN", "EBOOK_TIME_FORMAT", "EBOOK_READ_MODE",
-                    "EBOOK_TXTSZPAGE", "EBOOK_SHOW_PROGRESS_BAR",
-                    "EBOOK_SHOW_PROGRESS_BAR_PERCENT", "EBOOK_PROGRESS_BAR_OPACITY",
-                    "EBOOK_PROGRESS_BAR_HEIGHT", "EBOOK_PREVENT_PARAGRAPH_SPLITTING",
-                    "EBOOK_BRIGHTNESS",
-                    "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", "EBOOK_ALWAYS_SHOW_TIME",
-                    "EBOOK_ALWAYS_SHOW_BATTERY", "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY",
-                    "EBOOK_CHAPTER_START_EMPTY_LINES", "EBOOK_CHAPTER_START_NUMBER",
-                    "EBOOK_CHAPTER_START_NAME", "EBOOK_CHAPTER_START_WORD_COUNT",
-                    "EBOOK_CHAPTER_SWITCH_STYLE", "EBOOK_CHAPTER_SWITCH_HEIGHT",
-                    "EBOOK_CHAPTER_SWITCH_SENSITIVITY", "EBOOK_CHAPTER_SWITCH_SHOW_INFO",
-                    "EBOOK_SWIPE_SENSITIVITY", "EBOOK_SWIPE", "EBOOK_AUTO",
-                    "EBOOK_AUTO_READ_DISTANCE", "EBOOK_GESTURE",
-                    "EBOOK_PROGRESS_SAVE_MODE", "EBOOK_PROGRESS_SAVE_INTERVAL",
-                    "EBOOK_SHELF_MARQUEE_ENABLED", "EBOOK_BOOKMARK_MARQUEE_ENABLED",
-                    "EBOOK_BOOKINFO_MARQUEE_ENABLED", "EBOOK_CHAPTER_LIST_MARQUEE_ENABLED",
-                    "EBOOK_TEXT_READER_MARQUEE_ENABLED", "EBOOK_DETAIL_MARQUEE_ENABLED",
-                    "EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED", "EBOOK_NOSTALGIC_PAGE_TURN_MODE",
-                    "EBOOK_TEACHER_SCREEN_ENABLED"
-                ))
+                val settings = conn.getSettings(
+                    listOf(
+                        "EBOOK_FONT", "EBOOK_OPACITY", "EBOOK_BOLD_ENABLED",
+                        "EBOOK_VERTICAL_MARGIN", "EBOOK_TIME_FORMAT", "EBOOK_READ_MODE",
+                        "EBOOK_TXTSZPAGE", "EBOOK_SHOW_PROGRESS_BAR",
+                        "EBOOK_SHOW_PROGRESS_BAR_PERCENT", "EBOOK_PROGRESS_BAR_OPACITY",
+                        "EBOOK_PROGRESS_BAR_HEIGHT", "EBOOK_PREVENT_PARAGRAPH_SPLITTING",
+                        "EBOOK_BRIGHTNESS",
+                        "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM", "EBOOK_ALWAYS_SHOW_TIME",
+                        "EBOOK_ALWAYS_SHOW_BATTERY", "EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY",
+                        "EBOOK_CHAPTER_START_EMPTY_LINES", "EBOOK_CHAPTER_START_NUMBER",
+                        "EBOOK_CHAPTER_START_NAME", "EBOOK_CHAPTER_START_WORD_COUNT",
+                        "EBOOK_CHAPTER_SWITCH_STYLE", "EBOOK_CHAPTER_SWITCH_HEIGHT",
+                        "EBOOK_CHAPTER_SWITCH_SENSITIVITY", "EBOOK_CHAPTER_SWITCH_SHOW_INFO",
+                        "EBOOK_SWIPE_SENSITIVITY", "EBOOK_SWIPE", "EBOOK_AUTO",
+                        "EBOOK_AUTO_READ_DISTANCE", "EBOOK_GESTURE",
+                        "EBOOK_PROGRESS_SAVE_MODE", "EBOOK_PROGRESS_SAVE_INTERVAL",
+                        "EBOOK_SHELF_MARQUEE_ENABLED", "EBOOK_BOOKMARK_MARQUEE_ENABLED",
+                        "EBOOK_BOOKINFO_MARQUEE_ENABLED", "EBOOK_CHAPTER_LIST_MARQUEE_ENABLED",
+                        "EBOOK_TEXT_READER_MARQUEE_ENABLED", "EBOOK_DETAIL_MARQUEE_ENABLED",
+                        "EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED", "EBOOK_NOSTALGIC_PAGE_TURN_MODE",
+                        "EBOOK_TEACHER_SCREEN_ENABLED"
+                    )
+                )
 
                 val autoReadData = try {
                     settings["EBOOK_AUTO"]?.takeIf { it.isNotEmpty() }?.let { json ->
@@ -2302,47 +2363,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 withContext(Dispatchers.Main) {
                     _bandSettingsState.value = BandSettingsState(
-                        fontSize = settings["EBOOK_FONT"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 30,
-                        opacity = settings["EBOOK_OPACITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 100,
-                        boldEnabled = settings["EBOOK_BOLD_ENABLED"]?.takeIf { it.isNotEmpty() }?.let { it != "false" } ?: true,
-                        verticalMargin = settings["EBOOK_VERTICAL_MARGIN"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 10,
-                        timeFormat = settings["EBOOK_TIME_FORMAT"]?.takeIf { it.isNotEmpty() } ?: "24h",
-                        readMode = settings["EBOOK_READ_MODE"]?.takeIf { it.isNotEmpty() } ?: "scroll",
-                        txtSizePage = settings["EBOOK_TXTSZPAGE"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 400,
-                        showProgressBar = settings["EBOOK_SHOW_PROGRESS_BAR"]?.takeIf { it.isNotEmpty() }?.let { it == "true" } ?: true,
+                        fontSize = settings["EBOOK_FONT"]?.takeIf { it.isNotEmpty() }?.toIntOrNull()
+                            ?: 30,
+                        opacity = settings["EBOOK_OPACITY"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 100,
+                        boldEnabled = settings["EBOOK_BOLD_ENABLED"]?.takeIf { it.isNotEmpty() }
+                            ?.let { it != "false" } ?: true,
+                        verticalMargin = settings["EBOOK_VERTICAL_MARGIN"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 10,
+                        timeFormat = settings["EBOOK_TIME_FORMAT"]?.takeIf { it.isNotEmpty() }
+                            ?: "24h",
+                        readMode = settings["EBOOK_READ_MODE"]?.takeIf { it.isNotEmpty() }
+                            ?: "scroll",
+                        txtSizePage = settings["EBOOK_TXTSZPAGE"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 400,
+                        showProgressBar = settings["EBOOK_SHOW_PROGRESS_BAR"]?.takeIf { it.isNotEmpty() }
+                            ?.let { it == "true" } ?: true,
                         showProgressBarPercent = settings["EBOOK_SHOW_PROGRESS_BAR_PERCENT"]?.takeIf { it.isNotEmpty() } == "true",
-                        progressBarOpacity = settings["EBOOK_PROGRESS_BAR_OPACITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 100,
-                        progressBarHeight = settings["EBOOK_PROGRESS_BAR_HEIGHT"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 8,
+                        progressBarOpacity = settings["EBOOK_PROGRESS_BAR_OPACITY"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 100,
+                        progressBarHeight = settings["EBOOK_PROGRESS_BAR_HEIGHT"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 8,
                         preventParagraphSplitting = settings["EBOOK_PREVENT_PARAGRAPH_SPLITTING"]?.takeIf { it.isNotEmpty() } == "true",
-                        brightness = settings["EBOOK_BRIGHTNESS"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 128,
-                        brightnessFollowSystem = settings["EBOOK_BRIGHTNESS_FOLLOW_SYSTEM"]?.takeIf { it.isNotEmpty() }?.let { it != "false" } ?: true,
+                        brightness = settings["EBOOK_BRIGHTNESS"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 128,
+                        brightnessFollowSystem = settings["EBOOK_BRIGHTNESS_FOLLOW_SYSTEM"]?.takeIf { it.isNotEmpty() }
+                            ?.let { it != "false" } ?: true,
                         alwaysShowTime = settings["EBOOK_ALWAYS_SHOW_TIME"]?.takeIf { it.isNotEmpty() } == "true",
-                        alwaysShowBattery = settings["EBOOK_ALWAYS_SHOW_BATTERY"]?.takeIf { it.isNotEmpty() }?.let { it != "false" } ?: true,
-                        alwaysShowTimeSensitivity = settings["EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 200,
+                        alwaysShowBattery = settings["EBOOK_ALWAYS_SHOW_BATTERY"]?.takeIf { it.isNotEmpty() }
+                            ?.let { it != "false" } ?: true,
+                        alwaysShowTimeSensitivity = settings["EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 200,
                         chapterStartEmptyLines = settings["EBOOK_CHAPTER_START_EMPTY_LINES"]?.takeIf { it.isNotEmpty() } == "true",
                         chapterStartNumber = settings["EBOOK_CHAPTER_START_NUMBER"]?.takeIf { it.isNotEmpty() } == "true",
                         chapterStartName = settings["EBOOK_CHAPTER_START_NAME"]?.takeIf { it.isNotEmpty() } == "true",
                         chapterStartWordCount = settings["EBOOK_CHAPTER_START_WORD_COUNT"]?.takeIf { it.isNotEmpty() } == "true",
-                        chapterSwitchStyle = settings["EBOOK_CHAPTER_SWITCH_STYLE"]?.takeIf { it.isNotEmpty() } ?: "button",
-                        chapterSwitchHeight = settings["EBOOK_CHAPTER_SWITCH_HEIGHT"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 80,
-                        chapterSwitchSensitivity = settings["EBOOK_CHAPTER_SWITCH_SENSITIVITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 50,
+                        chapterSwitchStyle = settings["EBOOK_CHAPTER_SWITCH_STYLE"]?.takeIf { it.isNotEmpty() }
+                            ?: "button",
+                        chapterSwitchHeight = settings["EBOOK_CHAPTER_SWITCH_HEIGHT"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 80,
+                        chapterSwitchSensitivity = settings["EBOOK_CHAPTER_SWITCH_SENSITIVITY"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 50,
                         chapterSwitchShowInfo = settings["EBOOK_CHAPTER_SWITCH_SHOW_INFO"]?.takeIf { it.isNotEmpty() } == "true",
-                        swipeSensitivity = settings["EBOOK_SWIPE_SENSITIVITY"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 80,
+                        swipeSensitivity = settings["EBOOK_SWIPE_SENSITIVITY"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 80,
                         swipe = settings["EBOOK_SWIPE"]?.takeIf { it.isNotEmpty() } ?: "column",
                         autoReadEnabled = autoReadData.first,
                         autoReadSpeed = autoReadData.second,
-                        autoReadDistance = settings["EBOOK_AUTO_READ_DISTANCE"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 100,
+                        autoReadDistance = settings["EBOOK_AUTO_READ_DISTANCE"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 100,
                         gesture = settings["EBOOK_GESTURE"]?.takeIf { it.isNotEmpty() } ?: "single",
-                        progressSaveMode = settings["EBOOK_PROGRESS_SAVE_MODE"]?.takeIf { it.isNotEmpty() } ?: "exit",
-                        progressSaveInterval = settings["EBOOK_PROGRESS_SAVE_INTERVAL"]?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 10,
+                        progressSaveMode = settings["EBOOK_PROGRESS_SAVE_MODE"]?.takeIf { it.isNotEmpty() }
+                            ?: "exit",
+                        progressSaveInterval = settings["EBOOK_PROGRESS_SAVE_INTERVAL"]?.takeIf { it.isNotEmpty() }
+                            ?.toIntOrNull() ?: 10,
                         shelfMarqueeEnabled = settings["EBOOK_SHELF_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
                         bookmarkMarqueeEnabled = settings["EBOOK_BOOKMARK_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
-                        bookinfoMarqueeEnabled = settings["EBOOK_BOOKINFO_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() }?.let { it == "true" } ?: true,
+                        bookinfoMarqueeEnabled = settings["EBOOK_BOOKINFO_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() }
+                            ?.let { it == "true" } ?: true,
                         chapterListMarqueeEnabled = settings["EBOOK_CHAPTER_LIST_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
                         textReaderMarqueeEnabled = settings["EBOOK_TEXT_READER_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
                         detailMarqueeEnabled = settings["EBOOK_DETAIL_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
                         detailProgressMarqueeEnabled = settings["EBOOK_DETAIL_PROGRESS_MARQUEE_ENABLED"]?.takeIf { it.isNotEmpty() } == "true",
-                        nostalgicPageTurnMode = settings["EBOOK_NOSTALGIC_PAGE_TURN_MODE"]?.takeIf { it.isNotEmpty() } ?: "topBottomClick",
+                        nostalgicPageTurnMode = settings["EBOOK_NOSTALGIC_PAGE_TURN_MODE"]?.takeIf { it.isNotEmpty() }
+                            ?: "topBottomClick",
                         teacherScreenEnabled = settings["EBOOK_TEACHER_SCREEN_ENABLED"]?.takeIf { it.isNotEmpty() } == "true"
                     )
                     _globalLoadingState.value = GlobalLoadingState(isLoading = false)
@@ -2405,7 +2489,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
-                _globalLoadingState.value = GlobalLoadingState(isLoading = true, message = "正在保存设置...")
+                _globalLoadingState.value =
+                    GlobalLoadingState(isLoading = true, message = "正在保存设置...")
             }
             try {
                 withTimeout(5000L) {
@@ -2418,7 +2503,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error updating band setting", e)
                 withContext(Dispatchers.Main) {
-                    android.widget.Toast.makeText(getApplication(), "保存超时或失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(
+                        getApplication(),
+                        "保存超时或失败: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 }
                 loadBandSettings()
             } finally {
@@ -2431,12 +2520,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateAutoReadSetting(enabled: Boolean, speed: Int) {
         _bandSettingsState.value?.let { current ->
-            _bandSettingsState.value = current.copy(autoReadEnabled = enabled, autoReadSpeed = speed)
+            _bandSettingsState.value =
+                current.copy(autoReadEnabled = enabled, autoReadSpeed = speed)
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
-                _globalLoadingState.value = GlobalLoadingState(isLoading = true, message = "正在保存设置...")
+                _globalLoadingState.value =
+                    GlobalLoadingState(isLoading = true, message = "正在保存设置...")
             }
             try {
                 withTimeout(5000L) {
@@ -2453,7 +2544,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error updating auto read setting", e)
                 withContext(Dispatchers.Main) {
-                    android.widget.Toast.makeText(getApplication(), "保存超时或失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(
+                        getApplication(),
+                        "保存超时或失败: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 }
                 loadBandSettings()
             } finally {

@@ -1,5 +1,7 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,8 +63,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import android.content.Intent
-import android.net.Uri
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 
@@ -394,7 +394,10 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://pan.quark.cn/s/47b6d6447142"))
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://pan.quark.cn/s/47b6d6447142")
+                            )
                             context.startActivity(intent)
                         } catch (e: Exception) {
                         }

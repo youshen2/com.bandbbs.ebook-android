@@ -14,10 +14,10 @@ import com.bandbbs.ebook.ui.viewmodel.ImportingState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.utils.BookInfoParser
 import com.bandbbs.ebook.utils.ChapterContentManager
-import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
+import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.UritoFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -387,7 +387,8 @@ class ImportHandler(
             if (chapter.wordCount == 0 && content.isBlank()) {
                 if (cleanedChapters.isNotEmpty()) {
                     val lastChapter = cleanedChapters.last()
-                    val lastContent = ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
+                    val lastContent =
+                        ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
 
                     val mergedContent = lastContent.trimEnd() + "\n\n" + chapter.name.trim()
 
@@ -726,7 +727,11 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在清理空章节...", progress = 0.88f) }
-            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), finalChapters)
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
+                context,
+                bookId.toInt(),
+                finalChapters
+            )
 
             importingState.update {
                 it?.copy(
@@ -937,7 +942,11 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在清理空章节...", progress = 0.88f) }
-            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), finalChapters)
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
+                context,
+                bookId.toInt(),
+                finalChapters
+            )
 
             importingState.update {
                 it?.copy(
@@ -1028,7 +1037,11 @@ class ImportHandler(
 
             importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
 
-            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(context, bookId.toInt(), initialChapters)
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
+                context,
+                bookId.toInt(),
+                initialChapters
+            )
 
             importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
             db.chapterDao().insertAll(cleanedChapters)

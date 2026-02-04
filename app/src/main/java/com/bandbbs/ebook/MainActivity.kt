@@ -1,5 +1,6 @@
 package com.bandbbs.ebook
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -9,7 +10,6 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
-import android.app.NotificationManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -158,6 +158,7 @@ class MainActivity : ComponentActivity() {
                 startActivity(intent)
             }
         }
+
         var wasTransferring = false
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
@@ -474,7 +475,10 @@ class MainActivity : ComponentActivity() {
                                         viewModel = viewModel,
                                         onBackClick = { currentScreen = "home" },
                                         onBackupClick = {
-                                            val formatter = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                                            val formatter = SimpleDateFormat(
+                                                "yyyyMMdd_HHmmss",
+                                                Locale.getDefault()
+                                            )
                                             val dateStr = formatter.format(Date())
                                             createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
                                         },
@@ -486,7 +490,11 @@ class MainActivity : ComponentActivity() {
                                                 viewModel.loadBandSettings()
                                                 currentScreen = "band_settings"
                                             } else {
-                                                Toast.makeText(context, "请先连接手环", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(
+                                                    context,
+                                                    "请先连接手环",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
                                     )
