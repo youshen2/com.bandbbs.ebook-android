@@ -10,6 +10,7 @@ import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.ui.model.ChapterEditContent
 import com.bandbbs.ebook.ui.model.ChapterSegment
 import com.bandbbs.ebook.utils.ChapterContentManager
+import com.bandbbs.ebook.utils.ReadingTimeStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +53,9 @@ class LibraryHandler(
                     val context = application.applicationContext
                     ChapterContentManager.deleteBookChapters(context, bookEntity.id)
                     db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+                    val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs.edit().remove("$KEY_LAST_READ_CHAPTER${bookEntity.id}").apply()
+                    ReadingTimeStorage.clearReadingTime(context, bookEntity.name)
                     db.bookDao().delete(bookEntity)
                 }
                 withContext(Dispatchers.Main) {

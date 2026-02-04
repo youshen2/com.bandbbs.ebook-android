@@ -14,6 +14,7 @@ import com.bandbbs.ebook.ui.viewmodel.ImportingState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.utils.BookInfoParser
 import com.bandbbs.ebook.utils.ChapterContentManager
+import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
@@ -286,6 +287,10 @@ class ImportHandler(
             val context = application.applicationContext
             ChapterContentManager.deleteBookChapters(context, bookEntity.id)
             db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+            val readerPrefs =
+                application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
+            readerPrefs.edit().remove("last_read_chapter_${bookEntity.id}").apply()
+            ReadingTimeStorage.clearReadingTime(context, bookEntity.name)
             db.bookDao().delete(bookEntity)
         }
     }

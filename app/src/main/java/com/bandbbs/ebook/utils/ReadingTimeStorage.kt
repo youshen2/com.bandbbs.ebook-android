@@ -179,5 +179,23 @@ object ReadingTimeStorage {
             return null
         }
     }
-}
 
+    fun clearReadingTime(context: Context, bookName: String) {
+        if (bookName.isBlank()) {
+            return
+        }
+
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            editor.remove("${bookName}_total_seconds")
+            editor.remove("${bookName}_sessions")
+            editor.remove("${bookName}_first_read_date")
+            editor.remove("${bookName}_last_read_date")
+            editor.remove("${bookName}_current_session_start")
+            editor.apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear reading time for $bookName", e)
+        }
+    }
+}
