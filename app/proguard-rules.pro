@@ -1,6 +1,8 @@
 -optimizationpasses 5
 -dontusemixedcaseclassnames
 -dontskipnonpubliclibraryclasses
+-dontskipnonpubliclibraryclassmembers
+-dontpreverify
 -verbose
 
 -keepattributes *Annotation*
@@ -22,15 +24,12 @@
 # ============================================
 # Kotlin 相关
 # ============================================
--keep class kotlin.** { *; }
--keep class kotlin.Metadata { *; }
--dontwarn kotlin.**
--keepclassmembers class **$WhenMappings {
-    <fields>;
-}
--keepclassmembers class kotlin.Metadata {
-    public <methods>;
-}
+ -keepclassmembers class kotlin.Metadata {
+     public <methods>;
+ }
+ -keepclassmembers class **$WhenMappings {
+     <fields>;
+ }
 -assumenosideeffects class kotlin.jvm.internal.Intrinsics {
     static void checkParameterIsNotNull(java.lang.Object, java.lang.String);
 }
@@ -38,14 +37,13 @@
 # ============================================
 # Kotlinx Serialization
 # ============================================
--keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
--keepclassmembers class kotlinx.serialization.json.** {
-    *** Companion;
-}
--keepclasseswithmembers class kotlinx.serialization.json.** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
+#-keepclassmembers class kotlinx.serialization.json.** {
+#    *** Companion;
+#}
+#-keepclasseswithmembers class kotlinx.serialization.json.** {
+#    kotlinx.serialization.KSerializer serializer(...);
+#}
 -keep,includedescriptorclasses class com.bandbbs.ebook.**$$serializer { *; }
 -keepclassmembers class com.bandbbs.ebook.** {
     *** Companion;
@@ -67,19 +65,19 @@
 # ============================================
 # Jetpack Compose
 # ============================================
--keep class kotlin.coroutines.** { *; }
--keep class kotlinx.coroutines.** { *; }
+#-keep class kotlin.coroutines.** { *; }
+#-keep class kotlinx.coroutines.** { *; }
 -dontwarn androidx.compose.**
 
 -dontwarn androidx.**
 
--keep class com.bandbbs.ebook.App { *; }
--keep class com.bandbbs.ebook.MainActivity { *; }
+#-keep class com.bandbbs.ebook.App { *; }
+#-keep class com.bandbbs.ebook.MainActivity { *; }
 -keep @androidx.room.Entity class com.bandbbs.ebook.database.** { *; }
 -keep class com.bandbbs.ebook.database.** { *; }
 -keep interface com.bandbbs.ebook.database.**Dao { *; }
--keep,allowobfuscation class com.bandbbs.ebook.ui.model.** { *; }
--keep,allowobfuscation class com.bandbbs.ebook.logic.** { *; }
+#-keep,allowobfuscation class com.bandbbs.ebook.ui.model.** { *; }
+#-keep,allowobfuscation class com.bandbbs.ebook.logic.** { *; }
 
 -keepclasseswithmembernames class * {
     native <methods>;
@@ -88,12 +86,12 @@
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 -allowaccessmodification
 
--keep,allowobfuscation class coil.** { *; }
+#-keep,allowobfuscation class coil.** { *; }
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
 # juniversalchardet
--keep,allowobfuscation class org.mozilla.universalchardet.** { *; }
+#-keep,allowobfuscation class org.mozilla.universalchardet.** { *; }
 
 # xms-wearable-lib
 -keep class com.xiaomi.** { *; }
@@ -114,7 +112,7 @@
 -mergeinterfacesaggressively
 -overloadaggressively
 
--keepclassmembers enum * {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
-}
+#-keepclassmembers enum * {
+#    public static **[] values();
+#    public static ** valueOf(java.lang.String);
+#}

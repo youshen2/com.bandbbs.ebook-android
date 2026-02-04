@@ -90,6 +90,7 @@ fun ChapterListBottomSheet(
     var showSortMenu by remember { mutableStateOf(false) }
     val orderedChapters = remember { mutableStateListOf<ChapterInfo>() }
     val listState = rememberLazyListState()
+    var hasInitialScroll by remember { mutableStateOf(false) }
 
     fun sortChapters(chapters: List<ChapterInfo>): List<ChapterInfo> {
         return when (sortType) {
@@ -138,6 +139,16 @@ fun ChapterListBottomSheet(
 
         if (wasOrderChanged && orderedChapters.isNotEmpty()) {
             listState.animateScrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(orderedChapters, book.chapterIndex) {
+        if (!hasInitialScroll && book.chapterIndex != null && orderedChapters.isNotEmpty()) {
+            val targetIndex = orderedChapters.indexOfFirst { it.index == book.chapterIndex }
+            if (targetIndex >= 0) {
+                listState.scrollToItem(targetIndex)
+                hasInitialScroll = true
+            }
         }
     }
 
