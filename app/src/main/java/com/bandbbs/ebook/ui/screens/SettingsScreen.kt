@@ -91,6 +91,7 @@ fun SettingsScreen(
     var showAboutSheet by remember { mutableStateOf(false) }
     var showDeleteReadingTimeDialog by remember { mutableStateOf(false) }
     var showGetLatestVersionDialog by remember { mutableStateOf(false) }
+    var showCleanDirtyDataDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Scaffold(
@@ -295,6 +296,13 @@ fun SettingsScreen(
                         onClick = { showDeleteReadingTimeDialog = true },
                         isDestructive = true
                     )
+                    SettingsActionTile(
+                        icon = Icons.Outlined.DeleteForever,
+                        title = "清理脏数据",
+                        description = "删除无效书籍记录及其阅读进度和阅读时长(不可恢复)",
+                        onClick = { showCleanDirtyDataDialog = true },
+                        isDestructive = true
+                    )
                 }
             }
 
@@ -332,6 +340,33 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteReadingTimeDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (showCleanDirtyDataDialog) {
+        AlertDialog(
+            onDismissRequest = { showCleanDirtyDataDialog = false },
+            icon = { Icon(Icons.Outlined.DeleteForever, contentDescription = null) },
+            title = { Text("清理脏数据") },
+            text = { Text("将删除数据库中无效的书籍记录，以及不存在书籍的阅读进度和阅读时长。此操作不可恢复，确定继续？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.cleanDirtyData()
+                        showCleanDirtyDataDialog = false
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("清理")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCleanDirtyDataDialog = false }) {
                     Text("取消")
                 }
             }

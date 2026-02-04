@@ -27,6 +27,7 @@ import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.VersionChecker
 import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.utils.BookmarkManager
+import com.bandbbs.ebook.utils.ReadingTimeStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -1627,6 +1628,104 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Log.d("MainViewModel", "Cleared all reading time data")
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to clear reading time data", e)
+            }
+        }
+    }
+
+    fun cleanDirtyData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val application = getApplication<Application>()
+                val context = application.applicationContext
+                val readingTimePrefs =
+                    application.getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
+                val readerPrefs =
+                    application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
+
+                val books = db.bookDao().getAllBooks()
+                books.forEach { book ->
+                    val file = File(book.path)
+                    if (!file.exists()) {
+                        try {
+                            ChapterContentManager.deleteBookChapters(context, book.id)
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            db.chapterDao().deleteChaptersByBookId(book.id)
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            val edit = readerPrefs.edit()
+                            edit.remove("last_read_chapter_${book.id}")
+                            edit.remove("last_read_timestamp_${book.id}")
+                            edit.apply()
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            ReadingTimeStorage.clearReadingTime(context, book.name)
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            db.bookDao().delete(book)
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+
+                val validBooks = db.bookDao().getAllBooks()
+                val validBookIds = validBooks.map { it.id }.toSet()
+                val validBookNames = validBooks.map { it.name }.toSet()
+                val validChapterIds = mutableSetOf<Int>()
+                validBooks.forEach { book ->
+                    try {
+                        val chapterInfos = db.chapterDao().getChapterInfoForBook(book.id)
+                        validChapterIds.addAll(chapterInfos.map { it.id })
+                    } catch (_: Exception) {
+                    }
+                }
+
+                val timeKeys = readingTimePrefs.all.keys.toList()
+                timeKeys.forEach { key ->
+                    if (key.endsWith("_total_seconds")) {
+                        val bookName = key.removeSuffix("_total_seconds")
+                        if (!validBookNames.contains(bookName)) {
+                            try {
+                                ReadingTimeStorage.clearReadingTime(context, bookName)
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }
+                }
+
+                val readerAllKeys = readerPrefs.all.keys.toList()
+                val readerEditor = readerPrefs.edit()
+                readerAllKeys.forEach { key ->
+                    if (key.startsWith("last_read_chapter_")) {
+                        val id = key.removePrefix("last_read_chapter_").toIntOrNull()
+                        if (id == null || !validBookIds.contains(id)) {
+                            readerEditor.remove(key)
+                        }
+                    } else if (key.startsWith("last_read_timestamp_")) {
+                        val id = key.removePrefix("last_read_timestamp_").toIntOrNull()
+                        if (id == null || !validBookIds.contains(id)) {
+                            readerEditor.remove(key)
+                        }
+                    } else if (key.startsWith("reading_position_index_")) {
+                        val id = key.removePrefix("reading_position_index_").toIntOrNull()
+                        if (id == null || !validChapterIds.contains(id)) {
+                            readerEditor.remove(key)
+                        }
+                    } else if (key.startsWith("reading_position_offset_")) {
+                        val id = key.removePrefix("reading_position_offset_").toIntOrNull()
+                        if (id == null || !validChapterIds.contains(id)) {
+                            readerEditor.remove(key)
+                        }
+                    }
+                }
+                readerEditor.apply()
+                Log.d("MainViewModel", "Cleaned dirty data")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to clean dirty data", e)
             }
         }
     }
