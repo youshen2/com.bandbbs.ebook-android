@@ -75,6 +75,9 @@ class InterconnetFile(private val conn: InterHandshake) {
     private val COVER_CHUNK_SIZE = 8 * 1024
     private var hasPendingCoverTransfer = false
     private var isCoverOnlyTransfer = false
+    private var deleteBookCompleter: CompletableDeferred<Boolean>? = null
+    private var deleteBookSuccessCallback: ((String) -> Unit)? = null
+    private var deleteBookErrorCallback: ((String) -> Unit)? = null
 
     private fun resetTransferState() {
         busy = false
@@ -104,6 +107,10 @@ class InterconnetFile(private val conn: InterHandshake) {
         bookmarksCompleter = null
         bookmarksUpdateCompleter?.cancel()
         bookmarksUpdateCompleter = null
+        deleteBookCompleter?.cancel()
+        deleteBookCompleter = null
+        deleteBookSuccessCallback = null
+        deleteBookErrorCallback = null
     }
 
     init {
@@ -140,6 +147,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                             deleteChaptersProgressCallback = null
                             deleteChaptersSuccessCallback = null
                             deleteChaptersErrorCallback = null
+                        } else if (deleteBookCompleter != null) {
+                            deleteBookErrorCallback?.invoke(jsonMessage.message)
+                            deleteBookCompleter?.complete(false)
+                            deleteBookCompleter = null
+                            deleteBookSuccessCallback = null
+                            deleteBookErrorCallback = null
                         } else if (settingsCompleter != null) {
                             settingsCompleter?.completeExceptionally(Exception(jsonMessage.message))
                             settingsCompleter = null
@@ -163,6 +176,12 @@ class InterconnetFile(private val conn: InterHandshake) {
                             deleteChaptersProgressCallback = null
                             deleteChaptersSuccessCallback = null
                             deleteChaptersErrorCallback = null
+                        } else if (deleteBookCompleter != null) {
+                            deleteBookSuccessCallback?.invoke(jsonMessage.message)
+                            deleteBookCompleter?.complete(true)
+                            deleteBookCompleter = null
+                            deleteBookSuccessCallback = null
+                            deleteBookErrorCallback = null
                         } else if (settingsUpdateCompleter != null) {
                             settingsUpdateCompleter?.complete(true)
                             settingsUpdateCompleter = null
@@ -369,6 +388,40 @@ class InterconnetFile(private val conn: InterHandshake) {
             deleteChaptersProgressCallback = null
             deleteChaptersSuccessCallback = null
             deleteChaptersErrorCallback = null
+            onError?.invoke("删除失败: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun deleteBook(
+        bookName: String,
+        onSuccess: ((message: String) -> Unit)? = null,
+        onError: ((message: String) -> Unit)? = null
+    ): Boolean {
+        return try {
+            conn.init()
+            delay(500L)
+
+            deleteBookCompleter = CompletableDeferred()
+            deleteBookSuccessCallback = onSuccess
+            deleteBookErrorCallback = onError
+
+            val message = FileMessagesToSend.DeleteBook(
+                filename = bookName
+            )
+            conn.sendMessage(json.encodeToString(message)).await()
+            Log.d("File", "Sent delete_book command for $bookName")
+
+            val result = deleteBookCompleter?.await() ?: false
+            deleteBookCompleter = null
+            deleteBookSuccessCallback = null
+            deleteBookErrorCallback = null
+            result
+        } catch (e: Exception) {
+            Log.e("File", "Failed to send delete_book command", e)
+            deleteBookCompleter = null
+            deleteBookSuccessCallback = null
+            deleteBookErrorCallback = null
             onError?.invoke("删除失败: ${e.message}")
             false
         }
@@ -1205,6 +1258,13 @@ class InterconnetFile(private val conn: InterHandshake) {
             val stat: String = "set_bookmarks",
             val filename: String,
             val bookmarks: List<BookmarkData>
+        ) : FileMessagesToSend()
+
+        @Serializable
+        data class DeleteBook(
+            val tag: String = "file",
+            val stat: String = "delete_book",
+            val filename: String
         ) : FileMessagesToSend()
     }
 }

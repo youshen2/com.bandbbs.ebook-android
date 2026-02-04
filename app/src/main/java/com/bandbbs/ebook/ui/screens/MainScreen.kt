@@ -109,6 +109,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.bandbbs.ebook.database.AppDatabase
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -228,17 +229,34 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteBook() },
             title = { Text("删除书籍") },
-            text = { Text("确定要删除《${book.name}》吗？此操作将同时删除文件和所有章节数据，且不可恢复。") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.confirmDeleteBook() }) {
-                    Text("删除")
+            text = {
+                Column {
+                    Text("请选择删除方式：")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("· 删除手机书籍：删除本机文件和所有章节数据，不影响手环端。", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("· 删除手环书籍：仅删除手环端书籍数据，不删除手机端文件。", style = MaterialTheme.typography.bodySmall)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { viewModel.cancelDeleteBook() }) {
-                    Text("取消")
+            confirmButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = { viewModel.confirmDeleteBook() }) {
+                        Text("删手机")
+                    }
+                    TextButton(onClick = {
+                        viewModel.deleteBandBook(book)
+                        Toast.makeText(context, "已发送手环删除指令", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("删手环")
+                    }
+                    TextButton(onClick = { viewModel.cancelDeleteBook() }) {
+                        Text("取消")
+                    }
                 }
-            }
+            },
+            dismissButton = {}
         )
     }
 

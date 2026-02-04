@@ -535,6 +535,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelDeleteBook() = libraryHandler.cancelDeleteBook()
 
+    fun deleteBandBook(book: Book) {
+        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
+            Log.e("MainViewModel", "Cannot get file connection")
+            return
+        }
+
+        if (fileConn.busy) {
+            Log.w("MainViewModel", "File connection is busy")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val success = fileConn.deleteBook(
+                    bookName = book.name,
+                    onSuccess = { message ->
+                        Log.d("MainViewModel", "Delete band book success: $message")
+                    },
+                    onError = { errorMessage ->
+                        Log.e("MainViewModel", "Delete band book error: $errorMessage")
+                    }
+                )
+                Log.d("MainViewModel", "Delete band book result: $success")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to delete band book", e)
+            }
+        }
+
+        libraryHandler.cancelDeleteBook()
+    }
+
     fun startPush(book: Book) {
         if (!_hasClickedTransferButton.value) {
             prefs.edit().putBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, true).apply()
