@@ -843,8 +843,16 @@ fun MainScreen(
     }
 
     importingState?.let {
+        LaunchedEffect(it) {
+            importProgressSheetState.show()
+        }
         ModalBottomSheet(
-            onDismissRequest = { },
+            onDismissRequest = {
+                scope.launch {
+                    importProgressSheetState.hide()
+                    viewModel.dismissImportProgress()
+                }
+            },
             sheetState = importProgressSheetState,
             dragHandle = null
         ) {

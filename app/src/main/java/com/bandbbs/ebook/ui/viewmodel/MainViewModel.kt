@@ -500,6 +500,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelImport() = importHandler.cancelImport()
 
+    fun dismissImportProgress() {
+        _importingState.value = null
+    }
+
     fun confirmImport(
         bookName: String,
         splitMethod: String,
