@@ -467,7 +467,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshBandStorageInfo() {
         if (!connectionHandler.isConnected()) {
-            _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+            _bandStorageInfo.value = _bandStorageInfo.value.copy(isLoading = false)
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
