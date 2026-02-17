@@ -313,6 +313,7 @@ class MainActivity : ComponentActivity() {
                                         arrayOf(
                                             "text/plain",
                                             "application/epub+zip",
+                                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                             "application/octet-stream"
                                         )
                                     )

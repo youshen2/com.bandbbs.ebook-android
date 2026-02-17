@@ -82,7 +82,7 @@ fun ImportBookBottomSheet(
     }
 
     val hasTxt = remember(state.files) {
-        state.files.any { it.fileFormat == "txt" }
+        state.files.any { it.fileFormat == "txt" || it.fileFormat == "docx" }
     }
 
     val isBookNameExists = remember(bookName, existingBookNames) {

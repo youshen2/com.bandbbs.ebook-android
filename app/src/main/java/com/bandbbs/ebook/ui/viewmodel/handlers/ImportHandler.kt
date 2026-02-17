@@ -15,6 +15,7 @@ import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.utils.BookInfoParser
 import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ChapterSplitter
+import com.bandbbs.ebook.utils.DocxParser
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.ReadingTimeStorage
@@ -27,7 +28,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.zip.ZipInputStream
 
 class ImportHandler(
     private val application: Application,
@@ -54,15 +54,15 @@ class ImportHandler(
         scope.launch {
             val context = application.applicationContext
             val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
-            val allowedExtensions = listOf(".txt", ".epub", ".nvb")
+            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx")
 
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
-                    if (isWordFile(context, uri)) {
+                    if (isDocFile(context, uri)) {
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
-                                statusText = "${sourceFile.name} 不支持的文件格式\n禁止导入 WORD 格式（DOC、DOCX 等）",
+                                statusText = "${sourceFile.name} 不支持的文件格式\n禁止导入 DOC 格式",
                                 progress = 0f
                             )
                         }
@@ -88,7 +88,7 @@ class ImportHandler(
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
-                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB 格式",
+                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB、DOCX 格式",
                                 progress = 0f
                             )
                         }
@@ -341,6 +341,17 @@ class ImportHandler(
                     renamePattern
                 )
 
+                "docx" -> importDocxFile(
+                    context,
+                    uri,
+                    finalBookName,
+                    splitMethod,
+                    noSplit,
+                    wordsPerChapter,
+                    selectedCategory,
+                    customRegex
+                )
+
                 else -> importTxtFile(
                     context,
                     uri,
@@ -418,7 +429,7 @@ class ImportHandler(
         return Pair(reIndexedChapters, mergedTitles)
     }
 
-    private fun isWordFile(context: Context, uri: Uri): Boolean {
+    private fun isDocFile(context: Context, uri: Uri): Boolean {
         return try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val header = ByteArray(8)
@@ -435,31 +446,9 @@ class ImportHandler(
                     0x1A.toByte(),
                     0xE1.toByte()
                 )
-                if (header.contentEquals(docMagic)) {
-                    return true
-                }
-
-                val zipMagic =
-                    byteArrayOf(0x50.toByte(), 0x4B.toByte(), 0x03.toByte(), 0x04.toByte())
-                if (header.take(4).toByteArray().contentEquals(zipMagic)) {
-                    context.contentResolver.openInputStream(uri)?.use { zipStream ->
-                        ZipInputStream(zipStream).use { zip ->
-                            var entry = zip.nextEntry
-                            var checkedCount = 0
-                            while (entry != null && checkedCount < 20) {
-                                if (entry.name == "word/document.xml" || entry.name.startsWith("word/")) {
-                                    return true
-                                }
-                                zip.closeEntry()
-                                entry = zip.nextEntry
-                                checkedCount++
-                            }
-                        }
-                    }
-                }
-                false
+                header.contentEquals(docMagic)
             } ?: false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -468,6 +457,7 @@ class ImportHandler(
         return when {
             NvbParser.isNvbFile(context, uri) -> "nvb"
             EpubParser.isEpubFile(context, uri) -> "epub"
+            DocxParser.isDocxFile(context, uri) -> "docx"
             else -> "txt"
         }
     }
@@ -1032,6 +1022,98 @@ class ImportHandler(
                     },
                     wordsPerChapter,
                     if (splitMethod == ChapterSplitter.METHOD_CUSTOM) customRegex else null
+                )
+            }
+
+            importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
+
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
+                context,
+                bookId.toInt(),
+                initialChapters
+            )
+
+            importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
+            db.chapterDao().insertAll(cleanedChapters)
+
+            sourceFile.delete()
+
+            if (mergedTitles.isNotEmpty()) {
+                val reportMessage =
+                    "有 ${mergedTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
+                            mergedTitles.joinToString("\n") { "- $it" }
+                withContext(Dispatchers.Main) {
+                    importReportState.value = ImportReportState(
+                        bookName = finalBookName,
+                        mergedChaptersInfo = reportMessage
+                    )
+                }
+            }
+        } ?: run {
+            throw IllegalArgumentException("无法读取文件")
+        }
+    }
+
+    private suspend fun importDocxFile(
+        context: Context,
+        uri: Uri,
+        finalBookName: String,
+        splitMethod: String,
+        noSplit: Boolean,
+        wordsPerChapter: Int,
+        selectedCategory: String? = null,
+        customRegex: String = ""
+    ) {
+        UritoFile(uri, context)?.let { sourceFile ->
+            importingState.update { it?.copy(statusText = "正在解析 DOCX 文件...", progress = 0.1f) }
+            val content = DocxParser.extractPlainText(context, uri)
+
+            importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
+            val destFile = File(booksDir, sourceFile.name)
+            sourceFile.copyTo(destFile, overwrite = true)
+
+            importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+            val bookId = db.bookDao().insert(
+                BookEntity(
+                    name = finalBookName,
+                    path = destFile.absolutePath,
+                    size = destFile.length(),
+                    format = "docx",
+                    localCategory = selectedCategory
+                )
+            )
+
+            val initialChapters = if (noSplit) {
+                importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.7f) }
+                val contentFilePath =
+                    ChapterContentManager.saveChapterContent(
+                        context, bookId.toInt(), 0, content.trim()
+                    )
+                listOf(
+                    Chapter(
+                        bookId = bookId.toInt(),
+                        index = 0,
+                        name = "全文",
+                        contentFilePath = contentFilePath,
+                        wordCount = content.trim().length
+                    )
+                )
+            } else {
+                ChapterSplitter.splitFromText(
+                    context = context,
+                    content = content,
+                    bookId = bookId.toInt(),
+                    method = splitMethod,
+                    onProgress = { progress, status ->
+                        importingState.update {
+                            it?.copy(
+                                statusText = status,
+                                progress = progress
+                            )
+                        }
+                    },
+                    wordsPerChapter = wordsPerChapter,
+                    customRegex = if (splitMethod == ChapterSplitter.METHOD_CUSTOM) customRegex else null
                 )
             }
 

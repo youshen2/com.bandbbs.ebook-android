@@ -873,6 +873,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         }
+
+                        "docx" -> {
+                            val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
+                            if (chapters.isNotEmpty() &&
+                                (chapters[0].name == "简介" || chapters[0].name == "介绍")
+                            ) {
+                                val chapter = db.chapterDao().getChapterById(chapters[0].id)
+                                if (chapter != null) {
+                                    val content =
+                                        ChapterContentManager.readChapterContent(chapter.contentFilePath)
+                                    val parsedInfo =
+                                        BookInfoParser.parseIntroductionContent(content)
+                                    if (parsedInfo != null) {
+                                        updatedEntity = bookEntity.copy(
+                                            author = parsedInfo.author ?: bookEntity.author,
+                                            summary = parsedInfo.summary ?: bookEntity.summary,
+                                            bookStatus = parsedInfo.status ?: bookEntity.bookStatus,
+                                            category = parsedInfo.tags ?: bookEntity.category
+                                        )
+                                        db.bookDao().update(updatedEntity)
+                                    }
+                                }
+                            }
+                        }
                     }
 
 
