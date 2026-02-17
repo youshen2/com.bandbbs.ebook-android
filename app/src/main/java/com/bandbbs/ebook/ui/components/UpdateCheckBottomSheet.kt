@@ -42,7 +42,8 @@ fun UpdateCheckBottomSheet(
     updateInfoList: List<VersionChecker.UpdateInfo> = emptyList(),
     errorMessage: String?,
     deviceName: String?,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenWebsite: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -148,6 +149,15 @@ fun UpdateCheckBottomSheet(
                             UpdateItemCard(updateInfoItem = updateInfoItem, deviceName = deviceName)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = onOpenWebsite,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("前往官网下载")
+                    }
                 } else {
 
                     Card(
@@ -222,7 +232,7 @@ fun UpdateCheckBottomSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = onDismiss,

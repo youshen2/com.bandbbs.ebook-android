@@ -630,6 +630,13 @@ class MainActivity : ComponentActivity() {
                                             updateCheckSheetState.hide()
                                             viewModel.dismissUpdateCheck()
                                         }
+                                    },
+                                    onOpenWebsite = {
+                                        val intent = Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://vs.lucky-e.top")
+                                        )
+                                        context.startActivity(intent)
                                     }
                                 )
                             }
