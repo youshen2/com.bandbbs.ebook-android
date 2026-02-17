@@ -217,6 +217,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val HAS_CLICKED_TRANSFER_BUTTON_KEY = "has_clicked_transfer_button"
     private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
+    private val BAND_TRANSFER_ENABLED_KEY = "band_transfer_enabled"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -261,6 +262,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         MutableStateFlow(prefs.getBoolean(QUICK_RENAME_CATEGORY_KEY, false))
     val quickRenameCategoryEnabled = _quickRenameCategoryEnabled.asStateFlow()
 
+    private val _bandTransferEnabled =
+        MutableStateFlow(prefs.getBoolean(BAND_TRANSFER_ENABLED_KEY, true))
+    val bandTransferEnabled = _bandTransferEnabled.asStateFlow()
+
     private val _isMultiSelectMode = MutableStateFlow(false)
     val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
 
@@ -283,7 +288,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         connectionState = _connectionState,
         connectionErrorState = _connectionErrorState,
         showConnectionError = _showConnectionError,
-        versionIncompatibleState = _versionIncompatibleState
+        versionIncompatibleState = _versionIncompatibleState,
+        bandTransferEnabled = _bandTransferEnabled
     ).apply {
         onBandConnected = { deviceName ->
             if (FIRST_AUTO_CHECK) autoCheckUpdates()
@@ -572,6 +578,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startPush(book: Book) {
+        if (!_bandTransferEnabled.value) {
+            return
+        }
         if (!_hasClickedTransferButton.value) {
             prefs.edit().putBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, true).apply()
             _hasClickedTransferButton.value = true
@@ -965,6 +974,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun syncAllReadingData() {
         Log.d("MainViewModel", "syncAllReadingData() called")
+        if (!_bandTransferEnabled.value) {
+            Log.w("MainViewModel", "Cannot sync: band transfer disabled")
+            _syncReadingDataState.value = SyncReadingDataState(
+                isSyncing = false,
+                statusText = "手环功能已关闭",
+                progress = 0f
+            )
+            return
+        }
         if (!connectionHandler.isConnected()) {
             Log.w("MainViewModel", "Cannot sync: band not connected")
             _syncReadingDataState.value = SyncReadingDataState(
@@ -1874,6 +1892,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissIpCollectionPermissionSheet() {
         _ipCollectionPermissionState.value = IpCollectionPermissionState(showSheet = false)
+    }
+
+    fun setBandTransferEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(BAND_TRANSFER_ENABLED_KEY, enabled).apply()
+        _bandTransferEnabled.value = enabled
+        if (!enabled) {
+            _connectionState.value = ConnectionState()
+            _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+            _syncReadingDataState.value = SyncReadingDataState()
+        }
     }
 
 

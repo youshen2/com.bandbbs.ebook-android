@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
@@ -86,6 +87,7 @@ fun SettingsScreen(
     val quickRenameCategoryEnabled by viewModel.quickRenameCategoryEnabled.collectAsState()
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
+    val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
 
     val aboutSheetState = rememberModalBottomSheetState()
     var showAboutSheet by remember { mutableStateOf(false) }
@@ -119,14 +121,16 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                SettingsGroup(title = "设备") {
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Settings,
-                        title = "手环端设置",
-                        description = "修改手环端的各项设置项",
-                        onClick = onBandSettingsClick
-                    )
+            if (bandTransferEnabled) {
+                item {
+                    SettingsGroup(title = "设备") {
+                        SettingsActionTile(
+                            icon = Icons.Outlined.Settings,
+                            title = "手环端设置",
+                            description = "修改手环端的各项设置项",
+                            onClick = onBandSettingsClick
+                        )
+                    }
                 }
             }
 
@@ -220,25 +224,34 @@ fun SettingsScreen(
                 SettingsGroup(title = "同步与连接") {
                     SettingsTile(
                         icon = Icons.Outlined.Sync,
-                        title = "传输后自动后台",
-                        description = "开始传输后自动将应用最小化",
-                        checked = autoMinimizeOnTransfer,
-                        onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) }
+                        title = "小米手环传输",
+                        description = "控制是否启用与小米手环的连接与传输功能",
+                        checked = bandTransferEnabled,
+                        onCheckedChange = { viewModel.setBandTransferEnabled(it) }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Sync,
-                        title = "自动重试中断",
-                        description = "传输中断时每5秒自动尝试重连",
-                        checked = autoRetryOnTransferError,
-                        onCheckedChange = { viewModel.setAutoRetryOnTransferError(it) }
-                    )
-                    SettingsTile(
-                        icon = Icons.Outlined.Warning,
-                        title = "连接失败提示",
-                        description = "连接手环失败时弹出详细提示",
-                        checked = showConnectionError,
-                        onCheckedChange = { viewModel.setShowConnectionError(it) }
-                    )
+                    if (bandTransferEnabled) {
+                        SettingsTile(
+                            icon = Icons.Outlined.Sync,
+                            title = "传输后自动后台",
+                            description = "开始传输后自动将应用最小化",
+                            checked = autoMinimizeOnTransfer,
+                            onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) }
+                        )
+                        SettingsTile(
+                            icon = Icons.Outlined.Sync,
+                            title = "自动重试中断",
+                            description = "传输中断时每5秒自动尝试重连",
+                            checked = autoRetryOnTransferError,
+                            onCheckedChange = { viewModel.setAutoRetryOnTransferError(it) }
+                        )
+                        SettingsTile(
+                            icon = Icons.Outlined.Warning,
+                            title = "连接失败提示",
+                            description = "连接手环失败时弹出详细提示",
+                            checked = showConnectionError,
+                            onCheckedChange = { viewModel.setShowConnectionError(it) }
+                        )
+                    }
                 }
             }
 
@@ -253,8 +266,8 @@ fun SettingsScreen(
                     )
                     SettingsTile(
                         icon = Icons.Outlined.Security,
-                        title = "允许IP收集",
-                        description = "允许收集IP用于更新检测统计",
+                        title = "允许联网",
+                        description = "允许应用联网以检查更新等功能",
                         checked = ipCollectionAllowed,
                         onCheckedChange = { viewModel.setIpCollectionAllowed(it) }
                     )
@@ -266,6 +279,21 @@ fun SettingsScreen(
                             onClick = { viewModel.checkForUpdates() }
                         )
                     }
+                    SettingsActionTile(
+                        icon = Icons.Outlined.Public,
+                        title = "打开官网",
+                        description = "vs.lucky-e.top",
+                        onClick = {
+                            try {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://vs.lucky-e.top")
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                            }
+                        }
+                    )
                     SettingsActionTile(
                         icon = Icons.Outlined.Download,
                         title = "获取最新版本",

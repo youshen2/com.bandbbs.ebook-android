@@ -71,7 +71,8 @@ fun BookItem(
     onEditInfoClick: () -> Unit = {},
     isSyncEnabled: Boolean,
     lastChapterName: String? = null,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
+    showSyncButton: Boolean = true
 ) {
     var showCoverDialog by remember { mutableStateOf(false) }
     val isPdf = book.format == "pdf"
@@ -289,35 +290,55 @@ fun BookItem(
                     Spacer(modifier = Modifier.height(24.dp))
 
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = onContinueReadingClick,
-                            modifier = Modifier.weight(1f)
+                    if (showSyncButton) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("继续阅读")
-                        }
+                            Button(
+                                onClick = onContinueReadingClick,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("继续阅读")
+                            }
 
-                        FilledTonalButton(
-                            onClick = onSyncClick,
-                            enabled = isSyncEnabled,
-                            modifier = Modifier.weight(1f)
+                            FilledTonalButton(
+                                onClick = onSyncClick,
+                                enabled = isSyncEnabled,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("传输书籍")
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Sync,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("传输书籍")
+                            Button(
+                                onClick = onContinueReadingClick,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("继续阅读")
+                            }
                         }
                     }
 

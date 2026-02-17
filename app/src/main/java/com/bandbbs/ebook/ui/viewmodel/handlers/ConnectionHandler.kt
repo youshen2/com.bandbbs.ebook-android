@@ -20,6 +20,7 @@ class ConnectionHandler(
     private val connectionErrorState: MutableStateFlow<ConnectionErrorState?>,
     private val showConnectionError: StateFlow<Boolean>,
     private val versionIncompatibleState: MutableStateFlow<com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState?>,
+    private val bandTransferEnabled: StateFlow<Boolean>,
 ) {
 
     private var interHandshake: InterHandshake? = null
@@ -40,7 +41,18 @@ class ConnectionHandler(
         connection.setOnBandVersionReceived { version ->
             onBandVersionReceived?.invoke(version)
         }
-        reconnect()
+        if (bandTransferEnabled.value) {
+            reconnect()
+        } else {
+            connectionState.update {
+                it.copy(
+                    statusText = "手环功能已关闭",
+                    descriptionText = "",
+                    isConnected = false,
+                    deviceName = null
+                )
+            }
+        }
     }
 
     fun dismissConnectionError() {
@@ -68,6 +80,17 @@ class ConnectionHandler(
     }
 
     fun reconnect() {
+        if (!bandTransferEnabled.value) {
+            connectionState.update {
+                it.copy(
+                    statusText = "手环功能已关闭",
+                    descriptionText = "",
+                    isConnected = false,
+                    deviceName = null
+                )
+            }
+            return
+        }
         val connection = interHandshake ?: return
         scope.launch {
             connectionState.update {

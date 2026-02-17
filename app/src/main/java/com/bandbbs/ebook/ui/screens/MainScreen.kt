@@ -163,6 +163,7 @@ fun MainScreen(
     val syncResultState by viewModel.syncResultState.collectAsState()
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
+    val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
@@ -1003,11 +1004,13 @@ fun MainScreen(
                                     text = "弦电子书",
                                     style = MaterialTheme.typography.titleLarge,
                                 )
-                                Text(
-                                    text = connectionState.statusText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (bandTransferEnabled) {
+                                    Text(
+                                        text = connectionState.statusText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     },
@@ -1027,34 +1030,36 @@ fun MainScreen(
                                 Text("取消")
                             }
                         } else {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("同步数据") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.syncAllReadingData()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Sync, contentDescription = null)
-                                    },
-                                    enabled = connectionState.isConnected && !viewModel.syncReadingDataState.value.isSyncing
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("重新连接手环") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.reconnect()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Refresh, contentDescription = null)
-                                    }
-                                )
+                            if (bandTransferEnabled) {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
+                                }
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("同步数据") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.syncAllReadingData()
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Sync, contentDescription = null)
+                                        },
+                                        enabled = connectionState.isConnected && !viewModel.syncReadingDataState.value.isSyncing
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("重新连接手环") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.reconnect()
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Refresh, contentDescription = null)
+                                        }
+                                    )
+                                }
                             }
                         }
                     },
@@ -1270,7 +1275,7 @@ fun MainScreen(
                             bottom = 120.dp
                         )
                     ) {
-                        if (connectionState.isConnected && !bandStorageInfo.isLoading) {
+                        if (bandTransferEnabled && connectionState.isConnected && !bandStorageInfo.isLoading) {
                             item(key = "storage_info") {
                                 Card(
                                     modifier = Modifier
@@ -1536,7 +1541,8 @@ fun MainScreen(
                                                     viewModel.showEditBookInfo(book)
                                                 },
                                                 isSyncEnabled = connectionState.isConnected,
-                                                lastChapterName = lastChapterNames[book.path]
+                                                lastChapterName = lastChapterNames[book.path],
+                                                showSyncButton = bandTransferEnabled
                                             )
                                         }
                                     }
@@ -1590,7 +1596,8 @@ fun MainScreen(
                                                     viewModel.showEditBookInfo(book)
                                                 },
                                                 isSyncEnabled = connectionState.isConnected,
-                                                lastChapterName = lastChapterNames[book.path]
+                                                lastChapterName = lastChapterNames[book.path],
+                                                showSyncButton = bandTransferEnabled
                                             )
                                         }
                                     }
@@ -1710,7 +1717,8 @@ fun MainScreen(
                                                         viewModel.showEditBookInfo(book)
                                                     },
                                                     isSyncEnabled = connectionState.isConnected,
-                                                    lastChapterName = lastChapterNames[book.path]
+                                                    lastChapterName = lastChapterNames[book.path],
+                                                    showSyncButton = bandTransferEnabled
                                                 )
                                             }
                                         }
