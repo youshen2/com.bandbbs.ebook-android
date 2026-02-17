@@ -45,6 +45,10 @@ private const val KEY_TEXT_COLOR = "text_color"
 private const val KEY_BG_COLOR = "bg_color"
 private const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
 private const val KEY_AUTO_SCROLL_SPEED = "auto_scroll_speed"
+private const val KEY_PAGE_TURN_MODE = "page_turn_mode"
+private const val KEY_PAGE_TURN_SENSITIVITY = "page_turn_sensitivity"
+private const val KEY_CUSTOM_BRIGHTNESS_ENABLED = "custom_brightness_enabled"
+private const val KEY_CUSTOM_BRIGHTNESS = "custom_brightness"
 
 private const val DEFAULT_FONT_SIZE = 18f
 private const val DEFAULT_LINE_HEIGHT = 1.6f
@@ -52,13 +56,23 @@ private const val DEFAULT_LINE_HEIGHT = 1.6f
 private const val DEFAULT_TEXT_COLOR = 0xFF1F1F1F.toInt()
 private const val DEFAULT_BG_COLOR = 0xFFFFFFFF.toInt()
 
+enum class PageTurnMode {
+    BUTTON,
+    SWIPE,
+    OVERSCROLL
+}
+
 data class ReaderSettings(
     val fontSize: Float = DEFAULT_FONT_SIZE,
     val lineHeight: Float = DEFAULT_LINE_HEIGHT,
     val textColor: Int = DEFAULT_TEXT_COLOR,
     val backgroundColor: Int = DEFAULT_BG_COLOR,
     val keepScreenOn: Boolean = false,
-    val autoScrollSpeed: Int = 0
+    val autoScrollSpeed: Int = 0,
+    val pageTurnMode: PageTurnMode = PageTurnMode.BUTTON,
+    val pageTurnSensitivity: Int = 5,
+    val customBrightnessEnabled: Boolean = false,
+    val customBrightness: Float = 0.5f
 )
 
 data class ReaderTheme(
@@ -83,18 +97,30 @@ fun saveReaderSettings(context: Context, settings: ReaderSettings) {
         .putInt(KEY_BG_COLOR, settings.backgroundColor)
         .putBoolean(KEY_KEEP_SCREEN_ON, settings.keepScreenOn)
         .putInt(KEY_AUTO_SCROLL_SPEED, settings.autoScrollSpeed)
+        .putString(KEY_PAGE_TURN_MODE, settings.pageTurnMode.name)
+        .putInt(KEY_PAGE_TURN_SENSITIVITY, settings.pageTurnSensitivity)
+        .putBoolean(KEY_CUSTOM_BRIGHTNESS_ENABLED, settings.customBrightnessEnabled)
+        .putFloat(KEY_CUSTOM_BRIGHTNESS, settings.customBrightness)
         .apply()
 }
 
 fun loadReaderSettings(context: Context): ReaderSettings {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val mode = runCatching {
+        val modeName = prefs.getString(KEY_PAGE_TURN_MODE, PageTurnMode.BUTTON.name)
+        PageTurnMode.valueOf(modeName ?: PageTurnMode.BUTTON.name)
+    }.getOrDefault(PageTurnMode.BUTTON)
     return ReaderSettings(
         fontSize = prefs.getFloat(KEY_FONT_SIZE, DEFAULT_FONT_SIZE),
         lineHeight = prefs.getFloat(KEY_LINE_HEIGHT, DEFAULT_LINE_HEIGHT),
         textColor = prefs.getInt(KEY_TEXT_COLOR, DEFAULT_TEXT_COLOR),
         backgroundColor = prefs.getInt(KEY_BG_COLOR, DEFAULT_BG_COLOR),
         keepScreenOn = prefs.getBoolean(KEY_KEEP_SCREEN_ON, false),
-        autoScrollSpeed = prefs.getInt(KEY_AUTO_SCROLL_SPEED, 0)
+        autoScrollSpeed = prefs.getInt(KEY_AUTO_SCROLL_SPEED, 0),
+        pageTurnMode = mode,
+        pageTurnSensitivity = prefs.getInt(KEY_PAGE_TURN_SENSITIVITY, 5).coerceIn(1, 10),
+        customBrightnessEnabled = prefs.getBoolean(KEY_CUSTOM_BRIGHTNESS_ENABLED, false),
+        customBrightness = prefs.getFloat(KEY_CUSTOM_BRIGHTNESS, 0.5f).coerceIn(0.01f, 1f)
     )
 }
 
@@ -110,6 +136,10 @@ fun ReaderSettingsBottomSheet(
     var backgroundColor by remember { mutableIntStateOf(currentSettings.backgroundColor) }
     var keepScreenOn by remember { mutableStateOf(currentSettings.keepScreenOn) }
     var autoScrollSpeed by remember { mutableIntStateOf(currentSettings.autoScrollSpeed) }
+    var pageTurnMode by remember { mutableStateOf(currentSettings.pageTurnMode) }
+    var pageTurnSensitivity by remember { mutableIntStateOf(currentSettings.pageTurnSensitivity) }
+    var customBrightnessEnabled by remember { mutableStateOf(currentSettings.customBrightnessEnabled) }
+    var customBrightness by remember { mutableFloatStateOf(currentSettings.customBrightness) }
 
     fun updateSettings(
         fs: Float = fontSize,
@@ -117,9 +147,13 @@ fun ReaderSettingsBottomSheet(
         tc: Int = textColor,
         bc: Int = backgroundColor,
         kso: Boolean = keepScreenOn,
-        ass: Int = autoScrollSpeed
+        ass: Int = autoScrollSpeed,
+        ptm: PageTurnMode = pageTurnMode,
+        pts: Int = pageTurnSensitivity,
+        cbe: Boolean = customBrightnessEnabled,
+        cb: Float = customBrightness
     ) {
-        val newSettings = ReaderSettings(fs, lh, tc, bc, kso, ass)
+        val newSettings = ReaderSettings(fs, lh, tc, bc, kso, ass, ptm, pts, cbe, cb)
         saveReaderSettings(context, newSettings)
         onSettingsChanged(newSettings)
     }
@@ -253,6 +287,137 @@ fun ReaderSettingsBottomSheet(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(top = 4.dp)
         )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+        Text(
+            text = "翻章方式",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf(
+                PageTurnMode.BUTTON to "按钮翻章",
+                PageTurnMode.SWIPE to "左右滑动翻章",
+                PageTurnMode.OVERSCROLL to "越界翻章"
+            ).forEach { (mode, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable {
+                            pageTurnMode = mode
+                            updateSettings(ptm = mode)
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                    if (pageTurnMode == mode) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (pageTurnMode != PageTurnMode.BUTTON) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "翻章灵敏度",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "低",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                Slider(
+                    value = pageTurnSensitivity.toFloat(),
+                    onValueChange = {
+                        pageTurnSensitivity = it.toInt().coerceIn(1, 10)
+                        updateSettings(pts = pageTurnSensitivity)
+                    },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "高",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "屏幕亮度",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = if (customBrightnessEnabled) {
+                        "${(customBrightness * 100).toInt()}%"
+                    } else {
+                        "跟随系统"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = customBrightnessEnabled,
+                onCheckedChange = {
+                    customBrightnessEnabled = it
+                    updateSettings(cbe = it)
+                }
+            )
+        }
+
+        if (customBrightnessEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "暗",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                Slider(
+                    value = customBrightness,
+                    onValueChange = {
+                        customBrightness = it.coerceIn(0.01f, 1f)
+                        updateSettings(cb = customBrightness)
+                    },
+                    valueRange = 0.01f..1f,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "亮",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+        }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

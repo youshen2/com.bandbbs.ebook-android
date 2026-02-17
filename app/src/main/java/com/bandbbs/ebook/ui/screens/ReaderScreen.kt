@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -62,12 +63,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -75,6 +82,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
+import com.bandbbs.ebook.ui.components.PageTurnMode
 import com.bandbbs.ebook.ui.components.PdfPageViewer
 import com.bandbbs.ebook.ui.components.ReaderSettingsBottomSheet
 import com.bandbbs.ebook.ui.components.loadReaderSettings
@@ -89,6 +97,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 private const val PREFS_NAME = "chapter_reader_prefs"
 private const val KEY_READING_POSITION = "reading_position_index_"
@@ -187,6 +196,40 @@ fun ReaderScreen(
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
+
+    var turnInProgress by remember { mutableStateOf(false) }
+
+    fun changeChapterByDelta(delta: Int) {
+        if (turnInProgress) return
+        if (allChapters.isEmpty()) return
+        val targetIndex = (currentChapterIndex + delta).coerceIn(0, allChapters.lastIndex)
+        if (targetIndex == currentChapterIndex) return
+
+        turnInProgress = true
+        scope.launch {
+            delay(450)
+            turnInProgress = false
+        }
+
+        chapter?.let { ch ->
+            if (!isPdf) {
+                saveReadingPosition(
+                    context,
+                    ch.id,
+                    firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset
+                )
+            }
+        }
+
+        if (bookName != null) {
+            scope.launch(Dispatchers.IO) {
+                ReadingTimeStorage.recordReadingEnd(context, bookName)
+            }
+        }
+
+        onChapterChange(allChapters[targetIndex].id)
+    }
 
     LaunchedEffect(bookId) {
         if (bookId != null) {
@@ -319,6 +362,92 @@ fun ReaderScreen(
         }
     }
 
+    val window = (context as? Activity)?.window
+    val originalBrightness = remember(window) { window?.attributes?.screenBrightness ?: -1f }
+
+    DisposableEffect(window) {
+        onDispose {
+            if (window != null) {
+                val lp = window.attributes
+                lp.screenBrightness = originalBrightness
+                window.attributes = lp
+            }
+        }
+    }
+
+    LaunchedEffect(window, readerSettings.customBrightnessEnabled, readerSettings.customBrightness) {
+        if (window != null) {
+            val lp = window.attributes
+            lp.screenBrightness = if (readerSettings.customBrightnessEnabled) {
+                readerSettings.customBrightness.coerceIn(0.01f, 1f)
+            } else {
+                -1f
+            }
+            window.attributes = lp
+        }
+    }
+
+    val swipeThresholdPx = remember(readerSettings.pageTurnSensitivity, density) {
+        val baseDp = 180f
+        val minDp = 60f
+        val t = (readerSettings.pageTurnSensitivity.coerceIn(1, 10) - 1) / 9f
+        val thresholdDp = baseDp - (baseDp - minDp) * t
+        with(density) { thresholdDp.dp.toPx() }
+    }
+
+    val overscrollThresholdPx = remember(readerSettings.pageTurnSensitivity, density) {
+        val baseDp = 140f
+        val minDp = 50f
+        val t = (readerSettings.pageTurnSensitivity.coerceIn(1, 10) - 1) / 9f
+        val thresholdDp = baseDp - (baseDp - minDp) * t
+        with(density) { thresholdDp.dp.toPx() }
+    }
+
+    val overscrollConnection = remember(
+        readerSettings.pageTurnMode,
+        overscrollThresholdPx,
+        currentChapterIndex,
+        allChapters.size,
+        isPdf,
+        turnInProgress
+    ) {
+        object : NestedScrollConnection {
+            private var acc = 0f
+
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (readerSettings.pageTurnMode != PageTurnMode.OVERSCROLL) return Offset.Zero
+                if (isPdf) return Offset.Zero
+                if (source != NestedScrollSource.Drag) return Offset.Zero
+                if (turnInProgress) return Offset.Zero
+
+                val atTop = !listState.canScrollBackward
+                val atBottom = !listState.canScrollForward
+
+                if (available.y > 0 && atTop && currentChapterIndex > 0) {
+                    acc += available.y
+                    if (acc >= overscrollThresholdPx) {
+                        acc = 0f
+                        changeChapterByDelta(-1)
+                    }
+                } else if (available.y < 0 && atBottom && currentChapterIndex < allChapters.size - 1) {
+                    acc += -available.y
+                    if (acc >= overscrollThresholdPx) {
+                        acc = 0f
+                        changeChapterByDelta(1)
+                    }
+                } else {
+                    acc = 0f
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                acc = 0f
+                return Velocity.Zero
+            }
+        }
+    }
+
 
     LaunchedEffect(readerSettings.autoScrollSpeed, isDragged, showControls) {
         if (readerSettings.autoScrollSpeed > 0 && !isDragged && !showControls) {
@@ -361,6 +490,38 @@ fun ReaderScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(readerSettings.backgroundColor))
+            .nestedScroll(overscrollConnection)
+            .pointerInput(
+                readerSettings.pageTurnMode,
+                readerSettings.pageTurnSensitivity,
+                showSettings,
+                showBookmarks,
+                turnInProgress,
+                currentChapterIndex,
+                allChapters.size
+            ) {
+                if (readerSettings.pageTurnMode == PageTurnMode.SWIPE && !showSettings && !showBookmarks) {
+                    var dragX = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragX = 0f },
+                        onHorizontalDrag = { change, dragAmount ->
+                            dragX += dragAmount
+                            change.consume()
+                        },
+                        onDragCancel = { dragX = 0f },
+                        onDragEnd = {
+                            if (!turnInProgress && abs(dragX) >= swipeThresholdPx) {
+                                if (dragX < 0) {
+                                    if (currentChapterIndex < allChapters.size - 1) changeChapterByDelta(1)
+                                } else {
+                                    if (currentChapterIndex > 0) changeChapterByDelta(-1)
+                                }
+                            }
+                            dragX = 0f
+                        }
+                    )
+                }
+            }
     ) {
         if (chapter != null) {
             if (isPdf && currentBook != null) {
@@ -429,57 +590,21 @@ fun ReaderScreen(
                                 color = Color(readerSettings.textColor).copy(alpha = 0.5f)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                if (currentChapterIndex > 0) {
-                                    TextButton(onClick = {
-
-                                        saveReadingPosition(
-                                            context,
-                                            chapter!!.id,
-                                            firstVisibleItemIndex,
-                                            firstVisibleItemScrollOffset
-                                        )
-
-                                        if (bookName != null) {
-                                            scope.launch(Dispatchers.IO) {
-                                                ReadingTimeStorage.recordReadingEnd(
-                                                    context,
-                                                    bookName
-                                                )
-                                            }
+                            if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    if (currentChapterIndex > 0) {
+                                        TextButton(onClick = { changeChapterByDelta(-1) }) {
+                                            Text("上一章", color = Color(readerSettings.textColor))
                                         }
-                                        val prevChapter = allChapters[currentChapterIndex - 1]
-                                        onChapterChange(prevChapter.id)
-                                    }) {
-                                        Text("上一章", color = Color(readerSettings.textColor))
                                     }
-                                }
 
-                                if (currentChapterIndex < allChapters.size - 1) {
-                                    TextButton(onClick = {
-
-                                        saveReadingPosition(
-                                            context,
-                                            chapter!!.id,
-                                            firstVisibleItemIndex,
-                                            firstVisibleItemScrollOffset
-                                        )
-
-                                        if (bookName != null) {
-                                            scope.launch(Dispatchers.IO) {
-                                                ReadingTimeStorage.recordReadingEnd(
-                                                    context,
-                                                    bookName
-                                                )
-                                            }
+                                    if (currentChapterIndex < allChapters.size - 1) {
+                                        TextButton(onClick = { changeChapterByDelta(1) }) {
+                                            Text("下一章", color = Color(readerSettings.textColor))
                                         }
-                                        val nextChapter = allChapters[currentChapterIndex + 1]
-                                        onChapterChange(nextChapter.id)
-                                    }) {
-                                        Text("下一章", color = Color(readerSettings.textColor))
                                     }
                                 }
                             }
@@ -629,40 +754,27 @@ fun ReaderScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                    TextButton(
-                        onClick = {
-                            if (currentChapterIndex > 0) {
-                                chapter?.let {
-                                    saveReadingPosition(
-                                        context,
-                                        it.id,
-                                        firstVisibleItemIndex,
-                                        firstVisibleItemScrollOffset
-                                    )
+                    if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
+                        TextButton(
+                            onClick = {
+                                if (currentChapterIndex > 0) {
+                                    changeChapterByDelta(-1)
                                 }
-
-                                if (bookName != null) {
-                                    scope.launch(Dispatchers.IO) {
-                                        ReadingTimeStorage.recordReadingEnd(context, bookName)
-                                    }
-                                }
-                                val prevChapter = allChapters[currentChapterIndex - 1]
-                                onChapterChange(prevChapter.id)
-                            }
-                        },
-                        enabled = currentChapterIndex > 0
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "上一章",
-                            modifier = Modifier.size(20.dp),
-                            tint = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text(
-                            "上一章",
-                            color = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
-                        )
+                            },
+                            enabled = currentChapterIndex > 0
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "上一章",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
+                            )
+                            Spacer(modifier = Modifier.size(4.dp))
+                            Text(
+                                "上一章",
+                                color = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
+                            )
+                        }
                     }
 
 
@@ -702,44 +814,31 @@ fun ReaderScreen(
                     }
 
 
-                    TextButton(
-                        onClick = {
-                            if (currentChapterIndex < allChapters.size - 1) {
-                                chapter?.let {
-                                    saveReadingPosition(
-                                        context,
-                                        it.id,
-                                        firstVisibleItemIndex,
-                                        firstVisibleItemScrollOffset
-                                    )
+                    if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
+                        TextButton(
+                            onClick = {
+                                if (currentChapterIndex < allChapters.size - 1) {
+                                    changeChapterByDelta(1)
                                 }
-
-                                if (bookName != null) {
-                                    scope.launch(Dispatchers.IO) {
-                                        ReadingTimeStorage.recordReadingEnd(context, bookName)
-                                    }
-                                }
-                                val nextChapter = allChapters[currentChapterIndex + 1]
-                                onChapterChange(nextChapter.id)
-                            }
-                        },
-                        enabled = currentChapterIndex < allChapters.size - 1
-                    ) {
-                        Text(
-                            "下一章",
-                            color = if (currentChapterIndex < allChapters.size - 1) Color(
-                                readerSettings.textColor
-                            ) else Color.Gray
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "下一章",
-                            modifier = Modifier.size(20.dp),
-                            tint = if (currentChapterIndex < allChapters.size - 1) Color(
-                                readerSettings.textColor
-                            ) else Color.Gray
-                        )
+                            },
+                            enabled = currentChapterIndex < allChapters.size - 1
+                        ) {
+                            Text(
+                                "下一章",
+                                color = if (currentChapterIndex < allChapters.size - 1) Color(
+                                    readerSettings.textColor
+                                ) else Color.Gray
+                            )
+                            Spacer(modifier = Modifier.size(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "下一章",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (currentChapterIndex < allChapters.size - 1) Color(
+                                    readerSettings.textColor
+                                ) else Color.Gray
+                            )
+                        }
                     }
                 }
             }
