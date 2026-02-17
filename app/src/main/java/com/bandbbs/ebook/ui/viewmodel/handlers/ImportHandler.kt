@@ -18,6 +18,7 @@ import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.DocxParser
 import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
+import com.bandbbs.ebook.utils.PdfParser
 import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.UritoFile
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +55,7 @@ class ImportHandler(
         scope.launch {
             val context = application.applicationContext
             val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
-            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx")
+            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx", ".pdf")
 
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
@@ -72,9 +73,10 @@ class ImportHandler(
 
                     val fileName = sourceFile.name.lowercase()
                     val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
+                    val fileFormat = detectFileFormat(context, uri)
+                    val isRecognizedFormat = fileFormat == "epub" || fileFormat == "nvb" || fileFormat == "docx" || fileFormat == "pdf"
 
-                    if (hasValidExtension) {
-                        val fileFormat = detectFileFormat(context, uri)
+                    if (hasValidExtension || isRecognizedFormat) {
                         validFiles.add(
                             com.bandbbs.ebook.ui.viewmodel.ImportFileInfo(
                                 uri = uri,
@@ -88,7 +90,7 @@ class ImportHandler(
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
-                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB、DOCX 格式",
+                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB、DOCX、PDF 格式",
                                 progress = 0f
                             )
                         }
@@ -352,6 +354,17 @@ class ImportHandler(
                     customRegex
                 )
 
+                "pdf" -> importPdfFile(
+                    context,
+                    uri,
+                    finalBookName,
+                    splitMethod,
+                    noSplit,
+                    wordsPerChapter,
+                    selectedCategory,
+                    customRegex
+                )
+
                 else -> importTxtFile(
                     context,
                     uri,
@@ -458,6 +471,7 @@ class ImportHandler(
             NvbParser.isNvbFile(context, uri) -> "nvb"
             EpubParser.isEpubFile(context, uri) -> "epub"
             DocxParser.isDocxFile(context, uri) -> "docx"
+            PdfParser.isPdfFile(context, uri) -> "pdf"
             else -> "txt"
         }
     }
@@ -1141,6 +1155,58 @@ class ImportHandler(
                     )
                 }
             }
+        } ?: run {
+            throw IllegalArgumentException("无法读取文件")
+        }
+    }
+
+    private suspend fun importPdfFile(
+        context: Context,
+        uri: Uri,
+        finalBookName: String,
+        splitMethod: String,
+        noSplit: Boolean,
+        wordsPerChapter: Int,
+        selectedCategory: String? = null,
+        customRegex: String = ""
+    ) {
+        UritoFile(uri, context)?.let { sourceFile ->
+            importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
+            val destFile = File(booksDir, sourceFile.name)
+            sourceFile.copyTo(destFile, overwrite = true)
+
+            importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+            val bookId = db.bookDao().insert(
+                BookEntity(
+                    name = finalBookName,
+                    path = destFile.absolutePath,
+                    size = destFile.length(),
+                    format = "pdf",
+                    localCategory = selectedCategory
+                )
+            )
+
+            importingState.update { it?.copy(statusText = "正在解析页数...", progress = 0.7f) }
+            val pageCount = PdfParser.getPageCount(destFile).coerceAtLeast(1)
+
+            importingState.update { it?.copy(statusText = "正在生成页目录...", progress = 0.85f) }
+            val chaptersDir = ChapterContentManager.getChaptersDir(context)
+            val bookDir = File(chaptersDir, "book_${bookId.toInt()}").apply { mkdirs() }
+            val chapters = (0 until pageCount).map { pageIndex ->
+                val placeholderPath = File(bookDir, "pdf_page_${pageIndex}.bin").absolutePath
+                Chapter(
+                    bookId = bookId.toInt(),
+                    index = pageIndex,
+                    name = "第${pageIndex + 1}页",
+                    contentFilePath = placeholderPath,
+                    wordCount = 0
+                )
+            }
+
+            importingState.update { it?.copy(statusText = "正在保存目录...", progress = 1.0f) }
+            db.chapterDao().insertAll(chapters)
+
+            sourceFile.delete()
         } ?: run {
             throw IllegalArgumentException("无法读取文件")
         }

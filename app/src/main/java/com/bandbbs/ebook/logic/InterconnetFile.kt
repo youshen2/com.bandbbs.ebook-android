@@ -588,6 +588,11 @@ class InterconnetFile(private val conn: InterHandshake) {
         onProgress: (progress: Double, String, status: String) -> Unit,
         onCoverProgress: (current: Int, total: Int) -> Unit = { _, _ -> }
     ) {
+        if (bookEntity?.format == "pdf") {
+            onError("PDF 禁止传输到手环", 0)
+            resetTransferState()
+            return
+        }
         conn.setOnDisconnected {
             onError("连接断开", 0)
             resetTransferState()

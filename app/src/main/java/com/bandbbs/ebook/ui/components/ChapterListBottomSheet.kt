@@ -77,6 +77,7 @@ fun ChapterListBottomSheet(
     onBatchRename: (List<Int>, String, String, Int, Int) -> Unit,
     loadChapterContent: suspend (Int) -> String
 ) {
+    val isPdf = book.format == "pdf"
     var isEditMode by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(setOf<Int>()) }
     var showMergeDialog by remember { mutableStateOf(false) }
@@ -180,7 +181,7 @@ fun ChapterListBottomSheet(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "${book.chapterCount} 章 · ${book.wordCount} 字",
+            text = if (isPdf) "${book.chapterCount} 页" else "${book.chapterCount} 章 · ${book.wordCount} 字",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -384,6 +385,7 @@ fun ChapterListBottomSheet(
             itemsIndexed(orderedChapters, key = { _, chapter -> chapter.id }) { index, chapter ->
                 if (isEditMode) {
                     EditableChapterCard(
+                        isPdf = isPdf,
                         chapter = chapter,
                         checked = selected.contains(chapter.id),
                         onCheckedChange = { checked ->
@@ -398,6 +400,7 @@ fun ChapterListBottomSheet(
                     )
                 } else {
                     SimpleChapterCard(
+                        isPdf = isPdf,
                         chapter = chapter,
                         onPreview = { onPreviewChapter(chapter.id) }
                     )
@@ -436,6 +439,7 @@ fun ChapterListBottomSheet(
 
 @Composable
 private fun SimpleChapterCard(
+    isPdf: Boolean,
     chapter: ChapterInfo,
     onPreview: () -> Unit
 ) {
@@ -454,11 +458,13 @@ private fun SimpleChapterCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${chapter.wordCount} 字",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!isPdf) {
+                Text(
+                    text = "${chapter.wordCount} 字",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -466,6 +472,7 @@ private fun SimpleChapterCard(
 @Composable
 private fun EditableChapterCard(
     modifier: Modifier = Modifier,
+    isPdf: Boolean,
     chapter: ChapterInfo,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -493,11 +500,13 @@ private fun EditableChapterCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${chapter.wordCount} 字",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (!isPdf) {
+                        Text(
+                            text = "${chapter.wordCount} 字",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Checkbox(
                     checked = checked,

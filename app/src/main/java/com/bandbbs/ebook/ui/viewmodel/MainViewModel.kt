@@ -2282,6 +2282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     name = entity.name,
                     path = entity.path,
                     size = entity.size,
+                    format = entity.format,
                     chapterCount = chapterCount,
                     wordCount = wordCount,
                     syncedChapterCount = 0,

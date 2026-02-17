@@ -43,6 +43,18 @@ class PushHandler(
     private var isRetrying: Boolean = false
 
     fun startPush(book: Book) {
+        if (book.format == "pdf") {
+            pushState.update {
+                it.copy(
+                    book = book,
+                    statusText = "PDF 禁止传输到手环",
+                    isFinished = true,
+                    isSuccess = false
+                )
+            }
+            syncOptionsState.value = null
+            return
+        }
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         if (fileConn.busy || syncOptionsState.value != null) return
 
@@ -97,6 +109,7 @@ class PushHandler(
     fun refreshBookStatus(book: Book) {
         scope.launch {
             try {
+                if (book.format == "pdf") return@launch
                 connectionHandler.reconnect()
                 delay(500L)
                 val conn = connectionHandler.getHandshake()
@@ -139,6 +152,18 @@ class PushHandler(
     }
 
     fun syncCoverOnly(book: Book) {
+        if (book.format == "pdf") {
+            pushState.update {
+                it.copy(
+                    book = book,
+                    statusText = "PDF 禁止传输到手环",
+                    isFinished = true,
+                    isSuccess = false
+                )
+            }
+            syncOptionsState.value = null
+            return
+        }
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         if (fileConn.busy || book.coverImagePath == null) return
 
@@ -193,6 +218,18 @@ class PushHandler(
     }
 
     fun confirmPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean = false) {
+        if (book.format == "pdf") {
+            pushState.update {
+                it.copy(
+                    book = book,
+                    statusText = "PDF 禁止传输到手环",
+                    isFinished = true,
+                    isSuccess = false
+                )
+            }
+            syncOptionsState.value = null
+            return
+        }
         if (selectedChapterIndices.isEmpty()) {
             return
         }
@@ -216,9 +253,6 @@ class PushHandler(
     }
 
     fun confirmFirstSync() {
-        prefs.edit().putBoolean(firstSyncConfirmedKey, true).apply()
-        firstSyncConfirmState.value = null
-
         val book = pendingPushBook
         val chapters = pendingPushChapters
         val syncCover = pendingSyncCover
@@ -228,11 +262,29 @@ class PushHandler(
         pendingSyncCover = false
 
         if (book != null && chapters != null && chapters.isNotEmpty()) {
+            if (book.format == "pdf") {
+                firstSyncConfirmState.value = null
+                pushState.update {
+                    it.copy(
+                        book = book,
+                        statusText = "PDF 禁止传输到手环",
+                        isFinished = true,
+                        isSuccess = false
+                    )
+                }
+                syncOptionsState.value = null
+                return
+            }
+            prefs.edit().putBoolean(firstSyncConfirmedKey, true).apply()
+            firstSyncConfirmState.value = null
             scope.launch {
                 val isCoverAlreadySynced = syncOptionsState.value?.isCoverSynced ?: false
                 syncOptionsState.value = null
                 performPush(book, chapters, syncCover, isCoverAlreadySynced)
             }
+        } else {
+            prefs.edit().putBoolean(firstSyncConfirmedKey, true).apply()
+            firstSyncConfirmState.value = null
         }
     }
 
@@ -249,6 +301,20 @@ class PushHandler(
         syncCover: Boolean,
         isCoverAlreadySynced: Boolean
     ) {
+        if (book.format == "pdf") {
+            pushState.update {
+                it.copy(
+                    book = book,
+                    statusText = "PDF 禁止传输到手环",
+                    isFinished = true,
+                    isSuccess = false,
+                    isTransferring = false
+                )
+            }
+            syncOptionsState.value = null
+            resetTransferState()
+            return
+        }
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
 
         val initialMessage =

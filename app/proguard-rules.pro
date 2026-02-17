@@ -97,6 +97,10 @@
 -keep class com.xiaomi.** { *; }
 -dontwarn com.xiaomi.**
 
+# pdfbox-android
+-keep class com.tom_roush.pdfbox.** { *; }
+-dontwarn com.tom_roush.pdfbox.**
+
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);

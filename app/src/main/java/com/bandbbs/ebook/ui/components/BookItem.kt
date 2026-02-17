@@ -74,6 +74,7 @@ fun BookItem(
     isSelected: Boolean = false
 ) {
     var showCoverDialog by remember { mutableStateOf(false) }
+    val isPdf = book.format == "pdf"
 
     if (showCoverDialog && book.coverImagePath != null) {
         Dialog(onDismissRequest = { showCoverDialog = false }) {
@@ -150,7 +151,7 @@ fun BookItem(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "${book.chapterCount} 章",
+                                text = if (isPdf) "${book.chapterCount} 页" else "${book.chapterCount} 章",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -218,8 +219,10 @@ fun BookItem(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        BookStatItem("章节", book.chapterCount.toString())
-                        BookStatItem("字数", book.wordCount.toString())
+                        BookStatItem(if (isPdf) "页数" else "章节", book.chapterCount.toString())
+                        if (!isPdf) {
+                            BookStatItem("字数", book.wordCount.toString())
+                        }
                         BookStatItem("大小", bytesToReadable(book.size))
                     }
 

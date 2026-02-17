@@ -88,7 +88,10 @@ class LibraryHandler(
         scope.launch(Dispatchers.IO) {
             val chapter = db.chapterDao().getChapterById(chapterId)
             if (chapter != null) {
-                val content = ChapterContentManager.readChapterContent(chapter.contentFilePath)
+                val content =
+                    if (chapter.contentFilePath.isNotBlank()) ChapterContentManager.readChapterContent(
+                        chapter.contentFilePath
+                    ) else ""
                 val chapterWithContent = com.bandbbs.ebook.ui.model.ChapterWithContent(
                     id = chapter.id,
                     name = chapter.name,

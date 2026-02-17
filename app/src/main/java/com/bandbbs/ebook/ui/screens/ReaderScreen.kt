@@ -75,6 +75,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
+import com.bandbbs.ebook.ui.components.PdfPageViewer
 import com.bandbbs.ebook.ui.components.ReaderSettingsBottomSheet
 import com.bandbbs.ebook.ui.components.loadReaderSettings
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
@@ -147,6 +148,12 @@ fun ReaderScreen(
         } else null
     }
 
+    val currentBook = remember(bookId, books) {
+        if (bookId != null) books.find { it.id == bookId } else null
+    }
+
+    val isPdf = remember(currentBook) { currentBook?.format == "pdf" }
+
 
     var showControls by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
@@ -190,7 +197,14 @@ fun ReaderScreen(
     BackHandler(enabled = true) {
 
         chapter?.let { ch ->
-            saveReadingPosition(context, ch.id, firstVisibleItemIndex, firstVisibleItemScrollOffset)
+            if (!isPdf) {
+                saveReadingPosition(
+                    context,
+                    ch.id,
+                    firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset
+                )
+            }
         }
 
         if (bookName != null) {
@@ -229,9 +243,11 @@ fun ReaderScreen(
             loadReadingPosition(context, chapter!!.id)
         }
 
-        listState.scrollToItem(0, 0)
-        if (index < paragraphs.size + 1) {
-            listState.scrollToItem(index, offset)
+        if (!isPdf) {
+            listState.scrollToItem(0, 0)
+            if (index < paragraphs.size + 1) {
+                listState.scrollToItem(index, offset)
+            }
         }
     }
 
@@ -239,15 +255,17 @@ fun ReaderScreen(
     LaunchedEffect(firstVisibleItemIndex, firstVisibleItemScrollOffset) {
 
 
-        delay(1000)
-        if (chapter != null) {
-            withContext(Dispatchers.IO) {
-                saveReadingPosition(
-                    context,
-                    chapter!!.id,
-                    firstVisibleItemIndex,
-                    firstVisibleItemScrollOffset
-                )
+        if (!isPdf) {
+            delay(1000)
+            if (chapter != null) {
+                withContext(Dispatchers.IO) {
+                    saveReadingPosition(
+                        context,
+                        chapter!!.id,
+                        firstVisibleItemIndex,
+                        firstVisibleItemScrollOffset
+                    )
+                }
             }
         }
     }
@@ -345,105 +363,128 @@ fun ReaderScreen(
             .background(Color(readerSettings.backgroundColor))
     ) {
         if (chapter != null) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { showControls = !showControls },
-                contentPadding = PaddingValues(
-                    top = systemBarsPadding.calculateTopPadding() + 16.dp,
-                    bottom = systemBarsPadding.calculateBottomPadding() + 16.dp,
-                    start = 24.dp,
-                    end = 24.dp
-                )
-            ) {
-                item {
-                    Text(
-                        text = chapter!!.name,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(readerSettings.textColor),
-                        modifier = Modifier.padding(bottom = 24.dp)
+            if (isPdf && currentBook != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showControls = !showControls }
+                ) {
+                    PdfPageViewer(
+                        pdfPath = currentBook.path,
+                        pageIndex = currentChapterIndex,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
-
-                items(paragraphs) { paragraph ->
-                    Text(
-                        text = "        $paragraph",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = readerSettings.fontSize.sp,
-                            lineHeight = (readerSettings.fontSize * readerSettings.lineHeight).sp
-                        ),
-                        color = Color(readerSettings.textColor),
-                        textAlign = TextAlign.Justify,
-                        modifier = Modifier.padding(bottom = 12.dp)
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showControls = !showControls },
+                    contentPadding = PaddingValues(
+                        top = systemBarsPadding.calculateTopPadding() + 16.dp,
+                        bottom = systemBarsPadding.calculateBottomPadding() + 16.dp,
+                        start = 24.dp,
+                        end = 24.dp
                     )
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                ) {
+                    item {
                         Text(
-                            text = "本章完",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(readerSettings.textColor).copy(alpha = 0.5f)
+                            text = chapter!!.name,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(readerSettings.textColor),
+                            modifier = Modifier.padding(bottom = 24.dp)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
+                    }
+
+                    items(paragraphs) { paragraph ->
+                        Text(
+                            text = "        $paragraph",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = readerSettings.fontSize.sp,
+                                lineHeight = (readerSettings.fontSize * readerSettings.lineHeight).sp
+                            ),
+                            color = Color(readerSettings.textColor),
+                            textAlign = TextAlign.Justify,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            if (currentChapterIndex > 0) {
-                                TextButton(onClick = {
+                            Text(
+                                text = "本章完",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(readerSettings.textColor).copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                if (currentChapterIndex > 0) {
+                                    TextButton(onClick = {
 
-                                    saveReadingPosition(
-                                        context,
-                                        chapter!!.id,
-                                        firstVisibleItemIndex,
-                                        firstVisibleItemScrollOffset
-                                    )
+                                        saveReadingPosition(
+                                            context,
+                                            chapter!!.id,
+                                            firstVisibleItemIndex,
+                                            firstVisibleItemScrollOffset
+                                        )
 
-                                    if (bookName != null) {
-                                        scope.launch(Dispatchers.IO) {
-                                            ReadingTimeStorage.recordReadingEnd(context, bookName)
+                                        if (bookName != null) {
+                                            scope.launch(Dispatchers.IO) {
+                                                ReadingTimeStorage.recordReadingEnd(
+                                                    context,
+                                                    bookName
+                                                )
+                                            }
                                         }
+                                        val prevChapter = allChapters[currentChapterIndex - 1]
+                                        onChapterChange(prevChapter.id)
+                                    }) {
+                                        Text("上一章", color = Color(readerSettings.textColor))
                                     }
-                                    val prevChapter = allChapters[currentChapterIndex - 1]
-                                    onChapterChange(prevChapter.id)
-                                }) {
-                                    Text("上一章", color = Color(readerSettings.textColor))
+                                }
+
+                                if (currentChapterIndex < allChapters.size - 1) {
+                                    TextButton(onClick = {
+
+                                        saveReadingPosition(
+                                            context,
+                                            chapter!!.id,
+                                            firstVisibleItemIndex,
+                                            firstVisibleItemScrollOffset
+                                        )
+
+                                        if (bookName != null) {
+                                            scope.launch(Dispatchers.IO) {
+                                                ReadingTimeStorage.recordReadingEnd(
+                                                    context,
+                                                    bookName
+                                                )
+                                            }
+                                        }
+                                        val nextChapter = allChapters[currentChapterIndex + 1]
+                                        onChapterChange(nextChapter.id)
+                                    }) {
+                                        Text("下一章", color = Color(readerSettings.textColor))
+                                    }
                                 }
                             }
-
-                            if (currentChapterIndex < allChapters.size - 1) {
-                                TextButton(onClick = {
-
-                                    saveReadingPosition(
-                                        context,
-                                        chapter!!.id,
-                                        firstVisibleItemIndex,
-                                        firstVisibleItemScrollOffset
-                                    )
-
-                                    if (bookName != null) {
-                                        scope.launch(Dispatchers.IO) {
-                                            ReadingTimeStorage.recordReadingEnd(context, bookName)
-                                        }
-                                    }
-                                    val nextChapter = allChapters[currentChapterIndex + 1]
-                                    onChapterChange(nextChapter.id)
-                                }) {
-                                    Text("下一章", color = Color(readerSettings.textColor))
-                                }
-                            }
+                            Spacer(modifier = Modifier.height(64.dp))
                         }
-                        Spacer(modifier = Modifier.height(64.dp))
                     }
                 }
             }
@@ -467,10 +508,17 @@ fun ReaderScreen(
                     color = Color(readerSettings.textColor).copy(alpha = 0.6f)
                 )
 
-                val progress = if (paragraphs.isNotEmpty()) {
-                    ((firstVisibleItemIndex.toFloat() / paragraphs.size) * 100).toInt()
-                        .coerceIn(0, 100)
-                } else 0
+                val progress = if (isPdf) {
+                    if (allChapters.isNotEmpty()) {
+                        (((currentChapterIndex + 1).toFloat() / allChapters.size.toFloat()) * 100).toInt()
+                            .coerceIn(0, 100)
+                    } else 0
+                } else {
+                    if (paragraphs.isNotEmpty()) {
+                        ((firstVisibleItemIndex.toFloat() / paragraphs.size) * 100).toInt()
+                            .coerceIn(0, 100)
+                    } else 0
+                }
 
                 Text(
                     text = "$progress%",
@@ -638,8 +686,8 @@ fun ReaderScreen(
                                     name = bookmarkName,
                                     chapterIndex = currentChapterIndex,
                                     chapterName = chapterName,
-                                    offsetInChapter = firstVisibleItemIndex,
-                                    scrollOffset = firstVisibleItemScrollOffset
+                                    offsetInChapter = if (isPdf) 0 else firstVisibleItemIndex,
+                                    scrollOffset = if (isPdf) 0 else firstVisibleItemScrollOffset
                                 )
                                 bookmarks = BookmarkManager.getBookmarks(context, bookId)
                             }

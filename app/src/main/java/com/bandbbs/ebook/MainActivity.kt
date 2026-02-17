@@ -314,6 +314,8 @@ class MainActivity : ComponentActivity() {
                                             "text/plain",
                                             "application/epub+zip",
                                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                            "application/pdf",
+                                            "application/x-pdf",
                                             "application/octet-stream"
                                         )
                                     )
