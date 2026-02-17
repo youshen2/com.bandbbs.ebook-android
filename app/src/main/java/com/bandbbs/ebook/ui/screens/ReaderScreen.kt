@@ -849,7 +849,7 @@ fun ReaderScreen(
         ModalBottomSheet(
             onDismissRequest = { showSettings = false },
             sheetState = settingsSheetState,
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color(readerSettings.backgroundColor)
         ) {
             ReaderSettingsBottomSheet(
                 currentSettings = readerSettings,
