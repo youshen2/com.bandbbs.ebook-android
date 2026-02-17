@@ -95,6 +95,7 @@ dependencies {
     implementation("androidx.loader:loader:1.1.0")
     implementation("com.github.albfernandez:juniversalchardet:2.5.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("org.jsoup:jsoup:1.17.2")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 

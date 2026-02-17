@@ -17,6 +17,7 @@ import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ChapterSplitter
 import com.bandbbs.ebook.utils.DocxParser
 import com.bandbbs.ebook.utils.EpubParser
+import com.bandbbs.ebook.utils.MobiParser
 import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.PdfParser
 import com.bandbbs.ebook.utils.ReadingTimeStorage
@@ -55,7 +56,7 @@ class ImportHandler(
         scope.launch {
             val context = application.applicationContext
             val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
-            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx", ".pdf")
+            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx", ".pdf", ".mobi")
 
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
@@ -74,7 +75,8 @@ class ImportHandler(
                     val fileName = sourceFile.name.lowercase()
                     val hasValidExtension = allowedExtensions.any { fileName.endsWith(it) }
                     val fileFormat = detectFileFormat(context, uri)
-                    val isRecognizedFormat = fileFormat == "epub" || fileFormat == "nvb" || fileFormat == "docx" || fileFormat == "pdf"
+                    val isRecognizedFormat =
+                        fileFormat == "epub" || fileFormat == "nvb" || fileFormat == "docx" || fileFormat == "pdf" || fileFormat == "mobi"
 
                     if (hasValidExtension || isRecognizedFormat) {
                         validFiles.add(
@@ -90,7 +92,7 @@ class ImportHandler(
                         withContext(Dispatchers.Main) {
                             importingState.value = ImportingState(
                                 bookName = sourceFile.nameWithoutExtension,
-                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB、DOCX、PDF 格式",
+                                statusText = "${sourceFile.name} 不支持的文件格式\n仅支持 TXT、EPUB、NVB、DOCX、PDF、MOBI 格式",
                                 progress = 0f
                             )
                         }
@@ -365,6 +367,17 @@ class ImportHandler(
                     customRegex
                 )
 
+                "mobi" -> importMobiFile(
+                    context,
+                    uri,
+                    finalBookName,
+                    splitMethod,
+                    noSplit,
+                    wordsPerChapter,
+                    selectedCategory,
+                    customRegex
+                )
+
                 else -> importTxtFile(
                     context,
                     uri,
@@ -472,6 +485,7 @@ class ImportHandler(
             EpubParser.isEpubFile(context, uri) -> "epub"
             DocxParser.isDocxFile(context, uri) -> "docx"
             PdfParser.isPdfFile(context, uri) -> "pdf"
+            MobiParser.isMobiFile(context, uri) -> "mobi"
             else -> "txt"
         }
     }
@@ -1112,6 +1126,156 @@ class ImportHandler(
                         wordCount = content.trim().length
                     )
                 )
+            } else {
+                ChapterSplitter.splitFromText(
+                    context = context,
+                    content = content,
+                    bookId = bookId.toInt(),
+                    method = splitMethod,
+                    onProgress = { progress, status ->
+                        importingState.update {
+                            it?.copy(
+                                statusText = status,
+                                progress = progress
+                            )
+                        }
+                    },
+                    wordsPerChapter = wordsPerChapter,
+                    customRegex = if (splitMethod == ChapterSplitter.METHOD_CUSTOM) customRegex else null
+                )
+            }
+
+            importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
+
+            val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
+                context,
+                bookId.toInt(),
+                initialChapters
+            )
+
+            importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
+            db.chapterDao().insertAll(cleanedChapters)
+
+            sourceFile.delete()
+
+            if (mergedTitles.isNotEmpty()) {
+                val reportMessage =
+                    "有 ${mergedTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
+                            mergedTitles.joinToString("\n") { "- $it" }
+                withContext(Dispatchers.Main) {
+                    importReportState.value = ImportReportState(
+                        bookName = finalBookName,
+                        mergedChaptersInfo = reportMessage
+                    )
+                }
+            }
+        } ?: run {
+            throw IllegalArgumentException("无法读取文件")
+        }
+    }
+
+    private suspend fun importMobiFile(
+        context: Context,
+        uri: Uri,
+        finalBookName: String,
+        splitMethod: String,
+        noSplit: Boolean,
+        wordsPerChapter: Int,
+        selectedCategory: String? = null,
+        customRegex: String = ""
+    ) {
+        UritoFile(uri, context)?.let { sourceFile ->
+            importingState.update { it?.copy(statusText = "正在解析 MOBI 文件...", progress = 0.1f) }
+
+            val chaptersFromMobi = if (!noSplit && splitMethod == ChapterSplitter.METHOD_DEFAULT) {
+                MobiParser.extractChapters(context, uri) { p, status ->
+                    importingState.update {
+                        it?.copy(
+                            statusText = status,
+                            progress = 0.1f + 0.25f * p.coerceIn(0f, 1f)
+                        )
+                    }
+                }
+            } else {
+                emptyList()
+            }
+
+            val content = if (chaptersFromMobi.isNotEmpty()) {
+                chaptersFromMobi.joinToString("\n\n") { it.title + "\n\n" + it.content }
+            } else {
+                MobiParser.extractPlainText(context, uri) { p, status ->
+                    importingState.update {
+                        it?.copy(
+                            statusText = status,
+                            progress = 0.1f + 0.25f * p.coerceIn(0f, 1f)
+                        )
+                    }
+                }
+            }
+
+            importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
+            val destFile = File(booksDir, sourceFile.name)
+            sourceFile.copyTo(destFile, overwrite = true)
+
+            importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+            val bookId = db.bookDao().insert(
+                BookEntity(
+                    name = finalBookName,
+                    path = destFile.absolutePath,
+                    size = destFile.length(),
+                    format = "mobi",
+                    localCategory = selectedCategory
+                )
+            )
+
+            val initialChapters = if (noSplit) {
+                importingState.update { it?.copy(statusText = "正在读取全文...", progress = 0.7f) }
+                val contentFilePath =
+                    ChapterContentManager.saveChapterContent(
+                        context, bookId.toInt(), 0, content.trim()
+                    )
+                listOf(
+                    Chapter(
+                        bookId = bookId.toInt(),
+                        index = 0,
+                        name = "全文",
+                        contentFilePath = contentFilePath,
+                        wordCount = content.trim().length
+                    )
+                )
+            } else if (chaptersFromMobi.isNotEmpty()) {
+                importingState.update {
+                    it?.copy(
+                        statusText = "正在保存章节 (0/${chaptersFromMobi.size})...",
+                        progress = 0.7f
+                    )
+                }
+
+                val chapters = chaptersFromMobi.mapIndexed { index, ch ->
+                    if (index == 0 || index % 10 == 0 || index == chaptersFromMobi.lastIndex) {
+                        val p = 0.7f + 0.2f * (index.toFloat() / chaptersFromMobi.size.toFloat())
+                        importingState.update {
+                            it?.copy(
+                                statusText = "正在保存章节 (${index + 1}/${chaptersFromMobi.size})...",
+                                progress = p
+                            )
+                        }
+                    }
+                    val contentFilePath = ChapterContentManager.saveChapterContent(
+                        context,
+                        bookId.toInt(),
+                        index,
+                        ch.content.trim()
+                    )
+                    Chapter(
+                        bookId = bookId.toInt(),
+                        index = index,
+                        name = ch.title.trim().ifBlank { "第${index + 1}章" },
+                        contentFilePath = contentFilePath,
+                        wordCount = ch.wordCount
+                    )
+                }
+                chapters
             } else {
                 ChapterSplitter.splitFromText(
                     context = context,

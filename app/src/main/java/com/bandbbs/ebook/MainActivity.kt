@@ -316,6 +316,8 @@ class MainActivity : ComponentActivity() {
                                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                             "application/pdf",
                                             "application/x-pdf",
+                                            "application/x-mobipocket-ebook",
+                                            "application/vnd.amazon.ebook",
                                             "application/octet-stream"
                                         )
                                     )
