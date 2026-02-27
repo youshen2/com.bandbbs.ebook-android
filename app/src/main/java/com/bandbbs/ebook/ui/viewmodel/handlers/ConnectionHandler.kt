@@ -83,7 +83,7 @@ class ConnectionHandler(
         if (!bandTransferEnabled.value) {
             connectionState.update {
                 it.copy(
-                    statusText = "手环功能已关闭",
+                    statusText = "功能关闭",
                     descriptionText = "",
                     isConnected = false,
                     deviceName = null
@@ -95,7 +95,7 @@ class ConnectionHandler(
         scope.launch {
             connectionState.update {
                 it.copy(
-                    statusText = "手环连接中",
+                    statusText = "连接中",
                     descriptionText = "请确保小米运动健康后台运行",
                     isConnected = false,
                     deviceName = null
@@ -112,7 +112,7 @@ class ConnectionHandler(
                     if (isUnsupported) {
                         connectionState.update {
                             it.copy(
-                                statusText = "设备不受支持",
+                                statusText = "不受支持",
                                 descriptionText = "$deviceName 不受支持",
                                 isConnected = false,
                                 deviceName = deviceName
@@ -133,7 +133,7 @@ class ConnectionHandler(
                         if (!connection.getAppState().await()) {
                             connectionState.update {
                                 it.copy(
-                                    statusText = "弦电子书未安装",
+                                    statusText = "未安装",
                                     descriptionText = "请在手环上安装小程序",
                                     isConnected = false,
                                     deviceName = deviceName
@@ -151,7 +151,7 @@ class ConnectionHandler(
                     } catch (_: Exception) {
                         connectionState.update {
                             it.copy(
-                                statusText = "弦电子书未安装",
+                                statusText = "未安装",
                                 descriptionText = "请在手环上安装小程序",
                                 isConnected = false,
                                 deviceName = deviceName
@@ -168,7 +168,7 @@ class ConnectionHandler(
                     connection.registerListener().await()
                     connectionState.update {
                         it.copy(
-                            statusText = "设备连接成功",
+                            statusText = "连接成功",
                             descriptionText = "$deviceName 已连接",
                             isConnected = true,
                             deviceName = deviceName
@@ -181,7 +181,7 @@ class ConnectionHandler(
                 Log.e("MainViewModel", "connect timeout")
                 connectionState.update {
                     it.copy(
-                        statusText = "手环连接失败",
+                        statusText = "连接失败",
                         descriptionText = "连接超时",
                         isConnected = false,
                         deviceName = null

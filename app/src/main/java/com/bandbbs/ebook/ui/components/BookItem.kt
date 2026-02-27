@@ -1,49 +1,21 @@
 package com.bandbbs.ebook.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,18 +23,30 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.extra.SuperListPopup
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.ListView
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.extended.Play
+import top.yukonga.miuix.kmp.icon.extended.Refresh
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
-
 
 @Composable
 fun BookItem(
     book: Book,
-    isExpanded: Boolean,
-    onExpandClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onSyncClick: () -> Unit,
     onChapterListClick: () -> Unit,
@@ -74,328 +58,305 @@ fun BookItem(
     isSelected: Boolean = false,
     showSyncButton: Boolean = true
 ) {
-    var showCoverDialog by remember { mutableStateOf(false) }
+    val showCoverDialog = remember { mutableStateOf(false) }
+    val showDetailsDialog = remember { mutableStateOf(false) }
     val isPdf = book.format == "pdf"
 
-    if (showCoverDialog && book.coverImagePath != null) {
-        Dialog(onDismissRequest = { showCoverDialog = false }) {
-            Box(
+    if (showCoverDialog.value && book.coverImagePath != null) {
+        SuperDialog(
+            title = "封面大图",
+            show = showCoverDialog,
+            onDismissRequest = { showCoverDialog.value = false }
+        ) {
+            AsyncImage(
+                model = File(book.coverImagePath),
+                contentDescription = "封面大图",
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { showCoverDialog = false },
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.FillWidth
+            )
+        }
+    }
+
+    SuperDialog(
+        title = book.name,
+        show = showDetailsDialog,
+        onDismissRequest = { showDetailsDialog.value = false }
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showCoverDialog,
-                    enter = androidx.compose.animation.scaleIn(),
-                    exit = androidx.compose.animation.scaleOut()
+                BookStatItem(if (isPdf) "页数" else "章节", book.chapterCount.toString())
+                if (!isPdf) {
+                    BookStatItem("字数", book.wordCount.toString())
+                }
+                BookStatItem("大小", bytesToReadable(book.size))
+            }
+
+            if (book.localCategory != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.primaryContainer),
+                    cornerRadius = 8.dp,
+                    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    AsyncImage(
-                        model = File(book.coverImagePath),
-                        contentDescription = "封面大图",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.FillWidth
+                    Text(
+                        text = book.localCategory,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onPrimaryContainer
                     )
+                }
+            }
+
+            book.lastReadInfo?.let { info ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = info,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (book.chapterProgressPercent > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "阅读进度",
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                    )
+                    Text(
+                        text = "${String.format("%.1f", book.chapterProgressPercent)}%",
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            if (lastChapterName != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "最后一章",
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                    )
+                    Text(
+                        text = lastChapterName,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showDetailsDialog.value = false
+                            onContinueReadingClick()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColorsPrimary()
+                    ) {
+                        Icon(
+                            MiuixIcons.Play,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MiuixTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "继续",
+                            color = MiuixTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    if (showSyncButton) {
+                        Button(
+                            onClick = {
+                                showDetailsDialog.value = false
+                                onSyncClick()
+                            },
+                            enabled = isSyncEnabled,
+                            modifier = Modifier.weight(1.6f)
+                        ) {
+                            Icon(
+                                MiuixIcons.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("传输书籍")
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showDetailsDialog.value = false
+                            onChapterListClick()
+                        },
+                        modifier = Modifier.weight(1.7f)
+                    ) {
+                        Icon(
+                            MiuixIcons.ListView,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("目录")
+                    }
+
+                    val showMenu = remember { mutableStateOf(false) }
+                    Box(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { showMenu.value = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                MiuixIcons.More,
+                                contentDescription = "更多",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("更多")
+                        }
+                        SuperListPopup(
+                            show = showMenu,
+                            onDismissRequest = { showMenu.value = false }
+                        ) {
+                            ListPopupColumn {
+                                DropdownImpl(
+                                    text = "编辑书籍信息",
+                                    optionSize = 3,
+                                    isSelected = false,
+                                    onSelectedIndexChange = {
+                                        showMenu.value = false
+                                        showDetailsDialog.value = false
+                                        onEditInfoClick()
+                                    },
+                                    index = 0
+                                )
+                                DropdownImpl(
+                                    text = "更换封面",
+                                    optionSize = 3,
+                                    isSelected = false,
+                                    onSelectedIndexChange = {
+                                        showMenu.value = false
+                                        showDetailsDialog.value = false
+                                        onImportCoverClick()
+                                    },
+                                    index = 1
+                                )
+                                DropdownImpl(
+                                    text = "删除书籍",
+                                    optionSize = 3,
+                                    isSelected = false,
+                                    onSelectedIndexChange = {
+                                        showMenu.value = false
+                                        showDetailsDialog.value = false
+                                        onDeleteClick()
+                                    },
+                                    index = 2
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
     Card(
-        onClick = onExpandClick,
+        onClick = { showDetailsDialog.value = true },
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                isSelected -> MaterialTheme.colorScheme.primaryContainer
-                isExpanded -> MaterialTheme.colorScheme.surfaceContainerHigh
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
-            }
+        colors = CardDefaults.defaultColors(
+            color = if (isSelected) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.surfaceContainer
         ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+        insideMargin = PaddingValues(16.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row {
-                if (!isExpanded && book.coverImagePath != null && File(book.coverImagePath).exists()) {
-                    AsyncImage(
-                        model = File(book.coverImagePath),
-                        contentDescription = "书籍封面",
-                        modifier = Modifier
-                            .size(width = 60.dp, height = 80.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
+        Row {
+            if (book.coverImagePath != null && File(book.coverImagePath).exists()) {
+                AsyncImage(
+                    model = File(book.coverImagePath),
+                    contentDescription = "书籍封面",
+                    modifier = Modifier
+                        .size(width = 60.dp, height = 80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showCoverDialog.value = true },
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+            }
 
-                Column(
-                    modifier = Modifier.weight(1f)
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = book.name,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MiuixTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = book.name,
-                        style = if (isExpanded) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = if (isExpanded) 10 else 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = if (isPdf) "${book.chapterCount} 页" else "${book.chapterCount} 章",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
                     )
-
-                    if (!isExpanded) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = if (isPdf) "${book.chapterCount} 页" else "${book.chapterCount} 章",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = bytesToReadable(book.size),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-
-
-                        if (book.localCategory != null) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "分类: ${book.localCategory}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (book.chapterProgressPercent > 0) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "进度: ${
-                                    String.format(
-                                        "%.1f",
-                                        book.chapterProgressPercent
-                                    )
-                                }%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
+                    Text(
+                        text = bytesToReadable(book.size),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                    )
                 }
-            }
 
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier.padding(top = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (book.coverImagePath != null && File(book.coverImagePath).exists()) {
-                        AsyncImage(
-                            model = File(book.coverImagePath),
-                            contentDescription = "书籍封面",
-                            modifier = Modifier
-                                .height(200.dp)
-                                .width(150.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showCoverDialog = true },
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        BookStatItem(if (isPdf) "页数" else "章节", book.chapterCount.toString())
-                        if (!isPdf) {
-                            BookStatItem("字数", book.wordCount.toString())
-                        }
-                        BookStatItem("大小", bytesToReadable(book.size))
-                    }
-
-                    if (book.localCategory != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = book.localCategory,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-
-
-                    book.lastReadInfo?.let { info ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = info,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    if (book.chapterProgressPercent > 0) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Column {
-                            Text(
-                                text = "阅读进度",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "${String.format("%.1f", book.chapterProgressPercent)}%",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    if (lastChapterName != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Column {
-                            Text(
-                                text = "最后一章",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = lastChapterName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-
-                    if (showSyncButton) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = onContinueReadingClick,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("继续阅读")
-                            }
-
-                            FilledTonalButton(
-                                onClick = onSyncClick,
-                                enabled = isSyncEnabled,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.Sync,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("传输书籍")
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = onContinueReadingClick,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("继续阅读")
-                            }
-                        }
-                    }
-
+                if (book.localCategory != null) {
                     Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "分类: ${book.localCategory}",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onChapterListClick,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.List,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("目录")
-                        }
-
-                        var showMenu by remember { mutableStateOf(false) }
-                        Box {
-                            FilledTonalIconButton(
-                                onClick = { showMenu = true },
-                                shape = CircleShape
-                            ) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("编辑书籍信息") },
-                                    leadingIcon = { Icon(Icons.Default.Edit, null) },
-                                    onClick = { showMenu = false; onEditInfoClick() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("更换封面") },
-                                    leadingIcon = { Icon(Icons.Default.Image, null) },
-                                    onClick = { showMenu = false; onImportCoverClick() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("删除书籍") },
-                                    leadingIcon = { Icon(Icons.Default.Delete, null) },
-                                    onClick = { showMenu = false; onDeleteClick() },
-                                    colors = androidx.compose.material3.MenuDefaults.itemColors(
-                                        textColor = MaterialTheme.colorScheme.error,
-                                        leadingIconColor = MaterialTheme.colorScheme.error
-                                    )
-                                )
-                            }
-                        }
-                    }
+                if (book.chapterProgressPercent > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "进度: ${String.format("%.1f", book.chapterProgressPercent)}%",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                    )
                 }
             }
         }
@@ -407,9 +368,9 @@ private fun BookStatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantActions
         )
-        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(value, style = MiuixTheme.textStyles.body1)
     }
 }

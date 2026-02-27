@@ -396,10 +396,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun showCategorySelector(book: Book? = null) = categoryHandler.showCategorySelector(book)
 
     fun showCategorySelectorForEditBookInfo(
-        book: com.bandbbs.ebook.database.BookEntity,
+        selectedCategory: String?,
         onCategorySelected: (String?) -> Unit
     ) {
-        categoryHandler.showCategorySelectorForEdit(book.localCategory, onCategorySelected)
+        categoryHandler.showCategorySelectorForEdit(selectedCategory, onCategorySelected)
     }
 
     fun createCategory(categoryName: String) = categoryHandler.createCategory(categoryName)

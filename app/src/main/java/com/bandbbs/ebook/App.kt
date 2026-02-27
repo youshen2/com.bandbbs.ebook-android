@@ -2,8 +2,8 @@ package com.bandbbs.ebook
 
 import android.app.Application
 import android.app.NotificationManager
-import android.content.Context
 import com.bandbbs.ebook.logic.InterHandshake
+import com.bandbbs.ebook.notifications.LiveNotificationManager
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 
 class App : Application() {
@@ -12,7 +12,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         PDFBoxResourceLoader.init(this)
-        val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        com.bandbbs.ebook.notifications.LiveNotificationManager.initialize(this, notifManager)
+        val notifManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        LiveNotificationManager.initialize(this, notifManager)
     }
 }

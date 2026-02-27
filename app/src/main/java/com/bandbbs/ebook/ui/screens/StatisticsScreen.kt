@@ -3,10 +3,10 @@ package com.bandbbs.ebook.ui.screens
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,47 +17,48 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.Timeline
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.extra.SuperArrow
+import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.icon.extended.Months
+import top.yukonga.miuix.kmp.icon.extended.Notes
+import top.yukonga.miuix.kmp.icon.extended.Recent
+import top.yukonga.miuix.kmp.icon.extended.Report
+import top.yukonga.miuix.kmp.icon.extended.Timer
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -104,7 +105,6 @@ data class DailyStat(
     val seconds: Long
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     viewModel: MainViewModel = viewModel(),
@@ -116,6 +116,7 @@ fun StatisticsScreen(
     val stats = remember { mutableStateOf<ReadingTimeStats?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -131,14 +132,11 @@ fun StatisticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("阅读统计") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                title = "阅读统计",
+                scrollBehavior = scrollBehavior
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        popupHost = {}
     ) { paddingValues ->
         if (isLoading.value) {
             Box(
@@ -154,12 +152,12 @@ fun StatisticsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    contentPadding = PaddingValues(
                         start = 16.dp,
-                        top = 16.dp,
+                        top = paddingValues.calculateTopPadding() + 16.dp,
                         end = 16.dp,
-                        bottom = 40.dp
+                        bottom = paddingValues.calculateBottomPadding() + 40.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -167,28 +165,26 @@ fun StatisticsScreen(
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                colors = CardDefaults.defaultColors(
+                                    color = MiuixTheme.colorScheme.primaryContainer
                                 ),
-                                shape = RoundedCornerShape(16.dp)
+                                insideMargin = PaddingValues(16.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .padding(16.dp)
-                                        .fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Info,
+                                        imageVector = MiuixIcons.Info,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        tint = MiuixTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = "暂无阅读数据？\n请前往主页右上角菜单点击“同步数据”以获取手环记录。",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                             }
@@ -198,54 +194,53 @@ fun StatisticsScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            shape = RoundedCornerShape(20.dp)
+                            insideMargin = PaddingValues(24.dp)
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .padding(24.dp)
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.AccessTime,
+                                    imageVector = MiuixIcons.Timer,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = MiuixTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(32.dp)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "总阅读时长",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
                                 )
                                 Text(
                                     text = readingStats.totalFormatted,
-                                    style = MaterialTheme.typography.displayMedium,
+                                    style = MiuixTheme.textStyles.title1,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MiuixTheme.colorScheme.onSurface
                                 )
                             }
                         }
                     }
 
                     item {
-                        StatGroup(title = "概览") {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                        SmallTitle(text = "概览")
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp)
+                        ) {
+                            Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     GridStatItem(
-                                        icon = Icons.Outlined.Timeline,
+                                        icon = MiuixIcons.Recent,
                                         label = "阅读次数",
                                         value = "${readingStats.sessionCount}次",
                                         modifier = Modifier.weight(1f)
                                     )
                                     GridStatItem(
-                                        icon = Icons.Outlined.CalendarMonth,
+                                        icon = MiuixIcons.Months,
                                         label = "日均阅读",
                                         value = readingStats.averageDailyFormatted,
                                         modifier = Modifier.weight(1f)
@@ -257,13 +252,13 @@ fun StatisticsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     GridStatItem(
-                                        icon = Icons.Outlined.LibraryBooks,
+                                        icon = MiuixIcons.Notes,
                                         label = "书籍数量",
                                         value = "${readingStats.totalBooks}本",
                                         modifier = Modifier.weight(1f)
                                     )
                                     GridStatItem(
-                                        icon = Icons.Outlined.AccessTime,
+                                        icon = MiuixIcons.Timer,
                                         label = "最长单次",
                                         value = readingStats.longestSessionFormatted,
                                         modifier = Modifier.weight(1f)
@@ -275,36 +270,38 @@ fun StatisticsScreen(
 
                     if (readingStats.weeklyStats.isNotEmpty()) {
                         item {
-                            StatGroup(title = "本周趋势") {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    WeeklyStatsChart(weeklyStats = readingStats.weeklyStats)
-                                }
+                            SmallTitle(text = "本周趋势")
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(16.dp)
+                            ) {
+                                WeeklyStatsChart(weeklyStats = readingStats.weeklyStats)
                             }
                         }
                     }
 
                     if (readingStats.dailyStats.isNotEmpty()) {
                         item {
-                            StatGroup(title = "每日记录") {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    DailyStatsChart(dailyStats = readingStats.dailyStats)
-                                }
+                            SmallTitle(text = "每日记录")
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(16.dp)
+                            ) {
+                                DailyStatsChart(dailyStats = readingStats.dailyStats)
                             }
                         }
                     }
 
                     if (readingStats.bookStats.isNotEmpty()) {
                         item {
-                            StatGroup(title = "书籍排行") {
-                                Column {
-                                    readingStats.bookStats.forEachIndexed { index, bookStat ->
-                                        BookStatRow(
-                                            index = index + 1,
-                                            bookStat = bookStat,
-                                            onClick = { onBookStatClick(bookStat.bookName) },
-                                            showDivider = index < readingStats.bookStats.size - 1
-                                        )
-                                    }
+                            SmallTitle(text = "书籍排行")
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                readingStats.bookStats.forEachIndexed { index, bookStat ->
+                                    BookStatRow(
+                                        index = index + 1,
+                                        bookStat = bookStat,
+                                        onClick = { onBookStatClick(bookStat.bookName) }
+                                    )
                                 }
                             }
                         }
@@ -322,46 +319,20 @@ fun StatisticsScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.BarChart,
+                            imageVector = MiuixIcons.Report,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.surfaceVariant
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantActions
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "暂无阅读记录",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantActions
                         )
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun StatGroup(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            content()
         }
     }
 }
@@ -375,33 +346,31 @@ fun GridStatItem(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp)
+        insideMargin = PaddingValues(12.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                tint = MiuixTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.title4,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantActions
             )
         }
     }
@@ -411,56 +380,24 @@ fun GridStatItem(
 fun BookStatRow(
     index: Int,
     bookStat: BookStat,
-    onClick: () -> Unit,
-    showDivider: Boolean
+    onClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    SuperArrow(
+        title = bookStat.bookName,
+        summary = "${bookStat.totalFormatted} · ${bookStat.sessionCount}次阅读",
+        startAction = {
             Text(
                 text = "$index",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.width(32.dp),
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                modifier = Modifier
+                    .width(32.dp)
+                    .padding(end = 8.dp),
                 fontWeight = FontWeight.Bold
             )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = bookStat.bookName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${bookStat.totalFormatted} · ${bookStat.sessionCount}次阅读",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 48.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
-        }
-    }
+        },
+        onClick = onClick
+    )
 }
 
 @Composable
@@ -502,7 +439,7 @@ fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
                             .fillMaxWidth(0.6f)
                             .height((100.dp * heightPercent))
                             .background(
-                                color = if (stat.seconds > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                color = if (stat.seconds > 0) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                             )
                     )
@@ -511,9 +448,8 @@ fun WeeklyStatsChart(weeklyStats: List<DailyStat>) {
                 if (date != null) {
                     Text(
                         text = weekDayFormat.format(date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
                     )
                 }
             }
@@ -549,7 +485,7 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
                         .fillMaxWidth()
                         .height((80.dp * heightPercent))
                         .background(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                            color = MiuixTheme.colorScheme.primary.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
                         )
                 )
@@ -561,6 +497,7 @@ fun DailyStatsChart(dailyStats: List<DailyStat>) {
 @Composable
 fun BookReadingTimeDetailDialog(
     bookName: String,
+    show: MutableState<Boolean>,
     onDismiss: () -> Unit,
     context: Context
 ) {
@@ -581,49 +518,49 @@ fun BookReadingTimeDetailDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = bookName,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        text = {
-            if (isLoading.value) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                bookStats.value?.let { stat ->
-                    Column {
-                        InfoRow("总阅读时长", stat.totalFormatted)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        InfoRow("阅读次数", "${stat.sessionCount}次")
-                        if (stat.firstReadDate.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            InfoRow("首次阅读", stat.firstReadDate)
-                        }
-                        if (stat.lastReadDate.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            InfoRow("最后阅读", stat.lastReadDate)
-                        }
-                    }
-                } ?: run {
-                    Text("暂无阅读记录")
-                }
+    SuperDialog(
+        title = bookName,
+        show = show,
+        onDismissRequest = onDismiss
+    ) {
+        if (isLoading.value) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("确定")
+        } else {
+            bookStats.value?.let { stat ->
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    InfoRow("总阅读时长", stat.totalFormatted)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfoRow("阅读次数", "${stat.sessionCount}次")
+                    if (stat.firstReadDate.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        InfoRow("首次阅读", stat.firstReadDate)
+                    }
+                    if (stat.lastReadDate.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        InfoRow("最后阅读", stat.lastReadDate)
+                    }
+                }
+            } ?: run {
+                Text(
+                    text = "暂无阅读记录",
+                    style = MiuixTheme.textStyles.body1,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
             }
         }
-    )
+        TextButton(
+            text = "确定",
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 @Composable
@@ -638,14 +575,14 @@ fun InfoRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantActions
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MiuixTheme.textStyles.body1,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MiuixTheme.colorScheme.onSurface
         )
     }
 }
@@ -664,7 +601,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val displayDateFormat = SimpleDateFormat("yyyy年MM月dd日", Locale.getDefault())
 
-
     allKeys.forEach { key ->
         if (key.endsWith("_total_seconds")) {
             val bookName = key.removeSuffix("_total_seconds")
@@ -674,7 +610,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
             var bookSessionCount = 0
             var bookFirstDate: String? = null
             var bookLastDate: String? = null
-
 
             val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
             if (sessionsJson != null) {
@@ -719,10 +654,9 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         }
                     }
                 } catch (e: Exception) {
-
+                    // Ignore
                 }
             }
-
 
             val bookFirstDatePref = readingTimePrefs.getString("${bookName}_first_read_date", null)
             val bookLastDatePref = readingTimePrefs.getString("${bookName}_last_read_date", null)
@@ -744,9 +678,7 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                 }
             }
 
-
             if (bookSessionCount == 0 && seconds > 0) {
-
                 if (bookFirstDate == null && bookFirstDatePref != null) {
                     bookFirstDate = bookFirstDatePref
                 }
@@ -754,7 +686,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                     bookLastDate = bookLastDatePref
                 }
             }
-
 
             if (seconds > 0) {
                 bookStatsList.add(
@@ -785,7 +716,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
         }
     }
 
-
     val uniqueDays = allSessions.map { it.first }.distinct().size
     val averageDailySeconds = if (uniqueDays > 0) {
         totalSeconds / uniqueDays
@@ -807,7 +737,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
         0L
     }
 
-
     val allSessionDurations = allSessions.map { it.second }
     val longestSessionSeconds = allSessionDurations.maxOrNull() ?: 0L
     val averageSessionSeconds = if (sessionCount > 0) {
@@ -815,7 +744,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     } else {
         0L
     }
-
 
     val dailyStatsMap = mutableMapOf<String, Long>()
     allSessions.forEach { (date, duration) ->
@@ -904,7 +832,6 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     val allSessions = mutableListOf<Pair<String, Long>>()
     val sessionDurations = mutableListOf<Long>()
 
-
     val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
     if (sessionsJson != null) {
         try {
@@ -941,10 +868,9 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                 }
             }
         } catch (e: Exception) {
-
+            // Ignore
         }
     }
-
 
     val bookFirstDate = readingTimePrefs.getString("${bookName}_first_read_date", null)
     val bookLastDate = readingTimePrefs.getString("${bookName}_last_read_date", null)
@@ -956,7 +882,6 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
         lastReadDate = bookLastDate
     }
 
-
     val dailyStatsMap = mutableMapOf<String, Long>()
     allSessions.forEach { (date, duration) ->
         dailyStatsMap[date] = (dailyStatsMap[date] ?: 0L) + duration
@@ -965,7 +890,6 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     val dailyStats = dailyStatsMap.map { (date, seconds) ->
         DailyStat(date = date, seconds = seconds)
     }.sortedBy { it.date }
-
 
     val calendar = Calendar.getInstance()
     val today = calendar.time
@@ -995,7 +919,6 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
         )
         calendar.add(Calendar.DAY_OF_YEAR, 1)
     }
-
 
     val readingDays = allSessions.map { it.first }.distinct().size
     val longestSessionSeconds = sessionDurations.maxOrNull() ?: 0L
@@ -1068,7 +991,6 @@ fun formatDuration(seconds: Long): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookStatisticsScreen(
     bookName: String,
@@ -1078,7 +1000,7 @@ fun BookStatisticsScreen(
     val stats = remember(bookName) { mutableStateOf<BookStat?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-
+    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     BackHandler(enabled = true) {
         onBackClick()
@@ -1098,28 +1020,22 @@ fun BookStatisticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = bookName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
+                title = bookName,
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.padding(start = 6.dp)
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = MiuixIcons.Back,
                             contentDescription = "返回"
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                scrollBehavior = scrollBehavior
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        popupHost = {}
     ) { paddingValues ->
         if (isLoading.value) {
             Box(
@@ -1135,59 +1051,59 @@ fun BookStatisticsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    contentPadding = PaddingValues(
                         start = 16.dp,
-                        top = 16.dp,
+                        top = paddingValues.calculateTopPadding() + 16.dp,
                         end = 16.dp,
-                        bottom = if (bookName.isEmpty()) 80.dp else 100.dp
+                        bottom = paddingValues.calculateBottomPadding() + if (bookName.isEmpty()) 80.dp else 100.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            shape = RoundedCornerShape(20.dp)
+                            insideMargin = PaddingValues(24.dp)
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .padding(24.dp)
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = "总阅读时长",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
                                 )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = bookStats.totalFormatted,
-                                    style = MaterialTheme.typography.displayMedium,
+                                    style = MiuixTheme.textStyles.title1,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MiuixTheme.colorScheme.onSurface
                                 )
                             }
                         }
                     }
 
                     item {
-                        StatGroup(title = "详情") {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                        SmallTitle(text = "详情")
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp)
+                        ) {
+                            Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     GridStatItem(
-                                        icon = Icons.Outlined.Timeline,
+                                        icon = MiuixIcons.Recent,
                                         label = "阅读次数",
                                         value = "${bookStats.sessionCount}次",
                                         modifier = Modifier.weight(1f)
                                     )
                                     GridStatItem(
-                                        icon = Icons.Outlined.CalendarMonth,
+                                        icon = MiuixIcons.Months,
                                         label = "阅读天数",
                                         value = "${bookStats.readingDays}天",
                                         modifier = Modifier.weight(1f)
@@ -1199,13 +1115,13 @@ fun BookStatisticsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     GridStatItem(
-                                        icon = Icons.Outlined.AccessTime,
+                                        icon = MiuixIcons.Timer,
                                         label = "日均阅读",
                                         value = bookStats.averageDailyFormatted,
                                         modifier = Modifier.weight(1f)
                                     )
                                     GridStatItem(
-                                        icon = Icons.Outlined.AccessTime,
+                                        icon = MiuixIcons.Timer,
                                         label = "平均单次",
                                         value = bookStats.averageSessionFormatted,
                                         modifier = Modifier.weight(1f)
@@ -1213,7 +1129,7 @@ fun BookStatisticsScreen(
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
                                 GridStatItem(
-                                    icon = Icons.Outlined.AccessTime,
+                                    icon = MiuixIcons.Timer,
                                     label = "最长单次",
                                     value = bookStats.longestSessionFormatted,
                                     modifier = Modifier.fillMaxWidth()
@@ -1224,8 +1140,12 @@ fun BookStatisticsScreen(
 
                     if (bookStats.firstReadDate.isNotEmpty() || bookStats.lastReadDate.isNotEmpty()) {
                         item {
-                            StatGroup(title = "时间记录") {
-                                Column(modifier = Modifier.padding(16.dp)) {
+                            SmallTitle(text = "时间记录")
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(16.dp)
+                            ) {
+                                Column {
                                     if (bookStats.firstReadDate.isNotEmpty()) {
                                         InfoRow("首次阅读", bookStats.firstReadDate)
                                         if (bookStats.lastReadDate.isNotEmpty()) {
@@ -1242,20 +1162,24 @@ fun BookStatisticsScreen(
 
                     if (bookStats.weeklyStats.isNotEmpty()) {
                         item {
-                            StatGroup(title = "本周趋势") {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    WeeklyStatsChart(weeklyStats = bookStats.weeklyStats)
-                                }
+                            SmallTitle(text = "本周趋势")
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(16.dp)
+                            ) {
+                                WeeklyStatsChart(weeklyStats = bookStats.weeklyStats)
                             }
                         }
                     }
 
                     if (bookStats.dailyStats.isNotEmpty()) {
                         item {
-                            StatGroup(title = "每日记录") {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    DailyStatsChart(dailyStats = bookStats.dailyStats)
-                                }
+                            SmallTitle(text = "每日记录")
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                insideMargin = PaddingValues(16.dp)
+                            ) {
+                                DailyStatsChart(dailyStats = bookStats.dailyStats)
                             }
                         }
                     }
@@ -1269,8 +1193,8 @@ fun BookStatisticsScreen(
                 ) {
                     Text(
                         text = "暂无阅读记录",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions
                     )
                 }
             }

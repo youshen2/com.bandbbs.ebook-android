@@ -1093,7 +1093,12 @@ class ImportHandler(
         customRegex: String = ""
     ) {
         UritoFile(uri, context)?.let { sourceFile ->
-            importingState.update { it?.copy(statusText = "正在解析 DOCX 文件...", progress = 0.1f) }
+            importingState.update {
+                it?.copy(
+                    statusText = "正在解析 DOCX 文件...",
+                    progress = 0.1f
+                )
+            }
             val content = DocxParser.extractPlainText(context, uri)
 
             importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
@@ -1185,7 +1190,12 @@ class ImportHandler(
         customRegex: String = ""
     ) {
         UritoFile(uri, context)?.let { sourceFile ->
-            importingState.update { it?.copy(statusText = "正在解析 MOBI 文件...", progress = 0.1f) }
+            importingState.update {
+                it?.copy(
+                    statusText = "正在解析 MOBI 文件...",
+                    progress = 0.1f
+                )
+            }
 
             val chaptersFromMobi = if (!noSplit && splitMethod == ChapterSplitter.METHOD_DEFAULT) {
                 MobiParser.extractChapters(context, uri) { p, status ->

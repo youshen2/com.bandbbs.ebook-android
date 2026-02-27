@@ -31,26 +31,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,8 +47,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -74,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,6 +79,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.extra.SuperBottomSheet
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Favorites
+import top.yukonga.miuix.kmp.icon.extended.FavoritesFill
+import top.yukonga.miuix.kmp.icon.extended.Forward
+import top.yukonga.miuix.kmp.icon.extended.ListView
+import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -124,7 +123,6 @@ fun saveLastReadChapter(context: Context, bookId: Int, chapterId: Int) {
     prefs.edit().putInt("$KEY_LAST_READ_CHAPTER$bookId", chapterId).apply()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     viewModel: MainViewModel,
@@ -138,16 +136,12 @@ fun ReaderScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-
     val chapter by viewModel.chapterToPreview.collectAsState()
     val allChapters by viewModel.chaptersForPreview.collectAsState()
     val books by viewModel.books.collectAsState()
 
-
     val bookId = remember(chapter, allChapters, books) {
-        if (allChapters.isNotEmpty()) {
-            allChapters[0].bookId
-        } else null
+        if (allChapters.isNotEmpty()) allChapters[0].bookId else null
     }
 
     val bookName = remember(chapter, allChapters, books) {
@@ -163,15 +157,13 @@ fun ReaderScreen(
 
     val isPdf = remember(currentBook) { currentBook?.format == "pdf" }
 
-
     var showControls by remember { mutableStateOf(true) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showBookmarks by remember { mutableStateOf(false) }
+
+    val showSettings = remember { mutableStateOf(false) }
+    val showBookmarks = remember { mutableStateOf(false) }
+
     var bookmarks by remember { mutableStateOf<List<BookmarkEntity>>(emptyList()) }
     var readerSettings by remember { mutableStateOf(loadReaderSettings(context)) }
-    val settingsSheetState = rememberModalBottomSheetState()
-    val bookmarkSheetState = rememberModalBottomSheetState()
-
 
     val currentChapterIndex = remember(chapter, allChapters) {
         if (chapter != null) {
@@ -183,15 +175,12 @@ fun ReaderScreen(
         chapter?.content?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
     }
 
-
     var previousChapterId by remember { mutableIntStateOf(-1) }
-
     var currentTime by remember { mutableStateOf("") }
     var batteryLevel by remember { mutableIntStateOf(0) }
 
     val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
     val density = LocalDensity.current
-
 
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
@@ -238,7 +227,6 @@ fun ReaderScreen(
     }
 
     BackHandler(enabled = true) {
-
         chapter?.let { ch ->
             if (!isPdf) {
                 saveReadingPosition(
@@ -249,18 +237,14 @@ fun ReaderScreen(
                 )
             }
         }
-
         if (bookName != null) {
             ReadingTimeStorage.recordReadingEnd(context, bookName)
         }
-
         onClose()
     }
 
-
     LaunchedEffect(chapter, bookName) {
         if (chapter == null) return@LaunchedEffect
-
 
         if (allChapters.isNotEmpty()) {
             val bookId = allChapters[0].bookId
@@ -271,16 +255,13 @@ fun ReaderScreen(
 
         if (bookName != null) {
             withContext(Dispatchers.IO) {
-
                 if (previousChapterId != -1 && previousChapterId != chapter!!.id) {
                     ReadingTimeStorage.recordReadingEnd(context, bookName)
                 }
-
                 ReadingTimeStorage.recordReadingStart(context, bookName)
                 previousChapterId = chapter!!.id
             }
         }
-
 
         val (index, offset) = withContext(Dispatchers.IO) {
             loadReadingPosition(context, chapter!!.id)
@@ -294,10 +275,7 @@ fun ReaderScreen(
         }
     }
 
-
     LaunchedEffect(firstVisibleItemIndex, firstVisibleItemScrollOffset) {
-
-
         if (!isPdf) {
             delay(1000)
             if (chapter != null) {
@@ -312,7 +290,6 @@ fun ReaderScreen(
             }
         }
     }
-
 
     DisposableEffect(lifecycleOwner, bookName) {
         val observer = LifecycleEventObserver { _, event ->
@@ -349,7 +326,6 @@ fun ReaderScreen(
         }
     }
 
-
     DisposableEffect(readerSettings.keepScreenOn) {
         val window = (context as? Activity)?.window
         if (readerSettings.keepScreenOn) {
@@ -375,7 +351,11 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(window, readerSettings.customBrightnessEnabled, readerSettings.customBrightness) {
+    LaunchedEffect(
+        window,
+        readerSettings.customBrightnessEnabled,
+        readerSettings.customBrightness
+    ) {
         if (window != null) {
             val lp = window.attributes
             lp.screenBrightness = if (readerSettings.customBrightnessEnabled) {
@@ -448,19 +428,15 @@ fun ReaderScreen(
         }
     }
 
-
     LaunchedEffect(readerSettings.autoScrollSpeed, isDragged, showControls) {
         if (readerSettings.autoScrollSpeed > 0 && !isDragged && !showControls) {
             while (isActive) {
-
-
                 val scrollAmount = (readerSettings.autoScrollSpeed / 20f) * density.density
                 listState.scrollBy(scrollAmount)
                 delay(16)
             }
         }
     }
-
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -469,7 +445,6 @@ fun ReaderScreen(
             delay(1000 * 60)
         }
     }
-
 
     DisposableEffect(context) {
         val batteryReceiver = object : BroadcastReceiver() {
@@ -486,301 +461,309 @@ fun ReaderScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(readerSettings.backgroundColor))
-            .nestedScroll(overscrollConnection)
-            .pointerInput(
-                readerSettings.pageTurnMode,
-                readerSettings.pageTurnSensitivity,
-                showSettings,
-                showBookmarks,
-                turnInProgress,
-                currentChapterIndex,
-                allChapters.size
-            ) {
-                if (readerSettings.pageTurnMode == PageTurnMode.SWIPE && !showSettings && !showBookmarks) {
-                    var dragX = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = { dragX = 0f },
-                        onHorizontalDrag = { change, dragAmount ->
-                            dragX += dragAmount
-                            change.consume()
-                        },
-                        onDragCancel = { dragX = 0f },
-                        onDragEnd = {
-                            if (!turnInProgress && abs(dragX) >= swipeThresholdPx) {
-                                if (dragX < 0) {
-                                    if (currentChapterIndex < allChapters.size - 1) changeChapterByDelta(1)
-                                } else {
-                                    if (currentChapterIndex > 0) changeChapterByDelta(-1)
-                                }
-                            }
-                            dragX = 0f
-                        }
-                    )
-                }
-            }
-    ) {
-        if (chapter != null) {
-            if (isPdf && currentBook != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showControls = !showControls }
+    Scaffold(
+        containerColor = Color(readerSettings.backgroundColor),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .nestedScroll(overscrollConnection)
+                .pointerInput(
+                    readerSettings.pageTurnMode,
+                    readerSettings.pageTurnSensitivity,
+                    showSettings.value,
+                    showBookmarks.value,
+                    turnInProgress,
+                    currentChapterIndex,
+                    allChapters.size
                 ) {
-                    PdfPageViewer(
-                        pdfPath = currentBook.path,
-                        pageIndex = currentChapterIndex,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showControls = !showControls },
-                    contentPadding = PaddingValues(
-                        top = systemBarsPadding.calculateTopPadding() + 16.dp,
-                        bottom = systemBarsPadding.calculateBottomPadding() + 16.dp,
-                        start = 24.dp,
-                        end = 24.dp
-                    )
-                ) {
-                    item {
-                        Text(
-                            text = chapter!!.name,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(readerSettings.textColor),
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
-                    }
-
-                    items(paragraphs) { paragraph ->
-                        Text(
-                            text = "        $paragraph",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = readerSettings.fontSize.sp,
-                                lineHeight = (readerSettings.fontSize * readerSettings.lineHeight).sp
-                            ),
-                            color = Color(readerSettings.textColor),
-                            textAlign = TextAlign.Justify,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(32.dp))
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "本章完",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(readerSettings.textColor).copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    if (currentChapterIndex > 0) {
-                                        TextButton(onClick = { changeChapterByDelta(-1) }) {
-                                            Text("上一章", color = Color(readerSettings.textColor))
-                                        }
-                                    }
-
-                                    if (currentChapterIndex < allChapters.size - 1) {
-                                        TextButton(onClick = { changeChapterByDelta(1) }) {
-                                            Text("下一章", color = Color(readerSettings.textColor))
-                                        }
+                    if (readerSettings.pageTurnMode == PageTurnMode.SWIPE && !showSettings.value && !showBookmarks.value) {
+                        var dragX = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragX = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                dragX += dragAmount
+                                change.consume()
+                            },
+                            onDragCancel = { dragX = 0f },
+                            onDragEnd = {
+                                if (!turnInProgress && abs(dragX) >= swipeThresholdPx) {
+                                    if (dragX < 0) {
+                                        if (currentChapterIndex < allChapters.size - 1) changeChapterByDelta(
+                                            1
+                                        )
+                                    } else {
+                                        if (currentChapterIndex > 0) changeChapterByDelta(-1)
                                     }
                                 }
+                                dragX = 0f
                             }
-                            Spacer(modifier = Modifier.height(64.dp))
-                        }
+                        )
                     }
                 }
-            }
-        }
-
-        if (!showControls && chapter != null) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(
-                        bottom = systemBarsPadding.calculateBottomPadding() + 4.dp,
-                        start = 16.dp,
-                        end = 16.dp
-                    ),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = currentTime,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(readerSettings.textColor).copy(alpha = 0.6f)
-                )
-
-                val progress = if (isPdf) {
-                    if (allChapters.isNotEmpty()) {
-                        (((currentChapterIndex + 1).toFloat() / allChapters.size.toFloat()) * 100).toInt()
-                            .coerceIn(0, 100)
-                    } else 0
+        ) {
+            if (chapter != null) {
+                if (isPdf && currentBook != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showControls = !showControls }
+                    ) {
+                        PdfPageViewer(
+                            pdfPath = currentBook.path,
+                            pageIndex = currentChapterIndex,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 } else {
-                    if (paragraphs.isNotEmpty()) {
-                        ((firstVisibleItemIndex.toFloat() / paragraphs.size) * 100).toInt()
-                            .coerceIn(0, 100)
-                    } else 0
-                }
-
-                Text(
-                    text = "$progress%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(readerSettings.textColor).copy(alpha = 0.6f)
-                )
-
-                Text(
-                    text = "$batteryLevel%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(readerSettings.textColor).copy(alpha = 0.6f)
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = showControls,
-            enter = slideInVertically(initialOffsetY = { -it }),
-            exit = slideOutVertically(targetOffsetY = { -it }),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            Box(modifier = Modifier.background(Color(readerSettings.backgroundColor))) {
-                TopAppBar(
-                    title = {
-                        Column {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showControls = !showControls },
+                        contentPadding = PaddingValues(
+                            top = systemBarsPadding.calculateTopPadding() + 16.dp,
+                            bottom = systemBarsPadding.calculateBottomPadding() + 16.dp,
+                            start = 24.dp,
+                            end = 24.dp
+                        )
+                    ) {
+                        item {
                             Text(
-                                text = chapter?.name ?: "",
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                color = Color(readerSettings.textColor)
-                            )
-                            Text(
-                                text = "${currentChapterIndex + 1} / ${allChapters.size}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(readerSettings.textColor).copy(alpha = 0.7f)
+                                text = chapter!!.name,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(readerSettings.textColor),
+                                modifier = Modifier.padding(bottom = 24.dp)
                             )
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            chapter?.let {
-                                saveReadingPosition(
-                                    context,
-                                    it.id,
-                                    firstVisibleItemIndex,
-                                    firstVisibleItemScrollOffset
+
+                        items(paragraphs) { paragraph ->
+                            Text(
+                                text = "        $paragraph",
+                                fontSize = readerSettings.fontSize.sp,
+                                lineHeight = (readerSettings.fontSize * readerSettings.lineHeight).sp,
+                                color = Color(readerSettings.textColor),
+                                textAlign = TextAlign.Justify,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "本章完",
+                                    fontSize = 12.sp,
+                                    color = Color(readerSettings.textColor).copy(alpha = 0.5f)
                                 )
-                            }
-                            if (bookName != null) {
-                                ReadingTimeStorage.recordReadingEnd(context, bookName)
-                            }
-                            onClose()
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "返回",
-                                tint = Color(readerSettings.textColor)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            if (bookId != null) {
-                                scope.launch {
-                                    bookmarks = BookmarkManager.getBookmarks(context, bookId)
-                                    showBookmarks = true
-                                }
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Bookmark,
-                                contentDescription = "书签",
-                                tint = Color(readerSettings.textColor)
-                            )
-                        }
-                        IconButton(onClick = { showSettings = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "设置",
-                                tint = Color(readerSettings.textColor)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
-                )
-            }
-        }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        if (currentChapterIndex > 0) {
+                                            TextButton(
+                                                text = "上一章",
+                                                onClick = { changeChapterByDelta(-1) }
+                                            )
+                                        }
 
-        AnimatedVisibility(
-            visible = showControls,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(readerSettings.backgroundColor))
+                                        if (currentChapterIndex < allChapters.size - 1) {
+                                            TextButton(
+                                                text = "下一章",
+                                                onClick = { changeChapterByDelta(1) }
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(64.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!showControls && chapter != null) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(
+                            bottom = systemBarsPadding.calculateBottomPadding() + 4.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        ),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = currentTime,
+                        fontSize = 12.sp,
+                        color = Color(readerSettings.textColor).copy(alpha = 0.6f)
+                    )
+
+                    val progress = if (isPdf) {
+                        if (allChapters.isNotEmpty()) {
+                            (((currentChapterIndex + 1).toFloat() / allChapters.size.toFloat()) * 100).toInt()
+                                .coerceIn(0, 100)
+                        } else 0
+                    } else {
+                        if (paragraphs.isNotEmpty()) {
+                            ((firstVisibleItemIndex.toFloat() / paragraphs.size) * 100).toInt()
+                                .coerceIn(0, 100)
+                        } else 0
+                    }
+
+                    Text(
+                        text = "$progress%",
+                        fontSize = 12.sp,
+                        color = Color(readerSettings.textColor).copy(alpha = 0.6f)
+                    )
+
+                    Text(
+                        text = "$batteryLevel%",
+                        fontSize = 12.sp,
+                        color = Color(readerSettings.textColor).copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showControls,
+                enter = slideInVertically(initialOffsetY = { -it }),
+                exit = slideOutVertically(targetOffsetY = { -it }),
+                modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(Color(readerSettings.backgroundColor))
+                        .padding(top = systemBarsPadding.calculateTopPadding())
+                        .height(56.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        chapter?.let {
+                            saveReadingPosition(
+                                context,
+                                it.id,
+                                firstVisibleItemIndex,
+                                firstVisibleItemScrollOffset
+                            )
+                        }
+                        if (bookName != null) {
+                            ReadingTimeStorage.recordReadingEnd(context, bookName)
+                        }
+                        onClose()
+                    }) {
+                        Icon(
+                            imageVector = MiuixIcons.Back,
+                            contentDescription = "返回",
+                            tint = Color(readerSettings.textColor)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = chapter?.name ?: "",
+                            style = MiuixTheme.textStyles.title4,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color(readerSettings.textColor)
+                        )
+                        Text(
+                            text = "${currentChapterIndex + 1} / ${allChapters.size}",
+                            fontSize = 12.sp,
+                            color = Color(readerSettings.textColor).copy(alpha = 0.7f)
+                        )
+                    }
+
+                    IconButton(onClick = {
+                        if (bookId != null) {
+                            scope.launch {
+                                bookmarks = BookmarkManager.getBookmarks(context, bookId)
+                                showBookmarks.value = true
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = MiuixIcons.FavoritesFill,
+                            contentDescription = "书签",
+                            tint = Color(readerSettings.textColor)
+                        )
+                    }
+                    IconButton(onClick = { showSettings.value = true }) {
+                        Icon(
+                            imageVector = MiuixIcons.Settings,
+                            contentDescription = "设置",
+                            tint = Color(readerSettings.textColor)
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showControls,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(readerSettings.backgroundColor))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .padding(bottom = systemBarsPadding.calculateBottomPadding()),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
-                        TextButton(
-                            onClick = {
-                                if (currentChapterIndex > 0) {
-                                    changeChapterByDelta(-1)
-                                }
-                            },
-                            enabled = currentChapterIndex > 0
+                        Row(
+                            modifier = Modifier
+                                .clickable(
+                                    enabled = currentChapterIndex > 0,
+                                    onClick = { changeChapterByDelta(-1) }
+                                )
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = MiuixIcons.Back,
                                 contentDescription = "上一章",
                                 modifier = Modifier.size(20.dp),
                                 tint = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
                             )
-                            Spacer(modifier = Modifier.size(4.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "上一章",
+                                text = "上一章",
                                 color = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
                             )
                         }
+                    } else {
+                        Spacer(modifier = Modifier.width(80.dp))
                     }
-
 
                     IconButton(onClick = onTableOfContents) {
                         Icon(
-                            imageVector = Icons.Default.List,
+                            imageVector = MiuixIcons.ListView,
                             contentDescription = "目录",
                             tint = Color(readerSettings.textColor),
                             modifier = Modifier.size(24.dp)
@@ -806,32 +789,32 @@ fun ReaderScreen(
                         }
                     }) {
                         Icon(
-                            imageVector = Icons.Default.BookmarkAdd,
+                            imageVector = MiuixIcons.Favorites,
                             contentDescription = "添加书签",
                             tint = Color(readerSettings.textColor),
                             modifier = Modifier.size(24.dp)
                         )
                     }
 
-
                     if (readerSettings.pageTurnMode == PageTurnMode.BUTTON) {
-                        TextButton(
-                            onClick = {
-                                if (currentChapterIndex < allChapters.size - 1) {
-                                    changeChapterByDelta(1)
-                                }
-                            },
-                            enabled = currentChapterIndex < allChapters.size - 1
+                        Row(
+                            modifier = Modifier
+                                .clickable(
+                                    enabled = currentChapterIndex < allChapters.size - 1,
+                                    onClick = { changeChapterByDelta(1) }
+                                )
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "下一章",
+                                text = "下一章",
                                 color = if (currentChapterIndex < allChapters.size - 1) Color(
                                     readerSettings.textColor
                                 ) else Color.Gray
                             )
-                            Spacer(modifier = Modifier.size(4.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = MiuixIcons.Forward,
                                 contentDescription = "下一章",
                                 modifier = Modifier.size(20.dp),
                                 tint = if (currentChapterIndex < allChapters.size - 1) Color(
@@ -839,17 +822,17 @@ fun ReaderScreen(
                                 ) else Color.Gray
                             )
                         }
+                    } else {
+                        Spacer(modifier = Modifier.width(80.dp))
                     }
                 }
             }
         }
-    }
 
-    if (showSettings) {
-        ModalBottomSheet(
-            onDismissRequest = { showSettings = false },
-            sheetState = settingsSheetState,
-            containerColor = Color(readerSettings.backgroundColor)
+        SuperBottomSheet(
+            show = showSettings,
+            title = "阅读设置",
+            onDismissRequest = { showSettings.value = false }
         ) {
             ReaderSettingsBottomSheet(
                 currentSettings = readerSettings,
@@ -858,13 +841,11 @@ fun ReaderScreen(
                 }
             )
         }
-    }
 
-    if (showBookmarks) {
-        ModalBottomSheet(
-            onDismissRequest = { showBookmarks = false },
-            sheetState = bookmarkSheetState,
-            containerColor = MaterialTheme.colorScheme.surface
+        SuperBottomSheet(
+            show = showBookmarks,
+            title = "书签列表",
+            onDismissRequest = { showBookmarks.value = false }
         ) {
             BookmarkListBottomSheet(
                 bookmarks = bookmarks,
@@ -876,7 +857,7 @@ fun ReaderScreen(
                             kotlinx.coroutines.delay(300)
                             listState.scrollToItem(bookmark.offsetInChapter, bookmark.scrollOffset)
                         }
-                        showBookmarks = false
+                        showBookmarks.value = false
                     }
                 },
                 onDeleteBookmark = { bookmark ->

@@ -2,72 +2,57 @@ package com.bandbbs.ebook.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Gesture
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SettingsBrightness
-import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.SystemUpdate
-import androidx.compose.material.icons.outlined.Upload
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.extra.SuperArrow
+import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.Download
+import top.yukonga.miuix.kmp.icon.extended.Edit
+import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.icon.extended.Lock
+import top.yukonga.miuix.kmp.icon.extended.Refresh
+import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.icon.extended.Show
+import top.yukonga.miuix.kmp.icon.extended.Theme
+import top.yukonga.miuix.kmp.icon.extended.Update
+import top.yukonga.miuix.kmp.icon.extended.UploadCloud
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
@@ -89,45 +74,44 @@ fun SettingsScreen(
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
 
-    val aboutSheetState = rememberModalBottomSheetState()
-    var showAboutSheet by remember { mutableStateOf(false) }
-    var showDeleteReadingTimeDialog by remember { mutableStateOf(false) }
-    var showGetLatestVersionDialog by remember { mutableStateOf(false) }
-    var showCleanDirtyDataDialog by remember { mutableStateOf(false) }
+    val showAboutSheet = remember { mutableStateOf(false) }
+    val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
+    val showGetLatestVersionDialog = remember { mutableStateOf(false) }
+    val showCleanDirtyDataDialog = remember { mutableStateOf(false) }
+
     val context = LocalContext.current
+    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                title = "设置",
+                largeTitle = "设置",
+                scrollBehavior = scrollBehavior
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        popupHost = {}
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp,
-                top = 8.dp,
-                end = 16.dp,
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding(),
                 bottom = 40.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            )
         ) {
             if (bandTransferEnabled) {
                 item {
-                    SettingsGroup(title = "设备") {
-                        SettingsActionTile(
-                            icon = Icons.Outlined.Settings,
+                    SmallTitle(text = "设备")
+                    Card(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        insideMargin = PaddingValues(0.dp)
+                    ) {
+                        SuperArrow(
                             title = "手环端设置",
-                            description = "修改手环端的各项设置项",
+                            summary = "修改手环端的各项设置项",
+                            startAction = { SettingsIcon(MiuixIcons.Settings) },
                             onClick = onBandSettingsClick
                         )
                     }
@@ -135,481 +119,360 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsGroup(title = "显示与交互") {
-                    SettingsTile(
-                        icon = Icons.Outlined.Visibility,
+                SmallTitle(text = "显示与交互")
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    BasicComponent(
                         title = "显示最近导入",
-                        description = "在主页顶部显示最近导入的书籍",
-                        checked = showRecentImport,
-                        onCheckedChange = { viewModel.setShowRecentImport(it) }
+                        summary = "在主页顶部显示最近导入的书籍",
+                        startAction = { SettingsIcon(MiuixIcons.Show) },
+                        endActions = {
+                            Switch(
+                                checked = showRecentImport,
+                                onCheckedChange = { viewModel.setShowRecentImport(it) })
+                        }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Visibility,
+                    BasicComponent(
                         title = "显示最近更新",
-                        description = "在主页显示最近阅读或更新的书籍",
-                        checked = showRecentUpdate,
-                        onCheckedChange = { viewModel.setShowRecentUpdate(it) }
+                        summary = "在主页显示最近阅读或更新的书籍",
+                        startAction = { SettingsIcon(MiuixIcons.Show) },
+                        endActions = {
+                            Switch(
+                                checked = showRecentUpdate,
+                                onCheckedChange = { viewModel.setShowRecentUpdate(it) })
+                        }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Visibility,
+                    BasicComponent(
                         title = "显示搜索栏",
-                        description = "在主页顶部显示搜索框",
-                        checked = showSearchBar,
-                        onCheckedChange = { viewModel.setShowSearchBar(it) }
+                        summary = "在主页顶部显示搜索框",
+                        startAction = { SettingsIcon(MiuixIcons.Show) },
+                        endActions = {
+                            Switch(
+                                checked = showSearchBar,
+                                onCheckedChange = { viewModel.setShowSearchBar(it) })
+                        }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Gesture,
+                    BasicComponent(
                         title = "左滑快速分类",
-                        description = "书籍条目左滑可直接修改分类",
-                        checked = quickEditCategoryEnabled,
-                        onCheckedChange = { viewModel.setQuickEditCategory(it) }
+                        summary = "书籍条目左滑可直接修改分类",
+                        startAction = { SettingsIcon(MiuixIcons.Edit) },
+                        endActions = {
+                            Switch(
+                                checked = quickEditCategoryEnabled,
+                                onCheckedChange = { viewModel.setQuickEditCategory(it) })
+                        }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Gesture,
+                    BasicComponent(
                         title = "长按分类改名",
-                        description = "长按分类标题栏可重命名分类",
-                        checked = quickRenameCategoryEnabled,
-                        onCheckedChange = { viewModel.setQuickRenameCategory(it) }
+                        summary = "长按分类标题栏可重命名分类",
+                        startAction = { SettingsIcon(MiuixIcons.Edit) },
+                        endActions = {
+                            Switch(
+                                checked = quickRenameCategoryEnabled,
+                                onCheckedChange = { viewModel.setQuickRenameCategory(it) })
+                        }
                     )
                 }
             }
 
             item {
-                SettingsGroup(title = "外观") {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.Palette,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = "应用主题",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                SmallTitle(text = "外观")
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                        BasicComponent(
+                            title = "应用主题",
+                            startAction = { SettingsIcon(MiuixIcons.Theme) },
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                        )
+
+                        val themes = listOf("浅色", "深色", "跟随系统")
+                        val selectedThemeIndex = when (themeMode) {
+                            MainViewModel.ThemeMode.LIGHT -> 0
+                            MainViewModel.ThemeMode.DARK -> 1
+                            MainViewModel.ThemeMode.SYSTEM -> 2
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ThemeSelectionChip(
-                                selected = themeMode == MainViewModel.ThemeMode.LIGHT,
-                                label = "浅色",
-                                icon = Icons.Outlined.LightMode,
-                                onClick = { viewModel.setThemeMode(MainViewModel.ThemeMode.LIGHT) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ThemeSelectionChip(
-                                selected = themeMode == MainViewModel.ThemeMode.DARK,
-                                label = "深色",
-                                icon = Icons.Outlined.DarkMode,
-                                onClick = { viewModel.setThemeMode(MainViewModel.ThemeMode.DARK) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ThemeSelectionChip(
-                                selected = themeMode == MainViewModel.ThemeMode.SYSTEM,
-                                label = "跟随系统",
-                                icon = Icons.Outlined.SettingsBrightness,
-                                onClick = { viewModel.setThemeMode(MainViewModel.ThemeMode.SYSTEM) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                        TabRowWithContour(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            tabs = themes,
+                            selectedTabIndex = selectedThemeIndex,
+                            onTabSelected = { index ->
+                                val mode = when (index) {
+                                    0 -> MainViewModel.ThemeMode.LIGHT
+                                    1 -> MainViewModel.ThemeMode.DARK
+                                    else -> MainViewModel.ThemeMode.SYSTEM
+                                }
+                                viewModel.setThemeMode(mode)
+                            }
+                        )
                     }
                 }
             }
 
             item {
-                SettingsGroup(title = "同步与连接") {
-                    SettingsTile(
-                        icon = Icons.Outlined.Sync,
+                SmallTitle(text = "同步与连接")
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    BasicComponent(
                         title = "小米手环传输",
-                        description = "控制是否启用与小米手环的连接与传输功能",
-                        checked = bandTransferEnabled,
-                        onCheckedChange = { viewModel.setBandTransferEnabled(it) }
+                        summary = "控制是否启用与小米手环的连接与传输功能",
+                        startAction = { SettingsIcon(MiuixIcons.Refresh) },
+                        endActions = {
+                            Switch(
+                                checked = bandTransferEnabled,
+                                onCheckedChange = { viewModel.setBandTransferEnabled(it) })
+                        }
                     )
                     if (bandTransferEnabled) {
-                        SettingsTile(
-                            icon = Icons.Outlined.Sync,
+                        BasicComponent(
                             title = "传输后自动后台",
-                            description = "开始传输后自动将应用最小化",
-                            checked = autoMinimizeOnTransfer,
-                            onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) }
+                            summary = "开始传输后自动将应用最小化",
+                            startAction = { SettingsIcon(MiuixIcons.Refresh) },
+                            endActions = {
+                                Switch(
+                                    checked = autoMinimizeOnTransfer,
+                                    onCheckedChange = { viewModel.setAutoMinimizeOnTransfer(it) })
+                            }
                         )
-                        SettingsTile(
-                            icon = Icons.Outlined.Sync,
+                        BasicComponent(
                             title = "自动重试中断",
-                            description = "传输中断时每5秒自动尝试重连",
-                            checked = autoRetryOnTransferError,
-                            onCheckedChange = { viewModel.setAutoRetryOnTransferError(it) }
+                            summary = "传输中断时每5秒自动尝试重连",
+                            startAction = { SettingsIcon(MiuixIcons.Refresh) },
+                            endActions = {
+                                Switch(
+                                    checked = autoRetryOnTransferError,
+                                    onCheckedChange = { viewModel.setAutoRetryOnTransferError(it) })
+                            }
                         )
-                        SettingsTile(
-                            icon = Icons.Outlined.Warning,
+                        BasicComponent(
                             title = "连接失败提示",
-                            description = "连接手环失败时弹出详细提示",
-                            checked = showConnectionError,
-                            onCheckedChange = { viewModel.setShowConnectionError(it) }
+                            summary = "连接手环失败时弹出详细提示",
+                            startAction = { SettingsIcon(MiuixIcons.Info) },
+                            endActions = {
+                                Switch(
+                                    checked = showConnectionError,
+                                    onCheckedChange = { viewModel.setShowConnectionError(it) })
+                            }
                         )
                     }
                 }
             }
 
             item {
-                SettingsGroup(title = "更新与隐私") {
-                    SettingsTile(
-                        icon = Icons.Outlined.SystemUpdate,
+                SmallTitle(text = "更新与隐私")
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    BasicComponent(
                         title = "自动检查更新",
-                        description = "应用启动时自动检测新版本",
-                        checked = autoCheckUpdates,
-                        onCheckedChange = { viewModel.setAutoCheckUpdates(it) }
+                        summary = "应用启动时自动检测新版本",
+                        startAction = { SettingsIcon(MiuixIcons.Update) },
+                        endActions = {
+                            Switch(
+                                checked = autoCheckUpdates,
+                                onCheckedChange = { viewModel.setAutoCheckUpdates(it) })
+                        }
                     )
-                    SettingsTile(
-                        icon = Icons.Outlined.Security,
+                    BasicComponent(
                         title = "允许联网",
-                        description = "允许应用联网以检查更新等功能",
-                        checked = ipCollectionAllowed,
-                        onCheckedChange = { viewModel.setIpCollectionAllowed(it) }
+                        summary = "允许应用联网以检查更新等功能",
+                        startAction = { SettingsIcon(MiuixIcons.Lock) },
+                        endActions = {
+                            Switch(
+                                checked = ipCollectionAllowed,
+                                onCheckedChange = { viewModel.setIpCollectionAllowed(it) })
+                        }
                     )
                     if (ipCollectionAllowed) {
-                        SettingsActionTile(
-                            icon = Icons.Outlined.SystemUpdate,
+                        SuperArrow(
                             title = "检查更新",
-                            description = "手动检查应用版本更新",
+                            summary = "手动检查应用版本更新",
+                            startAction = { SettingsIcon(MiuixIcons.Update) },
                             onClick = { viewModel.checkForUpdates() }
                         )
                     }
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Public,
-                        title = "打开官网",
-                        description = "vs.lucky-e.top",
-                        onClick = {
-                            try {
-                                val intent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://vs.lucky-e.top")
-                                )
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                            }
-                        }
-                    )
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Download,
+                    SuperArrow(
                         title = "获取最新版本",
-                        description = "跳转到所有版本的下载页面",
-                        onClick = { showGetLatestVersionDialog = true }
+                        summary = "跳转到所有版本的下载页面",
+                        startAction = { SettingsIcon(MiuixIcons.Download) },
+                        onClick = { showGetLatestVersionDialog.value = true }
                     )
                 }
             }
 
             item {
-                SettingsGroup(title = "高级") {
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Upload,
+                SmallTitle(text = "高级")
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    SuperArrow(
                         title = "导出数据",
-                        description = "备份阅读时长和阅读进度",
+                        summary = "备份阅读时长和阅读进度",
+                        startAction = { SettingsIcon(MiuixIcons.UploadCloud) },
                         onClick = onBackupClick
                     )
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Download,
+                    SuperArrow(
                         title = "导入数据",
-                        description = "恢复备份的阅读数据",
+                        summary = "恢复备份的阅读数据",
+                        startAction = { SettingsIcon(MiuixIcons.Download) },
                         onClick = onRestoreClick
                     )
-                    SettingsActionTile(
-                        icon = Icons.Outlined.DeleteForever,
+                    SuperArrow(
                         title = "清除阅读记录",
-                        description = "删除本地所有阅读时长数据(不可恢复)",
-                        onClick = { showDeleteReadingTimeDialog = true },
-                        isDestructive = true
+                        summary = "删除本地所有阅读时长数据(不可恢复)",
+                        titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.error),
+                        startAction = {
+                            SettingsIcon(
+                                MiuixIcons.Delete,
+                                tint = MiuixTheme.colorScheme.error
+                            )
+                        },
+                        onClick = { showDeleteReadingTimeDialog.value = true }
                     )
-                    SettingsActionTile(
-                        icon = Icons.Outlined.DeleteForever,
+                    SuperArrow(
                         title = "清理脏数据",
-                        description = "删除无效书籍记录及其阅读进度和阅读时长(不可恢复)",
-                        onClick = { showCleanDirtyDataDialog = true },
-                        isDestructive = true
+                        summary = "删除无效书籍记录及其阅读进度和阅读时长(不可恢复)",
+                        titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.error),
+                        startAction = {
+                            SettingsIcon(
+                                MiuixIcons.Delete,
+                                tint = MiuixTheme.colorScheme.error
+                            )
+                        },
+                        onClick = { showCleanDirtyDataDialog.value = true }
                     )
                 }
             }
 
             item {
-                SettingsGroup {
-                    SettingsActionTile(
-                        icon = Icons.Outlined.Info,
+                SmallTitle(text = "其他")
+                Card(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 16.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
+                    SuperArrow(
                         title = "关于",
-                        description = "版本信息与开发者",
-                        onClick = { showAboutSheet = true }
+                        summary = "版本信息与开发者",
+                        startAction = { SettingsIcon(MiuixIcons.Info) },
+                        onClick = { showAboutSheet.value = true }
                     )
                 }
             }
         }
     }
 
-    if (showDeleteReadingTimeDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteReadingTimeDialog = false },
-            icon = { Icon(Icons.Outlined.Build, contentDescription = null) },
-            title = { Text("删除所有阅读时长") },
-            text = { Text("确定要删除手机端本地所有阅读时长数据吗？此操作不可恢复。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.clearAllReadingTimeData()
-                        showDeleteReadingTimeDialog = false
-                    },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("删除")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteReadingTimeDialog = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-
-    if (showCleanDirtyDataDialog) {
-        AlertDialog(
-            onDismissRequest = { showCleanDirtyDataDialog = false },
-            icon = { Icon(Icons.Outlined.DeleteForever, contentDescription = null) },
-            title = { Text("清理脏数据") },
-            text = { Text("将删除数据库中无效的书籍记录，以及不存在书籍的阅读进度和阅读时长。此操作不可恢复，确定继续？") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.cleanDirtyData()
-                        showCleanDirtyDataDialog = false
-                    },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("清理")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCleanDirtyDataDialog = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-
-    if (showAboutSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showAboutSheet = false },
-            sheetState = aboutSheetState
-        ) {
-            AboutBottomSheet()
-        }
-    }
-
-    if (showGetLatestVersionDialog) {
-        AlertDialog(
-            onDismissRequest = { showGetLatestVersionDialog = false },
-            icon = { Icon(Icons.Outlined.Download, contentDescription = null) },
-            title = { Text("各文件夹前缀介绍") },
-            text = {
-                Text("MiBand和BandPro前缀是给小米手环8Pro、9Pro用的\nRW前缀是给REDMI Watch5、6用的\nBand9前缀是给小米手环9和9NFC用的\nBand10前缀是给小米手环10用的")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        try {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://pan.quark.cn/s/47b6d6447142")
-                            )
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                        }
-                        showGetLatestVersionDialog = false
-                    }
-                ) {
-                    Text("确定")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGetLatestVersionDialog = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-fun SettingsGroup(
-    title: String? = null,
-    content: @Composable () -> Unit
-) {
-    Column {
-        if (title != null) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-            )
-        }
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-fun SettingsTile(
-    icon: ImageVector,
-    title: String,
-    description: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    ListItem(
-        headlineContent = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-        },
-        supportingContent = description?.let {
-            {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        },
-        colors = ListItemDefaults.colors(
-            containerColor = Color.Transparent
-        ),
-        modifier = Modifier.clickable { onCheckedChange(!checked) }
-    )
-}
-
-@Composable
-fun SettingsActionTile(
-    icon: ImageVector,
-    title: String,
-    description: String? = null,
-    onClick: () -> Unit,
-    isDestructive: Boolean = false
-) {
-    val contentColor =
-        if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    val titleColor =
-        if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-
-    ListItem(
-        headlineContent = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = titleColor
-            )
-        },
-        supportingContent = description?.let {
-            {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor
-            )
-        },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )
-        },
-        colors = ListItemDefaults.colors(
-            containerColor = Color.Transparent
-        ),
-        modifier = Modifier.clickable(onClick = onClick)
-    )
-}
-
-@Composable
-fun ThemeSelectionChip(
-    selected: Boolean,
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor =
-        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val contentColor =
-        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    val borderColor =
-        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = backgroundColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    SuperDialog(
+        title = "删除所有阅读时长",
+        summary = "确定要删除手机端本地所有阅读时长数据吗？此操作不可恢复。",
+        show = showDeleteReadingTimeDialog,
+        onDismissRequest = { showDeleteReadingTimeDialog.value = false }
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(
+                text = "取消",
+                onClick = { showDeleteReadingTimeDialog.value = false },
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = contentColor,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "删除",
+                onClick = {
+                    viewModel.clearAllReadingTimeData()
+                    showDeleteReadingTimeDialog.value = false
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColors(
+                    color = MiuixTheme.colorScheme.error,
+                    textColor = MiuixTheme.colorScheme.onError
+                )
             )
         }
     }
+
+    SuperDialog(
+        title = "清理脏数据",
+        summary = "将删除数据库中无效的书籍记录，以及不存在书籍的阅读进度和阅读时长。此操作不可恢复，确定继续？",
+        show = showCleanDirtyDataDialog,
+        onDismissRequest = { showCleanDirtyDataDialog.value = false }
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(
+                text = "取消",
+                onClick = { showCleanDirtyDataDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "清理",
+                onClick = {
+                    viewModel.cleanDirtyData()
+                    showCleanDirtyDataDialog.value = false
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColors(
+                    color = MiuixTheme.colorScheme.error,
+                    textColor = MiuixTheme.colorScheme.onError
+                )
+            )
+        }
+    }
+
+    SuperDialog(
+        title = "各文件夹前缀介绍",
+        summary = "MiBand和BandPro前缀是给小米手环8Pro、9Pro用的\nRW前缀是给REDMI Watch5、6用的\nBand9前缀是给小米手环9和9NFC用的\nBand10前缀是给小米手环10用的",
+        show = showGetLatestVersionDialog,
+        onDismissRequest = { showGetLatestVersionDialog.value = false }
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(
+                text = "取消",
+                onClick = { showGetLatestVersionDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "确定",
+                onClick = {
+                    try {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://pan.quark.cn/s/47b6d6447142")
+                        )
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                    }
+                    showGetLatestVersionDialog.value = false
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColorsPrimary()
+            )
+        }
+    }
+
+    AboutBottomSheet(show = showAboutSheet)
+}
+
+@Composable
+private fun SettingsIcon(
+    imageVector: ImageVector,
+    tint: androidx.compose.ui.graphics.Color = MiuixTheme.colorScheme.onSurfaceVariantActions
+) {
+    Icon(
+        imageVector = imageVector,
+        contentDescription = null,
+        tint = tint,
+        modifier = Modifier.padding(end = 16.dp)
+    )
 }

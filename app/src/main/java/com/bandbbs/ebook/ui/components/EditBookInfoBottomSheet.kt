@@ -9,22 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,12 +20,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.BookEntity
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.extra.SuperArrow
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun EditBookInfoBottomSheet(
@@ -59,148 +57,96 @@ fun EditBookInfoBottomSheet(
     var category by remember { mutableStateOf(book.category ?: "") }
     val scope = rememberCoroutineScope()
 
-
     LaunchedEffect(book) {
         bookName = book.name
         author = book.author ?: ""
         summary = book.summary ?: ""
         bookStatus = book.bookStatus ?: ""
         category = book.category ?: ""
+        onLocalCategoryChanged(book.localCategory ?: "")
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(top = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onCancel) {
-                Text("取消")
-            }
-            Text(
-                "编辑书籍信息",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            TextButton(
-                onClick = {
-                    onSave(
-                        book.copy(
-                            name = bookName.trim(),
-                            author = author.takeIf { it.isNotBlank() },
-                            summary = summary.takeIf { it.isNotBlank() },
-                            bookStatus = bookStatus.takeIf { it.isNotBlank() },
-                            category = category.takeIf { it.isNotBlank() },
-                            localCategory = localCategory.takeIf { it.isNotBlank() }
-                        )
-                    )
-                },
-                enabled = bookName.isNotBlank()
-            ) {
-                Text("保存")
-            }
-        }
+        Text(
+            text = "编辑书籍信息",
+            style = MiuixTheme.textStyles.title2,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        SmallTitle(text = "基础信息")
 
-        OutlinedTextField(
+        TextField(
             value = bookName,
             onValueChange = { bookName = it },
-            label = { Text("书名") },
+            label = "书名",
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp)
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        TextField(
             value = author,
             onValueChange = { author = it },
-            label = { Text("作者") },
+            label = "作者",
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp)
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        TextField(
             value = bookStatus,
             onValueChange = { bookStatus = it },
-            label = { Text("状态") },
+            label = "状态",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            placeholder = { Text("例如：已完结、连载中") }
+            useLabelAsPlaceholder = false
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        TextField(
             value = category,
             onValueChange = { category = it },
-            label = { Text("分类/标签") },
+            label = "分类/标签",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            placeholder = { Text("例如：已完结 | 动漫衍生 | 穿越") }
+            useLabelAsPlaceholder = false
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Text(
-            text = "本地分类",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
+        SmallTitle(text = "本地分类")
 
         Card(
-            onClick = onShowCategorySelector,
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            shape = RoundedCornerShape(16.dp)
+            colors = CardDefaults.defaultColors(
+                color = MiuixTheme.colorScheme.secondaryVariant
+            )
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = localCategory.ifBlank { "未分类" },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = "选择分类",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SuperArrow(
+                title = localCategory.ifBlank { "未分类" },
+                onClick = onShowCategorySelector
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        SmallTitle(text = "简介")
+
+        TextField(
             value = summary,
             onValueChange = { summary = it },
-            label = { Text("简介") },
+            label = "简介",
             modifier = Modifier.fillMaxWidth(),
             minLines = 4,
-            maxLines = 8,
-            shape = RoundedCornerShape(16.dp)
+            maxLines = 8
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -208,7 +154,6 @@ fun EditBookInfoBottomSheet(
         Button(
             onClick = {
                 scope.launch {
-
                     if (bookName.isNotBlank()) {
                         val updatedBook = book.copy(
                             name = bookName.trim(),
@@ -225,26 +170,58 @@ fun EditBookInfoBottomSheet(
                             onSave(updatedBook)
                         }
                     }
-
                     onResyncInfo()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isResyncing
+            enabled = !isResyncing,
+            modifier = Modifier.fillMaxWidth()
         ) {
             if (isResyncing) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp
+                    modifier = Modifier.padding(end = 8.dp),
+                    size = 20.dp,
+                    strokeWidth = 3.dp
                 )
-                Spacer(modifier = Modifier.size(8.dp))
                 Text("同步中...")
             } else {
                 Text("重新同步详情")
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 40.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                text = "取消",
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(16.dp))
+            TextButton(
+                text = "保存",
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                enabled = bookName.isNotBlank(),
+                onClick = {
+                    onSave(
+                        book.copy(
+                            name = bookName.trim(),
+                            author = author.takeIf { it.isNotBlank() },
+                            summary = summary.takeIf { it.isNotBlank() },
+                            bookStatus = bookStatus.takeIf { it.isNotBlank() },
+                            category = category.takeIf { it.isNotBlank() },
+                            localCategory = localCategory.takeIf { it.isNotBlank() }
+                        )
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
-

@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,27 +17,9 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.ModeEdit
-import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,14 +34,36 @@ import com.bandbbs.ebook.database.ChapterInfo
 import com.bandbbs.ebook.ui.model.Book
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.extra.SuperArrow
+import top.yukonga.miuix.kmp.extra.SuperCheckbox
+import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.extra.SuperListPopup
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.Edit
+import top.yukonga.miuix.kmp.icon.extended.Notes
+import top.yukonga.miuix.kmp.icon.extended.Sort
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private enum class SortType {
-    INDEX_ASC,
-    INDEX_DESC,
-    NAME_ASC,
-    NAME_DESC,
-    WORD_COUNT_ASC,
-    WORD_COUNT_DESC
+private enum class SortType(val label: String) {
+    INDEX_ASC("按索引升序"),
+    INDEX_DESC("按索引降序"),
+    NAME_ASC("按名称升序"),
+    NAME_DESC("按名称降序"),
+    WORD_COUNT_ASC("按字数升序"),
+    WORD_COUNT_DESC("按字数降序")
 }
 
 @Composable
@@ -80,13 +83,16 @@ fun ChapterListBottomSheet(
     val isPdf = book.format == "pdf"
     var isEditMode by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(setOf<Int>()) }
-    var showMergeDialog by remember { mutableStateOf(false) }
+
+    val showMergeDialog = remember { mutableStateOf(false) }
+    val showAddDialog = remember { mutableStateOf(false) }
+    val showBatchRenameDialog = remember { mutableStateOf(false) }
+    val showEditContentDialog = remember { mutableStateOf(false) }
     var renamingChapter by remember { mutableStateOf<ChapterInfo?>(null) }
-    var showAddPanel by remember { mutableStateOf(false) }
-    var showBatchRename by remember { mutableStateOf(false) }
     var editingChapterId by remember { mutableStateOf<Int?>(null) }
+
     var sortType by remember { mutableStateOf(SortType.INDEX_ASC) }
-    var showSortMenu by remember { mutableStateOf(false) }
+    val showSortMenu = remember { mutableStateOf(false) }
     val orderedChapters = remember { mutableStateListOf<ChapterInfo>() }
     val listState = rememberLazyListState()
     var hasInitialScroll by remember { mutableStateOf(false) }
@@ -134,7 +140,7 @@ fun ChapterListBottomSheet(
         val ids = orderedChapters.map { it.id }.toSet()
         selected = selected.filter { ids.contains(it) }.toSet()
         if (selected.isEmpty()) {
-            showBatchRename = false
+            showBatchRenameDialog.value = false
         }
 
         if (wasOrderChanged && orderedChapters.isNotEmpty()) {
@@ -155,11 +161,12 @@ fun ChapterListBottomSheet(
     LaunchedEffect(isEditMode) {
         if (!isEditMode) {
             selected = emptySet()
-            showAddPanel = false
-            showBatchRename = false
-            showMergeDialog = false
+            showAddDialog.value = false
+            showBatchRenameDialog.value = false
+            showMergeDialog.value = false
             renamingChapter = null
             editingChapterId = null
+            showEditContentDialog.value = false
         }
     }
 
@@ -169,12 +176,11 @@ fun ChapterListBottomSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
             .padding(top = 16.dp)
     ) {
         Text(
             text = book.name,
-            style = MaterialTheme.typography.titleLarge,
+            style = MiuixTheme.textStyles.title2,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -182,17 +188,13 @@ fun ChapterListBottomSheet(
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = if (isPdf) "${book.chapterCount} 页" else "${book.chapterCount} 章 · ${book.wordCount} 字",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
         Spacer(modifier = Modifier.height(12.dp))
 
         if (isEditMode) {
-            Surface(
-                tonalElevation = 1.dp,
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -204,74 +206,81 @@ fun ChapterListBottomSheet(
                     ) {
                         Text(
                             text = "编辑模式",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MiuixTheme.textStyles.subtitle,
                             fontWeight = FontWeight.Medium
                         )
                         Row {
-                            TextButton(onClick = {
-                                selected = if (isAllSelected) {
-                                    emptySet()
-                                } else {
-                                    orderedChapters.map { it.id }.toSet()
+                            TextButton(
+                                text = if (isAllSelected) "取消全选" else "全选",
+                                onClick = {
+                                    selected =
+                                        if (isAllSelected) emptySet() else orderedChapters.map { it.id }
+                                            .toSet()
                                 }
-                            }) {
-                                Text(if (isAllSelected) "取消全选" else "全选")
-                            }
-                            TextButton(onClick = { isEditMode = false }) {
-                                Text("完成")
-                            }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(
+                                text = "完成",
+                                onClick = { isEditMode = false },
+                                colors = ButtonDefaults.textButtonColorsPrimary()
+                            )
                         }
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        TextButton(
-                            onClick = { showAddPanel = !showAddPanel },
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { showAddDialog.value = true }
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                MiuixIcons.Add,
                                 contentDescription = null,
                                 modifier = Modifier.width(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                if (showAddPanel) "收起" else "新增",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Text("新增", style = MiuixTheme.textStyles.body2)
                         }
-                        TextButton(
-                            enabled = selected.size >= 2,
-                            onClick = { showMergeDialog = true },
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(enabled = selected.size >= 2) {
+                                    showMergeDialog.value = true
+                                }
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Outlined.Edit,
+                                MiuixIcons.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.width(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "合并(${selected.size})",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Text("合并(${selected.size})", style = MiuixTheme.textStyles.body2)
                         }
-                        TextButton(
-                            enabled = selected.isNotEmpty(),
-                            onClick = { showBatchRename = !showBatchRename },
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(enabled = selected.isNotEmpty()) {
+                                    showBatchRenameDialog.value = true
+                                }
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Outlined.EditNote,
+                                MiuixIcons.Notes,
                                 contentDescription = null,
                                 modifier = Modifier.width(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                if (showBatchRename) "收起" else "批量改名",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Text("批量改名", style = MiuixTheme.textStyles.body2)
                         }
                     }
                 }
@@ -284,47 +293,56 @@ fun ChapterListBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box {
-                        TextButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Outlined.Sort, contentDescription = "排序")
+                        Row(
+                            modifier = Modifier
+                                .clickable { showSortMenu.value = true }
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                MiuixIcons.Sort,
+                                contentDescription = "排序",
+                                modifier = Modifier.width(18.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("排序")
                         }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
+
+                        val sortOptions = SortType.values()
+                        val selectedIndex = sortOptions.indexOf(sortType)
+
+                        SuperListPopup(
+                            show = showSortMenu,
+                            alignment = PopupPositionProvider.Align.BottomStart,
+                            onDismissRequest = { showSortMenu.value = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("按索引升序") },
-                                onClick = { sortType = SortType.INDEX_ASC; showSortMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("按索引降序") },
-                                onClick = { sortType = SortType.INDEX_DESC; showSortMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("按名称升序") },
-                                onClick = { sortType = SortType.NAME_ASC; showSortMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("按名称降序") },
-                                onClick = { sortType = SortType.NAME_DESC; showSortMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("按字数升序") },
-                                onClick = {
-                                    sortType = SortType.WORD_COUNT_ASC; showSortMenu = false
+                            ListPopupColumn {
+                                sortOptions.forEachIndexed { index, type ->
+                                    DropdownImpl(
+                                        text = type.label,
+                                        optionSize = sortOptions.size,
+                                        isSelected = selectedIndex == index,
+                                        onSelectedIndexChange = {
+                                            sortType = sortOptions[it]
+                                            showSortMenu.value = false
+                                        },
+                                        index = index
+                                    )
                                 }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("按字数降序") },
-                                onClick = {
-                                    sortType = SortType.WORD_COUNT_DESC; showSortMenu = false
-                                }
-                            )
+                            }
                         }
                     }
-                    TextButton(onClick = { isEditMode = true }) {
-                        Icon(Icons.Outlined.ModeEdit, contentDescription = "编辑模式")
+                    Row(
+                        modifier = Modifier
+                            .clickable { isEditMode = true }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            MiuixIcons.Edit,
+                            contentDescription = "编辑模式",
+                            modifier = Modifier.width(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("编辑")
                     }
@@ -332,57 +350,15 @@ fun ChapterListBottomSheet(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        AnimatedVisibility(visible = isEditMode && showAddPanel) {
-            AddChapterPanel(
-                chapterCount = chapters.size,
-                onCancel = { showAddPanel = false },
-                onConfirm = { index, title, content ->
-                    onAddChapter(index, title, content)
-                    showAddPanel = false
-                }
-            )
-        }
-        AnimatedVisibility(visible = isEditMode && showBatchRename && selectedDetails.isNotEmpty()) {
-            BatchRenamePanel(
-                selected = selectedDetails,
-                onCancel = { showBatchRename = false },
-                onConfirm = { prefix, suffix, startNumber, padding ->
-                    onBatchRename(
-                        selectedDetails.map { it.id },
-                        prefix,
-                        suffix,
-                        startNumber,
-                        padding
-                    )
-                    showBatchRename = false
-                }
-            )
-        }
-        AnimatedVisibility(visible = isEditMode && editingChapterId != null) {
-            editingChapterId?.let { chapterId ->
-                val chapter = orderedChapters.find { it.id == chapterId }
-                if (chapter != null) {
-                    EditContentPanel(
-                        chapter = chapter,
-                        onCancel = { editingChapterId = null },
-                        onSave = { title, content ->
-                            onSaveChapterContent(chapterId, title, content)
-                            editingChapterId = null
-                        },
-                        loadContent = loadChapterContent
-                    )
-                }
-            }
-        }
+        HorizontalDivider()
         Spacer(modifier = Modifier.height(8.dp))
-        Divider()
-        Spacer(modifier = Modifier.height(8.dp))
+
         LazyColumn(
             state = listState,
             contentPadding = PaddingValues(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(orderedChapters, key = { _, chapter -> chapter.id }) { index, chapter ->
+            itemsIndexed(orderedChapters, key = { _, chapter -> chapter.id }) { _, chapter ->
                 if (isEditMode) {
                     EditableChapterCard(
                         isPdf = isPdf,
@@ -394,15 +370,17 @@ fun ChapterListBottomSheet(
                             }
                         },
                         onPreview = { onPreviewChapter(chapter.id) },
-                        onEditContent = { editingChapterId = chapter.id },
-                        onRename = { renamingChapter = chapter },
-                        isEditMode = true
+                        onEditContent = {
+                            editingChapterId = chapter.id
+                            showEditContentDialog.value = true
+                        },
+                        onRename = { renamingChapter = chapter }
                     )
                 } else {
-                    SimpleChapterCard(
-                        isPdf = isPdf,
-                        chapter = chapter,
-                        onPreview = { onPreviewChapter(chapter.id) }
+                    SuperArrow(
+                        title = chapter.name,
+                        summary = if (!isPdf) "${chapter.wordCount} 字" else null,
+                        onClick = { onPreviewChapter(chapter.id) }
                     )
                 }
             }
@@ -411,19 +389,59 @@ fun ChapterListBottomSheet(
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 
-    if (isEditMode && showMergeDialog) {
+    if (isEditMode) {
+        AddChapterDialog(
+            show = showAddDialog,
+            chapterCount = chapters.size,
+            onConfirm = { index, title, content ->
+                onAddChapter(index, title, content)
+                showAddDialog.value = false
+            }
+        )
+
+        if (selectedDetails.isNotEmpty()) {
+            BatchRenameDialog(
+                show = showBatchRenameDialog,
+                selected = selectedDetails,
+                onConfirm = { prefix, suffix, startNumber, padding ->
+                    onBatchRename(
+                        selectedDetails.map { it.id },
+                        prefix,
+                        suffix,
+                        startNumber,
+                        padding
+                    )
+                    showBatchRenameDialog.value = false
+                }
+            )
+        }
+
+        editingChapterId?.let { chapterId ->
+            val chapter = orderedChapters.find { it.id == chapterId }
+            if (chapter != null) {
+                EditContentDialog(
+                    show = showEditContentDialog,
+                    chapter = chapter,
+                    onConfirm = { title, content ->
+                        onSaveChapterContent(chapterId, title, content)
+                        editingChapterId = null
+                        showEditContentDialog.value = false
+                    },
+                    loadContent = loadChapterContent
+                )
+            }
+        }
+
         MergeChaptersDialog(
+            show = showMergeDialog,
             selectedChapters = chapters.filter { selected.contains(it.id) },
-            onDismiss = { showMergeDialog = false },
             onConfirm = { title, insertBlank ->
                 onMergeChapters(selected.toList(), title, insertBlank)
                 selected = emptySet()
-                showMergeDialog = false
+                showMergeDialog.value = false
             }
         )
-    }
 
-    if (isEditMode) {
         renamingChapter?.let { chapter ->
             RenameChapterDialog(
                 chapter = chapter,
@@ -438,38 +456,6 @@ fun ChapterListBottomSheet(
 }
 
 @Composable
-private fun SimpleChapterCard(
-    isPdf: Boolean,
-    chapter: ChapterInfo,
-    onPreview: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPreview),
-        tonalElevation = 2.dp,
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(
-                text = "${chapter.name}",
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            if (!isPdf) {
-                Text(
-                    text = "${chapter.wordCount} 字",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun EditableChapterCard(
     modifier: Modifier = Modifier,
     isPdf: Boolean,
@@ -478,47 +464,28 @@ private fun EditableChapterCard(
     onCheckedChange: (Boolean) -> Unit,
     onPreview: () -> Unit,
     onEditContent: () -> Unit,
-    onRename: () -> Unit,
-    isEditMode: Boolean = true
+    onRename: () -> Unit
 ) {
-    Surface(
+    Card(
         modifier = modifier.fillMaxWidth(),
-        tonalElevation = 2.dp,
-        shape = MaterialTheme.shapes.medium
+        colors = CardDefaults.defaultColors(
+            color = MiuixTheme.colorScheme.secondaryVariant
+        )
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Column {
+            SuperCheckbox(
+                title = chapter.name,
+                summary = if (!isPdf) "${chapter.wordCount} 字" else null,
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "${chapter.name}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    if (!isPdf) {
-                        Text(
-                            text = "${chapter.wordCount} 字",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Checkbox(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = onPreview) { Text("预览") }
-                TextButton(onClick = onEditContent) { Text("编辑内容") }
-                TextButton(onClick = onRename) { Text("改标题") }
+                TextButton(text = "预览", onClick = onPreview)
+                TextButton(text = "编辑内容", onClick = onEditContent)
+                TextButton(text = "改标题", onClick = onRename)
             }
         }
     }
@@ -531,97 +498,115 @@ private fun RenameChapterDialog(
     onConfirm: (String) -> Unit
 ) {
     var text by remember { mutableStateOf(chapter.name) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
+    val showDialog = remember { mutableStateOf(true) }
+
+    LaunchedEffect(showDialog.value) {
+        if (!showDialog.value) onDismiss()
+    }
+
+    SuperDialog(
+        title = "编辑章节标题",
+        show = showDialog,
+        onDismissRequest = { showDialog.value = false }
+    ) {
+        TextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            label = "章节标题",
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(
-                onClick = { onConfirm(text.trim()) },
-                enabled = text.isNotBlank()
-            ) { Text("保存") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        title = { Text("编辑章节标题") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                label = { Text("章节标题") }
+                text = "取消",
+                onClick = { showDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "保存",
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onConfirm(text.trim())
+                        showDialog.value = false
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColorsPrimary()
             )
         }
-    )
+    }
 }
 
 @Composable
-private fun AddChapterPanel(
+private fun AddChapterDialog(
+    show: MutableState<Boolean>,
     chapterCount: Int,
-    onCancel: () -> Unit,
     onConfirm: (Int, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
     var position by remember { mutableStateOf((chapterCount + 1).toString()) }
-    val scrollState = rememberScrollState()
 
-    Surface(
-        tonalElevation = 2.dp,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
+    SuperDialog(
+        title = "新增章节",
+        show = show,
+        onDismissRequest = { show.value = false }
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("新增章节", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("章节标题") },
+                label = "章节标题",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(
+            TextField(
                 value = position,
-                onValueChange = { value ->
-                    position = value.filter { it.isDigit() }
-                },
-                label = { Text("插入位置(1-${chapterCount + 1})") },
+                onValueChange = { value -> position = value.filter { it.isDigit() } },
+                label = "插入位置(1-${chapterCount + 1})",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(
+            TextField(
                 value = content,
                 onValueChange = { content = it },
-                label = { Text("章节内容") },
+                label = "章节内容",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("取消") }
                 TextButton(
+                    text = "取消",
+                    onClick = { show.value = false },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(20.dp))
+                TextButton(
+                    text = "创建",
                     onClick = {
                         val index =
                             position.toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: chapterCount
                         onConfirm(index.coerceAtMost(chapterCount), title, content)
                     },
-                    enabled = content.isNotBlank(),
-                    modifier = Modifier.weight(1f)
-                ) { Text("创建") }
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColorsPrimary()
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BatchRenamePanel(
+private fun BatchRenameDialog(
+    show: MutableState<Boolean>,
     selected: List<ChapterInfo>,
-    onCancel: () -> Unit,
     onConfirm: (String, String, Int, Int) -> Unit
 ) {
     var prefix by remember { mutableStateOf("第") }
@@ -632,6 +617,7 @@ private fun BatchRenamePanel(
         )
     }
     var padding by remember { mutableStateOf("2") }
+
     val previewTitles = remember(selected, prefix, suffix, start, padding) {
         val startNumber = start.toIntOrNull() ?: 1
         val digits = padding.toIntOrNull()?.coerceAtLeast(0) ?: 0
@@ -648,76 +634,78 @@ private fun BatchRenamePanel(
         }
     }
 
-    Surface(
-        tonalElevation = 2.dp,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
+    SuperDialog(
+        title = "批量改名（${selected.size}）",
+        show = show,
+        onDismissRequest = { show.value = false }
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("批量改名（${selected.size}）", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextField(
                 value = prefix,
                 onValueChange = { prefix = it },
-                label = { Text("前缀") },
+                label = "前缀",
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(
+            TextField(
                 value = suffix,
                 onValueChange = { suffix = it },
-                label = { Text("后缀") },
+                label = "后缀",
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                TextField(
                     value = start,
                     onValueChange = { start = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("起始编号") },
+                    label = "起始编号",
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                TextField(
                     value = padding,
                     onValueChange = { padding = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("补零位数") },
+                    label = "补零位数",
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
             }
             if (previewTitles.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("预览：", style = MaterialTheme.typography.bodySmall)
+                    Text("预览：", style = MiuixTheme.textStyles.body2)
                     previewTitles.take(3).forEachIndexed { index, title ->
                         Text(
                             "· 第 ${selected[index].index + 1} 章 → $title",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MiuixTheme.textStyles.body2
                         )
                     }
                     if (previewTitles.size > 3) {
-                        Text(
-                            "... 等 ${previewTitles.size} 项",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Text("... 等 ${previewTitles.size} 项", style = MiuixTheme.textStyles.body2)
                     }
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("取消") }
                 TextButton(
+                    text = "取消",
+                    onClick = { show.value = false },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(20.dp))
+                TextButton(
+                    text = "应用",
                     onClick = {
                         val startNumber = start.toIntOrNull() ?: 1
                         val digits = padding.toIntOrNull() ?: 0
                         onConfirm(prefix, suffix, startNumber, digits)
                     },
-                    modifier = Modifier.weight(1f)
-                ) { Text("应用") }
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColorsPrimary()
+                )
             }
         }
     }
@@ -725,52 +713,65 @@ private fun BatchRenamePanel(
 
 @Composable
 private fun MergeChaptersDialog(
+    show: MutableState<Boolean>,
     selectedChapters: List<ChapterInfo>,
-    onDismiss: () -> Unit,
     onConfirm: (String, Boolean) -> Unit
 ) {
     val sorted = remember(selectedChapters) { selectedChapters.sortedBy { it.index } }
     var title by remember { mutableStateOf(sorted.firstOrNull()?.name ?: "合并章节") }
     var insertBlank by remember { mutableStateOf(true) }
-
     val canMerge = sorted.size >= 2
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                enabled = canMerge,
-                onClick = {
-                    if (canMerge) {
-                        onConfirm(title, insertBlank)
-                    }
-                }
-            ) { Text("合并") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        title = { Text("合并所选章节") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("预计合并 ${sorted.size} 个章节：")
-                sorted.forEach {
-                    Text(
-                        "· ${it.index + 1}. ${it.name}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("合并后标题") },
-                    singleLine = true
+    SuperDialog(
+        title = "合并所选章节",
+        show = show,
+        onDismissRequest = { show.value = false }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("预计合并 ${sorted.size} 个章节：", style = MiuixTheme.textStyles.body2)
+            sorted.take(3).forEach {
+                Text("· ${it.index + 1}. ${it.name}", style = MiuixTheme.textStyles.body2)
+            }
+            if (sorted.size > 3) {
+                Text("... 等 ${sorted.size} 项", style = MiuixTheme.textStyles.body2)
+            }
+            TextField(
+                value = title,
+                onValueChange = { title = it },
+                label = "合并后标题",
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = insertBlank, onCheckedChange = { insertBlank = it })
+                Spacer(Modifier.width(8.dp))
+                Text("章节之间插入空行", style = MiuixTheme.textStyles.body2)
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                TextButton(
+                    text = "取消",
+                    onClick = { show.value = false },
+                    modifier = Modifier.weight(1f)
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = insertBlank, onCheckedChange = { insertBlank = it })
-                    Text("章节之间插入空行")
-                }
+                Spacer(Modifier.width(20.dp))
+                TextButton(
+                    text = "合并",
+                    onClick = {
+                        if (canMerge) {
+                            onConfirm(title, insertBlank)
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColorsPrimary()
+                )
             }
         }
-    )
+    }
 }
 
 private fun MutableList<ChapterInfo>.replaceWith(source: List<ChapterInfo>) {
@@ -779,18 +780,16 @@ private fun MutableList<ChapterInfo>.replaceWith(source: List<ChapterInfo>) {
 }
 
 @Composable
-private fun EditContentPanel(
+private fun EditContentDialog(
+    show: MutableState<Boolean>,
     chapter: ChapterInfo,
-    onCancel: () -> Unit,
-    onSave: (String, String) -> Unit,
+    onConfirm: (String, String) -> Unit,
     loadContent: suspend (Int) -> String
 ) {
     var title by remember(chapter.id) { mutableStateOf(chapter.name) }
     var content by remember(chapter.id) { mutableStateOf("") }
-    val scrollState = rememberScrollState()
 
     LaunchedEffect(chapter.id) {
-
         content = withContext(Dispatchers.IO) {
             try {
                 loadContent(chapter.id)
@@ -800,50 +799,45 @@ private fun EditContentPanel(
         }
     }
 
-    Surface(
-        tonalElevation = 2.dp,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
+    SuperDialog(
+        title = "编辑内容",
+        show = show,
+        onDismissRequest = { show.value = false }
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "编辑内容 - ${chapter.name}",
-                style = MaterialTheme.typography.titleMedium
-            )
-            OutlinedTextField(
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("章节标题") },
+                label = "章节标题",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(
+            TextField(
                 value = content,
                 onValueChange = { content = it },
-                label = { Text("章节内容") },
+                label = "章节内容",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(250.dp)
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                    Text("取消")
-                }
                 TextButton(
-                    onClick = { onSave(title.trim(), content) },
-                    enabled = content.isNotBlank(),
+                    text = "取消",
+                    onClick = { show.value = false },
                     modifier = Modifier.weight(1f)
-                ) {
-                    Text("保存")
-                }
+                )
+                Spacer(Modifier.width(20.dp))
+                TextButton(
+                    text = "保存",
+                    onClick = { onConfirm(title.trim(), content) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColorsPrimary()
+                )
             }
         }
     }

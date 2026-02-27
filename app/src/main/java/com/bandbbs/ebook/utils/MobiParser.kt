@@ -3,6 +3,8 @@ package com.bandbbs.ebook.utils
 import android.content.Context
 import android.net.Uri
 import androidx.core.text.HtmlCompat
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.Charset
@@ -10,8 +12,6 @@ import java.util.zip.DataFormatException
 import java.util.zip.GZIPInputStream
 import java.util.zip.Inflater
 import kotlin.math.min
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Element
 
 object MobiParser {
 
@@ -23,7 +23,8 @@ object MobiParser {
 
     fun isMobiFile(context: Context, uri: Uri): Boolean {
         return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return false
+            val bytes =
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return false
             isMobiBytes(bytes)
         } catch (_: Exception) {
             false
@@ -77,7 +78,8 @@ object MobiParser {
         if (bytes.size < recordListBytesNeeded) return false
         val record0Start = readU32BE(bytes, recordListStart).toInt()
         if (record0Start <= 0 || record0Start + 20 > bytes.size) return false
-        val magic = String(bytes.copyOfRange(record0Start + 16, record0Start + 20), Charsets.US_ASCII)
+        val magic =
+            String(bytes.copyOfRange(record0Start + 16, record0Start + 20), Charsets.US_ASCII)
         return magic == "MOBI"
     }
 
@@ -116,7 +118,8 @@ object MobiParser {
         val mobiMagic = String(record0.copyOfRange(16, 20), Charsets.US_ASCII)
         if (mobiMagic != "MOBI") throw IllegalArgumentException("无效的MOBI文件")
 
-        val encodingCode = if (record0.size >= 16 + 0x10) readU32BE(record0, 16 + 0x0C).toLong() else 65001L
+        val encodingCode =
+            if (record0.size >= 16 + 0x10) readU32BE(record0, 16 + 0x0C).toLong() else 65001L
         val charset = when (encodingCode) {
             65001L -> Charsets.UTF_8
             1252L -> Charset.forName("windows-1252")
@@ -150,9 +153,15 @@ object MobiParser {
             if (textLength > 0 && out.size() >= textLength) break
         }
 
-        val rawTextBytes = if (textLength > 0) out.toByteArray().copyOfRange(0, min(out.size(), textLength)) else out.toByteArray()
+        val rawTextBytes = if (textLength > 0) out.toByteArray()
+            .copyOfRange(0, min(out.size(), textLength)) else out.toByteArray()
         onProgress?.invoke(0.90f, "正在解码文本...")
-        return runCatching { String(rawTextBytes, charset) }.getOrElse { String(rawTextBytes, Charsets.UTF_8) }
+        return runCatching { String(rawTextBytes, charset) }.getOrElse {
+            String(
+                rawTextBytes,
+                Charsets.UTF_8
+            )
+        }
     }
 
     private fun toPlainText(raw: String): String {
@@ -243,9 +252,9 @@ object MobiParser {
 
     private fun readU32BE(bytes: ByteArray, offset: Int): Long {
         return ((bytes[offset].toLong() and 0xFF) shl 24) or
-            ((bytes[offset + 1].toLong() and 0xFF) shl 16) or
-            ((bytes[offset + 2].toLong() and 0xFF) shl 8) or
-            (bytes[offset + 3].toLong() and 0xFF)
+                ((bytes[offset + 1].toLong() and 0xFF) shl 16) or
+                ((bytes[offset + 2].toLong() and 0xFF) shl 8) or
+                (bytes[offset + 3].toLong() and 0xFF)
     }
 
     private fun palmdocDecompress(input: ByteArray): ByteArray {
@@ -261,10 +270,12 @@ object MobiParser {
                     out.write(input, i, count)
                     i += count
                 }
+
                 c in 0x09..0x7F -> {
                     out.write(c)
                     i++
                 }
+
                 c in 0x80..0xBF -> {
                     if (i + 1 >= input.size) break
                     val c2 = input[i + 1].toInt() and 0xFF
@@ -281,6 +292,7 @@ object MobiParser {
                     }
                     i += 2
                 }
+
                 c in 0xC0..0xFF -> {
                     out.write(0x20)
                     out.write(c xor 0x80)
@@ -360,7 +372,12 @@ object MobiParser {
         fun write(src: ByteArray, offset: Int, length: Int) {
             if (length <= 0) return
             ensureCapacity(size + length)
-            src.copyInto(buf, destinationOffset = size, startIndex = offset, endIndex = offset + length)
+            src.copyInto(
+                buf,
+                destinationOffset = size,
+                startIndex = offset,
+                endIndex = offset + length
+            )
             size += length
         }
 
