@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     kotlin("plugin.serialization") version "2.1.20"
-    id("com.google.devtools.ksp") version "2.0.0-1.0.21"
+    id("com.google.devtools.ksp") version "2.2.0-2.0.2"
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -19,7 +19,7 @@ android {
 
     defaultConfig {
         applicationId = "com.bandbbs.ebook.plus"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 35
         versionCode = 126105
         versionName = "V26.1.5"
@@ -81,7 +81,7 @@ android {
 
 dependencies {
     implementation(files("./libs/xms-wearable-lib_1.4_release.aar"))?.let { implementation(it) }
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
@@ -89,18 +89,21 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.12.0")
     implementation(platform("androidx.compose:compose-bom:2025.11.01"))
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material:material:1.10.0")
+    implementation("androidx.compose.material:material:1.10.4")
     implementation("androidx.compose.material3:material3:1.4.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.loader:loader:1.1.0")
     implementation("com.github.albfernandez:juniversalchardet:2.5.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
-    implementation("org.jsoup:jsoup:1.17.2")
+    implementation("org.jsoup:jsoup:1.22.1")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    val room_version = "2.6.1"
+    val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
+
+    implementation("top.yukonga.miuix.kmp:miuix:0.8.4")
+    implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.4")
 }

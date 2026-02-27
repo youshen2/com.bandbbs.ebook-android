@@ -10,10 +10,14 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -51,8 +55,14 @@ fun EbookTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
+    val controller = remember { ThemeController(ColorSchemeMode.System) }
+    MiuixTheme(
+        controller = controller,
+        content = {
+            MaterialTheme(
+                colorScheme = colorScheme,
+                content = content
+            )
+        }
     )
 }
