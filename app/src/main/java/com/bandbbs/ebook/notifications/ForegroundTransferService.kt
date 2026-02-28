@@ -10,10 +10,6 @@ import android.os.IBinder
 
 class ForegroundTransferService : Service() {
 
-    override fun onCreate() {
-        super.onCreate()
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: "传输中"
         val content = intent?.getStringExtra(EXTRA_CONTENT)
@@ -23,7 +19,7 @@ class ForegroundTransferService : Service() {
         val notification: Notification =
             LiveNotificationManager.buildTransferNotification(title, content, progressPercent)
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 LiveNotificationManager.NOTIFICATION_ID,
                 notification,

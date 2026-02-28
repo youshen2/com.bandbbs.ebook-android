@@ -48,10 +48,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.notifications.ForegroundTransferService
 import com.bandbbs.ebook.notifications.LiveNotificationManager
-import com.bandbbs.ebook.ui.components.ChapterListBottomSheet
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionDialog
 import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.screens.BandSettingsScreen
+import com.bandbbs.ebook.ui.screens.ChapterListScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val firstLaunchTutorial = !prefs.getBoolean("tutorial_shown", false)
         val markTutorialShown = { prefs.edit().putBoolean("tutorial_shown", true).apply() }
 
@@ -160,7 +160,6 @@ class MainActivity : ComponentActivity() {
                     val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                     val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                     val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
-                    val chapterEditorContent by viewModel.chapterEditorContent.collectAsState()
                     val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
                     val updateCheckState by viewModel.updateCheckState.collectAsState()
                     val globalLoadingState by viewModel.globalLoadingState.collectAsState()
@@ -176,9 +175,15 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    LaunchedEffect(selectedBookForChapters) {
+                        if (selectedBookForChapters != null) {
+                            currentScreen = "chapter_list"
+                        }
+                    }
+
                     Scaffold(
                         bottomBar = {
-                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options") {
+                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options" && currentScreen != "chapter_list") {
                                 NavigationBar {
                                     NavigationBarItem(
                                         selected = currentScreen == "home",
@@ -267,14 +272,18 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            val targetScreenState = if (isReaderOpen) "reader" else currentScreen
+                            val targetScreenState = when {
+                                currentScreen == "chapter_list" -> "chapter_list"
+                                isReaderOpen -> "reader"
+                                else -> currentScreen
+                            }
                             AnimatedContent(
                                 targetState = targetScreenState,
                                 transitionSpec = {
                                     val isEnteringReaderOrBand =
-                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options"
+                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options" || targetState == "chapter_list"
                                     val isExitingReaderOrBand =
-                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options"
+                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options" || initialState == "chapter_list"
 
                                     if (isEnteringReaderOrBand) {
                                         slideInHorizontally(
@@ -313,7 +322,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 label = "ScreenTransition",
                                 modifier = Modifier.padding(
-                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options")
+                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options" && targetScreenState != "chapter_list")
                                         paddingValues.calculateBottomPadding() else 0.dp
                                 )
                             ) { screen ->
@@ -394,7 +403,11 @@ class MainActivity : ComponentActivity() {
                                                     currentScreen = "home"
                                                 },
                                                 onConfirm = { selectedChapters, syncCover ->
-                                                    viewModel.confirmPush(state.book, selectedChapters, syncCover)
+                                                    viewModel.confirmPush(
+                                                        state.book,
+                                                        selectedChapters,
+                                                        syncCover
+                                                    )
                                                     currentScreen = "home"
                                                 },
                                                 onResyncCoverOnly = {
@@ -403,7 +416,64 @@ class MainActivity : ComponentActivity() {
                                                     currentScreen = "home"
                                                 },
                                                 onDeleteChapters = { chapterIndices ->
-                                                    viewModel.deleteBandChapters(state.book, chapterIndices)
+                                                    viewModel.deleteBandChapters(
+                                                        state.book,
+                                                        chapterIndices
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    "chapter_list" -> {
+                                        selectedBookForChapters?.let { book ->
+                                            ChapterListScreen(
+                                                book = book,
+                                                chapters = chaptersForSelectedBook,
+                                                readOnly = isReaderOpen,
+                                                onBackClick = {
+                                                    viewModel.closeChapterList()
+                                                    currentScreen =
+                                                        if (isReaderOpen) "reader" else "home"
+                                                },
+                                                onPreviewChapter = { chapterId ->
+                                                    scope.launch {
+                                                        viewModel.closeChapterList()
+                                                        viewModel.showChapterPreview(chapterId)
+                                                        currentScreen =
+                                                            if (isReaderOpen) "reader" else "home"
+                                                    }
+                                                },
+                                                onEditContent = { chapterId ->
+                                                    viewModel.openChapterEditor(chapterId)
+                                                },
+                                                onSaveChapterContent = { chapterId, title, content ->
+                                                    viewModel.saveChapterContent(
+                                                        chapterId,
+                                                        title,
+                                                        content
+                                                    )
+                                                },
+                                                onRenameChapter = { chapterId, title ->
+                                                    viewModel.renameChapter(chapterId, title)
+                                                },
+                                                onAddChapter = { index, title, content ->
+                                                    viewModel.addChapter(index, title, content)
+                                                },
+                                                onMergeChapters = { ids, title, insertBlank ->
+                                                    viewModel.mergeChapters(ids, title, insertBlank)
+                                                },
+                                                onBatchRename = { ids, prefix, suffix, startNumber, padding ->
+                                                    viewModel.batchRenameChapters(
+                                                        ids,
+                                                        prefix,
+                                                        suffix,
+                                                        startNumber,
+                                                        padding
+                                                    )
+                                                },
+                                                loadChapterContent = { chapterId ->
+                                                    viewModel.loadChapterContent(chapterId)
                                                 }
                                             )
                                         }
@@ -411,79 +481,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            val showChapterListState = remember { mutableStateOf(false) }
-                            LaunchedEffect(selectedBookForChapters) {
-                                showChapterListState.value = selectedBookForChapters != null
-                            }
-                            SuperBottomSheet(
-                                show = showChapterListState,
-                                title = selectedBookForChapters?.name ?: "章节列表",
-                                onDismissRequest = {
-                                    showChapterListState.value = false
-                                    viewModel.closeChapterList()
-                                }
-                            ) {
-                                selectedBookForChapters?.let { book ->
-                                    ChapterListBottomSheet(
-                                        book = book,
-                                        chapters = chaptersForSelectedBook,
-                                        readOnly = isReaderOpen,
-                                        onPreviewChapter = { chapterId ->
-                                            scope.launch {
-                                                showChapterListState.value = false
-                                                viewModel.closeChapterList()
-                                                viewModel.showChapterPreview(chapterId)
-                                            }
-                                        },
-                                        onEditContent = { chapterId ->
-                                            viewModel.openChapterEditor(
-                                                chapterId
-                                            )
-                                        },
-                                        onSaveChapterContent = { chapterId, title, content ->
-                                            viewModel.saveChapterContent(
-                                                chapterId,
-                                                title,
-                                                content
-                                            )
-                                        },
-                                        onRenameChapter = { chapterId, title ->
-                                            viewModel.renameChapter(
-                                                chapterId,
-                                                title
-                                            )
-                                        },
-                                        onAddChapter = { index, title, content ->
-                                            viewModel.addChapter(
-                                                index,
-                                                title,
-                                                content
-                                            )
-                                        },
-                                        onMergeChapters = { ids, title, insertBlank ->
-                                            viewModel.mergeChapters(
-                                                ids,
-                                                title,
-                                                insertBlank
-                                            )
-                                        },
-                                        onBatchRename = { ids, prefix, suffix, startNumber, padding ->
-                                            viewModel.batchRenameChapters(
-                                                ids,
-                                                prefix,
-                                                suffix,
-                                                startNumber,
-                                                padding
-                                            )
-                                        },
-                                        loadChapterContent = { chapterId ->
-                                            viewModel.loadChapterContent(
-                                                chapterId
-                                            )
-                                        }
-                                    )
-                                }
-                            }
 
                             val showIpSheetState = remember { mutableStateOf(false) }
 

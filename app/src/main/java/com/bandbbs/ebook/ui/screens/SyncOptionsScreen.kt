@@ -40,7 +40,6 @@ import com.bandbbs.ebook.ui.viewmodel.SyncOptionsState
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -249,12 +248,16 @@ fun SyncOptionsScreen(
                                     onClick = {
                                         selectedChapters = (0 until state.totalChapters).toSet()
                                     },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
                                 )
                                 TextButton(
                                     text = "清空",
                                     onClick = { selectedChapters = emptySet() },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
                                 )
                             }
                             Row(
@@ -267,31 +270,46 @@ fun SyncOptionsScreen(
                                     text = "未读",
                                     onClick = {
                                         val currentChapterIndex = state.book.chapterIndex
-                                        val startIndex = if (currentChapterIndex != null && currentChapterIndex >= 0) {
-                                            currentChapterIndex.coerceIn(0, state.totalChapters - 1)
-                                        } else {
-                                            state.chapters.firstOrNull { it.index !in state.syncedChapterIndices }?.index ?: state.totalChapters
-                                        }
-                                        selectedChapters = (startIndex until state.totalChapters).filter { it !in state.syncedChapterIndices }.toSet()
+                                        val startIndex =
+                                            if (currentChapterIndex != null && currentChapterIndex >= 0) {
+                                                currentChapterIndex.coerceIn(
+                                                    0,
+                                                    state.totalChapters - 1
+                                                )
+                                            } else {
+                                                state.chapters.firstOrNull { it.index !in state.syncedChapterIndices }?.index
+                                                    ?: state.totalChapters
+                                            }
+                                        selectedChapters =
+                                            (startIndex until state.totalChapters).filter { it !in state.syncedChapterIndices }
+                                                .toSet()
                                     },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
                                 )
                                 TextButton(
                                     text = "已读",
                                     onClick = {
                                         val currentChapterIndex = state.book.chapterIndex
                                         if (currentChapterIndex != null && currentChapterIndex >= 0) {
-                                            selectedChapters = (0 until currentChapterIndex).filter { it in state.syncedChapterIndices }.toSet()
+                                            selectedChapters =
+                                                (0 until currentChapterIndex).filter { it in state.syncedChapterIndices }
+                                                    .toSet()
                                         } else {
                                             selectedChapters = emptySet()
                                         }
                                     },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
                                 )
                                 if (onDeleteChapters != null && selectedCount > 0) {
                                     Button(
                                         onClick = { onDeleteChapters(selectedChapters) },
-                                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 4.dp),
                                         colors = ButtonDefaults.buttonColors(
                                             color = MiuixTheme.colorScheme.error
                                         )

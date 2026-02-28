@@ -206,7 +206,7 @@ object EpubParser {
 
 
         if (coverItemId == null) {
-            coverItemId = manifest.entries.find { (id, href) ->
+            coverItemId = manifest.entries.find { (_, href) ->
                 href.contains("cover", ignoreCase = true) &&
                         (href.endsWith(".jpg", ignoreCase = true) ||
                                 href.endsWith(".jpeg", ignoreCase = true) ||

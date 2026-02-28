@@ -119,7 +119,7 @@ class PushHandler(
                 val bookStatus = withContext(Dispatchers.IO) {
                     fileConn.getBookStatus(book.name)
                 }
-                val (totalChapters, chapters, hasCover) = withContext(Dispatchers.IO) {
+                val (_, chapters, hasCover) = withContext(Dispatchers.IO) {
                     val bookEntity = db.bookDao().getBookByPath(book.path)
                     if (bookEntity != null) {
                         val count = db.chapterDao().getChapterCountForBook(bookEntity.id)

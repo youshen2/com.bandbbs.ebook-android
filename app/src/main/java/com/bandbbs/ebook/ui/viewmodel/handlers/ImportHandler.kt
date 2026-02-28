@@ -115,7 +115,7 @@ class ImportHandler(
             val savedCustomRegex = prefs.getString(LAST_CUSTOM_REGEX_KEY, "") ?: ""
 
             withContext(Dispatchers.Main) {
-                importState.value = com.bandbbs.ebook.ui.viewmodel.ImportState(
+                importState.value = ImportState(
                     uris = validFiles.map { it.uri },
                     files = validFiles,
                     splitMethod = defaultSplitMethod,

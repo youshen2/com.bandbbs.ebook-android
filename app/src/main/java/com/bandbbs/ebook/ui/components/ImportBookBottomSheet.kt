@@ -162,7 +162,7 @@ fun ImportBookBottomSheet(
             }
             Spacer(modifier = Modifier.height(12.dp))
             SmallTitle(text = "章节设置")
-            Card (
+            Card(
                 colors = CardDefaults.defaultColors(
                     color = MiuixTheme.colorScheme.secondaryVariant
                 )

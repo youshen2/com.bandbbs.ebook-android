@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -156,8 +155,6 @@ fun MainScreen(
     val expandedCategories by viewModel.expandedCategories.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
-    var expandedRecentBookPath by remember { mutableStateOf<String?>(null) }
-    var expandedRecentUpdateBookPath by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -878,7 +875,9 @@ fun MainScreen(
                                     visible = scrollBehavior.state.collapsedFraction < 0.5f && !isMultiSelectMode && bandTransferEnabled,
                                     enter = fadeIn(),
                                     exit = fadeOut(),
-                                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp)
+                                    modifier = Modifier
+                                        .align(Alignment.End)
+                                        .padding(top = 8.dp)
                                 ) {
                                     IconButton(onClick = { showMenuSheet.value = true }) {
                                         Icon(

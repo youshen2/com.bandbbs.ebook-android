@@ -854,7 +854,7 @@ fun ReaderScreen(
                         val targetChapter = allChapters.find { it.index == bookmark.chapterIndex }
                         if (targetChapter != null) {
                             onChapterChange(targetChapter.id)
-                            kotlinx.coroutines.delay(300)
+                            delay(300)
                             listState.scrollToItem(bookmark.offsetInChapter, bookmark.scrollOffset)
                         }
                         showBookmarks.value = false

@@ -39,7 +39,7 @@ object DataBackupManager {
                 books.forEach { book ->
                     val lastReadChapterId = progressPrefs.getInt("last_read_chapter_${book.id}", -1)
                     if (lastReadChapterId != -1) {
-                        val chapterInfo = db.chapterDao().getChapterInfoByIndex(book.id, -1)
+                        db.chapterDao().getChapterInfoByIndex(book.id, -1)
                         val chapters = db.chapterDao().getChapterInfoForBook(book.id)
                         val lastReadChapter = chapters.find { it.id == lastReadChapterId }
 
@@ -111,8 +111,7 @@ object DataBackupManager {
                     val keys = timeData.keys()
                     while (keys.hasNext()) {
                         val key = keys.next()
-                        val value = timeData.get(key)
-                        when (value) {
+                        when (val value = timeData.get(key)) {
                             is Long -> editor.putLong(key, value)
                             is String -> editor.putString(key, value)
                             is Int -> editor.putLong(key, value.toLong())

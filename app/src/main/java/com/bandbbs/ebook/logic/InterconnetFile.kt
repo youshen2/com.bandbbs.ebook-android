@@ -49,7 +49,7 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     private var currentChapterChunks: List<String> = emptyList()
     private var currentChunkIndex: Int = 0
-    private var currentChapterForTransfer: com.bandbbs.ebook.database.Chapter? = null
+    private var currentChapterForTransfer: Chapter? = null
     private var currentChapterIndexInBook: Int = 0
     private var currentChapterIndexInSlicedList: Int = 0
     private var bookStatusCompleter: CompletableDeferred<BookStatusResult>? = null

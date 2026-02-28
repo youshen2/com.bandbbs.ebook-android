@@ -500,9 +500,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissConnectionError() = connectionHandler.dismissConnectionError()
 
-    fun startImport(uri: android.net.Uri) = importHandler.startImport(uri)
+    fun startImport(uri: Uri) = importHandler.startImport(uri)
 
-    fun startImportBatch(uris: List<android.net.Uri>) = importHandler.startImportBatch(uris)
+    fun startImportBatch(uris: List<Uri>) = importHandler.startImportBatch(uris)
 
     fun cancelImport() = importHandler.cancelImport()
 
@@ -813,7 +813,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         "epub" -> {
-                            val epubBook = EpubParser.parse(context, fileUri)
+                            EpubParser.parse(context, fileUri)
 
 
                         }
@@ -1165,7 +1165,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         if (bandReadingData != null) {
                             try {
                                 if (bandReadingData.progress != null) {
-                                    val progressMap = org.json.JSONObject(bandReadingData.progress)
+                                    val progressMap = JSONObject(bandReadingData.progress)
                                     val tempMap = mutableMapOf<String, Any>()
                                     val keys = progressMap.keys()
                                     while (keys.hasNext()) {
@@ -1174,7 +1174,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                                         if (key == "chapterIndex") {
                                             when {
-                                                value == org.json.JSONObject.NULL -> {
+                                                value == JSONObject.NULL -> {
                                                     continue
                                                 }
 
@@ -1203,7 +1203,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                             }
                                         } else {
                                             tempMap[key] = when (value) {
-                                                is org.json.JSONObject -> value.toString()
+                                                is JSONObject -> value.toString()
                                                 is org.json.JSONArray -> value.toString()
                                                 is Boolean -> value
                                                 is Int -> value
@@ -1241,14 +1241,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             try {
                                 Log.d("MainViewModel", "Parsing band reading time for ${book.name}")
                                 val readingTimeMap =
-                                    org.json.JSONObject(bandReadingData.readingTime)
+                                    JSONObject(bandReadingData.readingTime)
                                 val tempMap = mutableMapOf<String, Any>()
                                 val keys = readingTimeMap.keys()
                                 while (keys.hasNext()) {
                                     val key = keys.next()
                                     val value = readingTimeMap.get(key)
                                     tempMap[key] = when (value) {
-                                        is org.json.JSONObject -> {
+                                        is JSONObject -> {
                                             val sessionMap = mutableMapOf<String, Any>()
                                             val sessionKeys = value.keys()
                                             while (sessionKeys.hasNext()) {
@@ -1268,7 +1268,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                                     val sessionKey = sessionKeys.next()
                                                     val sessionValue = sessionObj.get(sessionKey)
                                                     sessionMap[sessionKey] = when (sessionValue) {
-                                                        is org.json.JSONObject -> sessionValue.toString()
+                                                        is JSONObject -> sessionValue.toString()
                                                         is org.json.JSONArray -> sessionValue.toString()
                                                         is Boolean -> sessionValue
                                                         is Int -> sessionValue
@@ -1438,7 +1438,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                         if (fp.containsKey("offsetInChapter")) {
                                             normalized["offsetInChapter"] = normalizedOffset
                                         }
-                                        org.json.JSONObject(normalized).toString()
+                                        JSONObject(normalized).toString()
                                     } catch (e: Exception) {
                                         Log.e("MainViewModel", "Failed to serialize progress", e)
                                         null
@@ -1459,7 +1459,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
                                 finalReadingTime?.let {
                                     try {
-                                        val json = org.json.JSONObject(it).toString()
+                                        val json = JSONObject(it).toString()
                                         Log.d(
                                             "MainViewModel",
                                             "Serialized reading time JSON for ${book.name}: ${json.length} chars"
@@ -1568,8 +1568,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     val mergedBookmarks = mutableListOf<BookmarkEntity>()
                                     val bandBookmarkMap =
                                         bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
-                                    val phoneBookmarkMap =
-                                        phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+                                    phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
 
                                     bandBookmarks.forEach { bm ->
                                         mergedBookmarks.add(
@@ -2078,12 +2077,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val lastReadChapterId = readerPrefs.getInt("last_read_chapter_${book.id}", -1)
         if (lastReadChapterId == -1) return null
 
-        val chapter = db.chapterDao().getChapterById(lastReadChapterId) ?: return null
+        db.chapterDao().getChapterById(lastReadChapterId) ?: return null
         val allChapters = db.chapterDao().getChapterInfoForBook(book.id)
         val chapterIndex = allChapters.indexOfFirst { it.id == lastReadChapterId }
         if (chapterIndex == -1) return null
 
-        val pageIndex = readerPrefs.getInt("reading_position_index_$lastReadChapterId", 0)
+        readerPrefs.getInt("reading_position_index_$lastReadChapterId", 0)
         val offset = readerPrefs.getInt("reading_position_offset_$lastReadChapterId", 0)
         val lastReadTimestamp = readerPrefs.getLong("last_read_timestamp_${book.id}", 0L)
 
@@ -2236,7 +2235,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val sessionsArray = org.json.JSONArray()
                 sessions.forEach { session ->
                     if (session is Map<*, *>) {
-                        val sessionObj = org.json.JSONObject()
+                        val sessionObj = JSONObject()
                         session.forEach { (key, value) ->
                             when (value) {
                                 is Number -> sessionObj.put(key.toString(), value)
@@ -2246,7 +2245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                         sessionsArray.put(sessionObj)
-                    } else if (session is org.json.JSONObject) {
+                    } else if (session is JSONObject) {
                         sessionsArray.put(session)
                     }
                 }

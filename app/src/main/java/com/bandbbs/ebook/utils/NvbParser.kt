@@ -86,7 +86,7 @@ object NvbParser {
         }
 
 
-        val metadataOriginalLen = readUInt32(allBytes, offset).toInt()
+        readUInt32(allBytes, offset).toInt()
         offset += 4
         val metadataCompressedLen = readUInt32(allBytes, offset).toInt()
         offset += 4
@@ -99,7 +99,7 @@ object NvbParser {
         val metadata = parseMetadata(metadataJson)
 
 
-        val coverOriginalLen = readUInt32(allBytes, offset).toInt()
+        readUInt32(allBytes, offset).toInt()
         offset += 4
         val coverCompressedLen = readUInt32(allBytes, offset).toInt()
         offset += 4
@@ -134,7 +134,7 @@ object NvbParser {
             val chapterId = String(idBytes, Charsets.UTF_8)
 
 
-            val originalLen = readUInt32(allBytes, offset).toInt()
+            readUInt32(allBytes, offset).toInt()
             offset += 4
             val compressedLen = readUInt32(allBytes, offset).toInt()
             offset += 4
