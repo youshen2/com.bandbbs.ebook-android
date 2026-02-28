@@ -79,7 +79,9 @@ import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.icon.extended.VerticalSplit
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -162,7 +164,7 @@ class MainActivity : ComponentActivity() {
                 MainViewModel.ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
 
-            EbookTheme() {
+            EbookTheme(darkTheme = darkTheme) {
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()

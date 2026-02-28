@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,7 +24,13 @@ class BookStatisticsActivity : ComponentActivity() {
         setContent {
             val viewModel: MainViewModel = viewModel()
             val themeMode by viewModel.themeMode.collectAsState()
-            EbookTheme() {
+            val darkTheme = when (themeMode) {
+                MainViewModel.ThemeMode.LIGHT -> false
+                MainViewModel.ThemeMode.DARK -> true
+                MainViewModel.ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+
+            EbookTheme(darkTheme = darkTheme) {
                 BookStatisticsScreen(
                     bookName = bookName,
                     onBackClick = { finish() }

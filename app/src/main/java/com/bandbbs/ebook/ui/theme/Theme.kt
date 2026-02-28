@@ -8,9 +8,10 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 
 @Composable
 fun EbookTheme(
+    darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
-    val controller = remember { ThemeController(ColorSchemeMode.System) }
+    val controller = remember { ThemeController( if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light) }
     MiuixTheme(
         controller = controller,
         content = content
