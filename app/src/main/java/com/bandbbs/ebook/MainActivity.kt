@@ -1,7 +1,6 @@
 package com.bandbbs.ebook
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,13 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.with
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -133,8 +125,6 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
 
-    @SuppressLint("UnusedContentLambdaTargetStateParameter")
-    @OptIn(ExperimentalAnimationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -345,12 +335,10 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 onConfirm = { selectedChapters, syncCover ->
                                                     viewModel.confirmPush(state.book, selectedChapters, syncCover)
-                                                    navigateToHome()
                                                 },
                                                 onResyncCoverOnly = {
                                                     viewModel.cancelPush()
                                                     viewModel.syncCoverOnly(state.book)
-                                                    navigateToHome()
                                                 },
                                                 onDeleteChapters = { chapterIndices ->
                                                     viewModel.deleteBandChapters(state.book, chapterIndices)
@@ -427,19 +415,16 @@ class MainActivity : ComponentActivity() {
                                 entryProvider = entryProvider
                             )
 
-                            AnimatedContent(
-                                targetState = currentScreen,
-                                transitionSpec = {
-                                    slideInHorizontally { fullWidth -> fullWidth } + fadeIn() with
-                                            slideOutHorizontally { fullWidth -> -fullWidth } + fadeOut()
-                                },
-                                label = "MainScreenTransition"
-                            ) {
-                                NavDisplay(
-                                    entries = entries,
-                                    onBack = navigateBack
-                                )
-                            }
+                            NavDisplay(
+                                entries = entries,
+                                onBack = {
+                                    if (backStack.size > 1) {
+                                        navigateBack()
+                                    } else {
+                                        finish()
+                                    }
+                                }
+                            )
 
                             val showTutorialState = remember { mutableStateOf(firstLaunchTutorial) }
                             if (showTutorialState.value) {
