@@ -56,6 +56,7 @@ import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
 import com.bandbbs.ebook.ui.screens.StatisticsScreen
+import com.bandbbs.ebook.ui.screens.SyncOptionsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -163,14 +164,21 @@ class MainActivity : ComponentActivity() {
                     val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
                     val updateCheckState by viewModel.updateCheckState.collectAsState()
                     val globalLoadingState by viewModel.globalLoadingState.collectAsState()
+                    val syncOptionsState by viewModel.syncOptionsState.collectAsState()
 
                     var currentScreen by remember { mutableStateOf("home") }
                     val isReaderOpen = chapterToPreview != null
                     val statisticsScrollState = rememberScrollState()
 
+                    LaunchedEffect(syncOptionsState) {
+                        if (syncOptionsState != null) {
+                            currentScreen = "sync_options"
+                        }
+                    }
+
                     Scaffold(
                         bottomBar = {
-                            if (!isReaderOpen && currentScreen != "band_settings") {
+                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options") {
                                 NavigationBar {
                                     NavigationBarItem(
                                         selected = currentScreen == "home",
@@ -264,9 +272,9 @@ class MainActivity : ComponentActivity() {
                                 targetState = targetScreenState,
                                 transitionSpec = {
                                     val isEnteringReaderOrBand =
-                                        targetState == "reader" || targetState == "band_settings"
+                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options"
                                     val isExitingReaderOrBand =
-                                        initialState == "reader" || initialState == "band_settings"
+                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options"
 
                                     if (isEnteringReaderOrBand) {
                                         slideInHorizontally(
@@ -305,7 +313,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 label = "ScreenTransition",
                                 modifier = Modifier.padding(
-                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings")
+                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options")
                                         paddingValues.calculateBottomPadding() else 0.dp
                                 )
                             ) { screen ->
@@ -332,7 +340,8 @@ class MainActivity : ComponentActivity() {
 
                                     "home" -> MainScreen(
                                         viewModel = viewModel,
-                                        onImportCoverClick = { coverPickerLauncher.launch(arrayOf("image/*")) }
+                                        onImportCoverClick = { coverPickerLauncher.launch(arrayOf("image/*")) },
+                                        onNavigateToSyncOptions = { currentScreen = "sync_options" }
                                     )
 
                                     "statistics" -> StatisticsScreen(
@@ -375,6 +384,30 @@ class MainActivity : ComponentActivity() {
                                         viewModel = viewModel,
                                         onBackClick = { currentScreen = "settings" }
                                     )
+
+                                    "sync_options" -> {
+                                        syncOptionsState?.let { state ->
+                                            SyncOptionsScreen(
+                                                state = state,
+                                                onBackClick = {
+                                                    viewModel.cancelPush()
+                                                    currentScreen = "home"
+                                                },
+                                                onConfirm = { selectedChapters, syncCover ->
+                                                    viewModel.confirmPush(state.book, selectedChapters, syncCover)
+                                                    currentScreen = "home"
+                                                },
+                                                onResyncCoverOnly = {
+                                                    viewModel.cancelPush()
+                                                    viewModel.syncCoverOnly(state.book)
+                                                    currentScreen = "home"
+                                                },
+                                                onDeleteChapters = { chapterIndices ->
+                                                    viewModel.deleteBandChapters(state.book, chapterIndices)
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
 

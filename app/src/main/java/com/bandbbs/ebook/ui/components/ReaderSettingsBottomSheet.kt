@@ -178,7 +178,7 @@ fun ReaderSettingsBottomSheet(
         item {
             SmallTitle(text = "背景主题")
             Card {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column {
                     val themeNames = ReaderThemes.map { it.name }
                     val selectedThemeIndex =
                         ReaderThemes.indexOfFirst { it.backgroundColor == current.backgroundColor }

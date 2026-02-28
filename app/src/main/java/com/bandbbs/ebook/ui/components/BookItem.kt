@@ -42,6 +42,7 @@ import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Play
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import java.io.File
 
 @Composable
@@ -295,7 +296,9 @@ fun BookItem(
         colors = CardDefaults.defaultColors(
             color = if (isSelected) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.surfaceContainer
         ),
-        insideMargin = PaddingValues(16.dp)
+        insideMargin = PaddingValues(16.dp),
+        pressFeedbackType = PressFeedbackType.Sink,
+        showIndication = true,
     ) {
         Row {
             if (book.coverImagePath != null && File(book.coverImagePath).exists()) {

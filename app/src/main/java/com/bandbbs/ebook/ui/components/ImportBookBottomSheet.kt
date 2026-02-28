@@ -162,7 +162,11 @@ fun ImportBookBottomSheet(
             }
             Spacer(modifier = Modifier.height(12.dp))
             SmallTitle(text = "章节设置")
-            Card {
+            Card (
+                colors = CardDefaults.defaultColors(
+                    color = MiuixTheme.colorScheme.secondaryVariant
+                )
+            ) {
                 SuperSwitch(
                     title = "不分章",
                     summary = "整本书作为单个章节导入",
@@ -179,7 +183,11 @@ fun ImportBookBottomSheet(
                         val selectedIndex =
                             methodsList.indexOfFirst { it.first == splitMethod }.coerceAtLeast(0)
 
-                        Card {
+                        Card(
+                            colors = CardDefaults.defaultColors(
+                                color = MiuixTheme.colorScheme.secondaryVariant
+                            )
+                        ) {
                             SuperDropdown(
                                 title = "选择分章方式",
                                 items = methodsList.map { it.second },
@@ -197,7 +205,7 @@ fun ImportBookBottomSheet(
                                     singleLine = true,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
+                                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                                 )
                             }
 
@@ -212,16 +220,9 @@ fun ImportBookBottomSheet(
                                     label = "正则表达式",
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
+                                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                                 )
                             }
-                        }
-                    } else if (hasEpubOrNvb) {
-                        Card {
-                            BasicComponent(
-                                title = "使用内置章节",
-                                summary = "EPUB/NVB 格式将按原有章节导入"
-                            )
                         }
                     }
                 }
@@ -230,7 +231,11 @@ fun ImportBookBottomSheet(
             if (hasEpubOrNvb && !noSplit) {
                 Spacer(modifier = Modifier.height(12.dp))
                 SmallTitle(text = "高级处理")
-                Card {
+                Card(
+                    colors = CardDefaults.defaultColors(
+                        color = MiuixTheme.colorScheme.secondaryVariant
+                    )
+                ) {
                     Column {
                         SuperSwitch(
                             title = "合并短章节",
@@ -267,7 +272,7 @@ fun ImportBookBottomSheet(
                                             label = "正则 -> 替换",
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 12.dp)
+                                                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                                         )
                                         renamePreview?.let { preview ->
                                             Text(
@@ -279,7 +284,8 @@ fun ImportBookBottomSheet(
                                                 color = if (preview is RenamePreviewResult.Error) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
                                                 modifier = Modifier.padding(
                                                     start = 24.dp,
-                                                    top = 4.dp
+                                                    top = 4.dp,
+                                                    bottom = 12.dp
                                                 )
                                             )
                                         }

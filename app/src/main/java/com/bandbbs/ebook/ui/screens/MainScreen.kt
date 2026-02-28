@@ -60,7 +60,6 @@ import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmDialog
 import com.bandbbs.ebook.ui.components.PushBottomSheet
-import com.bandbbs.ebook.ui.components.SyncOptionsBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.VersionIncompatibleDialog
@@ -104,6 +103,7 @@ import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Update
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 private enum class ItemType {
     RECENT_HEADER, RECENT_BOOK, RECENT_UPDATE_HEADER, RECENT_UPDATE_BOOK, CATEGORY_HEADER, BOOK
@@ -118,7 +118,8 @@ private data class ListItem(
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    onImportCoverClick: () -> Unit
+    onImportCoverClick: () -> Unit,
+    onNavigateToSyncOptions: () -> Unit = {}
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
     val books by viewModel.books.collectAsState()
@@ -537,27 +538,9 @@ fun MainScreen(
         }
     }
 
-    val showSyncOptionsSheet = remember { mutableStateOf(false) }
-    LaunchedEffect(syncOptionsState) { showSyncOptionsSheet.value = syncOptionsState != null }
-    SuperBottomSheet(
-        show = showSyncOptionsSheet,
-        onDismissRequest = { viewModel.cancelPush() }
-    ) {
-        syncOptionsState?.let { state ->
-            SyncOptionsBottomSheet(
-                state = state,
-                onCancel = { viewModel.cancelPush() },
-                onConfirm = { selectedChapters, syncCover ->
-                    viewModel.confirmPush(state.book, selectedChapters, syncCover)
-                },
-                onResyncCoverOnly = {
-                    viewModel.cancelPush()
-                    viewModel.syncCoverOnly(state.book)
-                },
-                onDeleteChapters = { chapterIndices ->
-                    viewModel.deleteBandChapters(state.book, chapterIndices)
-                }
-            )
+    LaunchedEffect(syncOptionsState) {
+        if (syncOptionsState != null) {
+            onNavigateToSyncOptions()
         }
     }
 
@@ -856,16 +839,24 @@ fun MainScreen(
                             colors = CardDefaults.defaultColors(
                                 color = if (connectionState.isConnected) MiuixTheme.colorScheme.surfaceContainer else MiuixTheme.colorScheme.errorContainer
                             ),
-                            onClick = { if (!connectionState.isConnected) viewModel.reconnect() }
+                            onClick = {
+                                if (!connectionState.isConnected) {
+                                    viewModel.reconnect()
+                                } else if (bandTransferEnabled && !isMultiSelectMode) {
+                                    showMenuSheet.value = true
+                                }
+                            },
+                            pressFeedbackType = PressFeedbackType.Sink,
+                            showIndication = true
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = connectionState.statusText,
@@ -886,7 +877,8 @@ fun MainScreen(
                                 AnimatedVisibility(
                                     visible = scrollBehavior.state.collapsedFraction < 0.5f && !isMultiSelectMode && bandTransferEnabled,
                                     enter = fadeIn(),
-                                    exit = fadeOut()
+                                    exit = fadeOut(),
+                                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp)
                                 ) {
                                     IconButton(onClick = { showMenuSheet.value = true }) {
                                         Icon(
@@ -906,7 +898,10 @@ fun MainScreen(
                                     .fillMaxHeight(),
                                 colors = CardDefaults.defaultColors(
                                     color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
-                                )
+                                ),
+                                onClick = { showStorageHelpDialog.value = true },
+                                pressFeedbackType = PressFeedbackType.Sink,
+                                showIndication = true
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -1022,7 +1017,6 @@ fun MainScreen(
                             }
                         }
                     }
-
                 }
 
                 if (!hasClickedTransferButton && books.isNotEmpty()) {
@@ -1331,34 +1325,22 @@ fun MainScreen(
                                         .padding(
                                             top = 8.dp,
                                             bottom = if (isExpanded) 8.dp else 0.dp
-                                        )
-                                        .then(
-                                            if (quickRenameCategoryEnabled) {
-                                                Modifier.pointerInput(category) {
-                                                    detectTapGestures(
-                                                        onTap = {
-                                                            viewModel.toggleCategoryExpansion(
-                                                                category
-                                                            )
-                                                        },
-                                                        onLongPress = {
-                                                            categoryToRename = category
-                                                        }
-                                                    )
-                                                }
-                                            } else {
-                                                Modifier.clickable {
-                                                    viewModel.toggleCategoryExpansion(
-                                                        category
-                                                    )
-                                                }
-                                            }
                                         ),
                                     insideMargin = PaddingValues(
                                         horizontal = 16.dp,
                                         vertical = 12.dp
                                     ),
-                                    colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer)
+                                    colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+                                    pressFeedbackType = PressFeedbackType.Sink,
+                                    showIndication = true,
+                                    onClick = {
+                                        viewModel.toggleCategoryExpansion(
+                                            category
+                                        )
+                                    },
+                                    onLongPress = {
+                                        if (quickRenameCategoryEnabled) categoryToRename = category
+                                    }
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
