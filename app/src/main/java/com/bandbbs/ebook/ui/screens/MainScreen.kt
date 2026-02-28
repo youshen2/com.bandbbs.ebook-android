@@ -1022,7 +1022,7 @@ fun MainScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "点击书籍卡片展开，然后点击传输书籍按钮进行传输",
+                                        text = "点击书籍卡片，在弹出的对话框中点击“传输书籍”按钮将书籍传输到小米手环。",
                                         style = MiuixTheme.textStyles.body2,
                                         color = MiuixTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                     )
