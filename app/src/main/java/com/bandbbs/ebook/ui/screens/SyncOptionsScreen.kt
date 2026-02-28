@@ -416,9 +416,14 @@ fun SyncOptionsScreen(
                     }
                 }
 
-                LaunchedEffect(showChapterDialog.value, sortedChapters, state.syncedChapterIndices) {
+                LaunchedEffect(
+                    showChapterDialog.value,
+                    sortedChapters,
+                    state.syncedChapterIndices
+                ) {
                     if (showChapterDialog.value) {
-                        val firstUnsyncedPosition = sortedChapters.indexOfFirst { it.index !in state.syncedChapterIndices }
+                        val firstUnsyncedPosition =
+                            sortedChapters.indexOfFirst { it.index !in state.syncedChapterIndices }
                         if (firstUnsyncedPosition >= 0) {
                             chapterListState.scrollToItem(firstUnsyncedPosition)
                         }
