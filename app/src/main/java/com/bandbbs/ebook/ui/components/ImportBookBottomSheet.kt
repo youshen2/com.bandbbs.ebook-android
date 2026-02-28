@@ -68,6 +68,8 @@ fun ImportBookBottomSheet(
         remember(state.files) { state.files.any { it.fileFormat == "epub" || it.fileFormat == "nvb" } }
     val hasTxt =
         remember(state.files) { state.files.any { it.fileFormat == "txt" || it.fileFormat == "docx" || it.fileFormat == "pdf" } }
+    val hasPdf =
+        remember(state.files) { state.files.any { it.fileFormat == "pdf" } }
 
     val isBookNameExists = remember(bookName, existingBookNames) {
         !isMultipleFiles && bookName.trim()
@@ -160,68 +162,70 @@ fun ImportBookBottomSheet(
                     onClick = onShowCategorySelector
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            SmallTitle(text = "章节设置")
-            Card(
-                colors = CardDefaults.defaultColors(
-                    color = MiuixTheme.colorScheme.secondaryVariant
-                )
-            ) {
-                SuperSwitch(
-                    title = "不分章",
-                    summary = "整本书作为单个章节导入",
-                    checked = noSplit,
-                    onCheckedChange = { noSplit = it }
-                )
-            }
+            if (!hasPdf) {
+                Spacer(modifier = Modifier.height(12.dp))
+                SmallTitle(text = "章节设置")
+                Card(
+                    colors = CardDefaults.defaultColors(
+                        color = MiuixTheme.colorScheme.secondaryVariant
+                    )
+                ) {
+                    SuperSwitch(
+                        title = "不分章",
+                        summary = "整本书作为单个章节导入",
+                        checked = noSplit,
+                        onCheckedChange = { noSplit = it }
+                    )
+                }
 
-            AnimatedVisibility(visible = !noSplit) {
-                Column {
-                    if (hasTxt) {
-                        SmallTitle(text = "分章方式")
-                        val methodsList = ChapterSplitter.methods.toList()
-                        val selectedIndex =
-                            methodsList.indexOfFirst { it.first == splitMethod }.coerceAtLeast(0)
+                AnimatedVisibility(visible = !noSplit) {
+                    Column {
+                        if (hasTxt) {
+                            SmallTitle(text = "分章方式")
+                            val methodsList = ChapterSplitter.methods.toList()
+                            val selectedIndex =
+                                methodsList.indexOfFirst { it.first == splitMethod }.coerceAtLeast(0)
 
-                        Card(
-                            colors = CardDefaults.defaultColors(
-                                color = MiuixTheme.colorScheme.secondaryVariant
-                            )
-                        ) {
-                            SuperDropdown(
-                                title = "选择分章方式",
-                                items = methodsList.map { it.second },
-                                selectedIndex = selectedIndex,
-                                onSelectedIndexChange = { splitMethod = methodsList[it].first }
-                            )
-
-                            if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
-                                TextField(
-                                    value = wordsPerChapterText,
-                                    onValueChange = {
-                                        if (it.all { c -> c.isDigit() }) wordsPerChapterText = it
-                                    },
-                                    label = "每章字数",
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                            Card(
+                                colors = CardDefaults.defaultColors(
+                                    color = MiuixTheme.colorScheme.secondaryVariant
                                 )
-                            }
+                            ) {
+                                SuperDropdown(
+                                    title = "选择分章方式",
+                                    items = methodsList.map { it.second },
+                                    selectedIndex = selectedIndex,
+                                    onSelectedIndexChange = { splitMethod = methodsList[it].first }
+                                )
 
-                            if (splitMethod == ChapterSplitter.METHOD_CUSTOM) {
-                                LaunchedEffect(splitMethod) {
-                                    if (customRegex.isBlank()) customRegex =
-                                        """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$"""
+                                if (splitMethod == ChapterSplitter.METHOD_BY_WORD_COUNT) {
+                                    TextField(
+                                        value = wordsPerChapterText,
+                                        onValueChange = {
+                                            if (it.all { c -> c.isDigit() }) wordsPerChapterText = it
+                                        },
+                                        label = "每章字数",
+                                        singleLine = true,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                                    )
                                 }
-                                TextField(
-                                    value = customRegex,
-                                    onValueChange = { customRegex = it },
-                                    label = "正则表达式",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-                                )
+
+                                if (splitMethod == ChapterSplitter.METHOD_CUSTOM) {
+                                    LaunchedEffect(splitMethod) {
+                                        if (customRegex.isBlank()) customRegex =
+                                            """^(第(\s{0,1}[一二三四五六七八九十百千万零〇\d]+\s{0,1})(章|卷|节|部|篇|回|本)|番外\s{0,2}[一二三四五六七八九十百千万零〇\d]*)(.{0,30})$"""
+                                    }
+                                    TextField(
+                                        value = customRegex,
+                                        onValueChange = { customRegex = it },
+                                        label = "正则表达式",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                                    )
+                                }
                             }
                         }
                     }

@@ -199,16 +199,25 @@ fun MainScreen(
         onDismissRequest = { viewModel.cancelDeleteBook() }
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            TextButton(
-                text = "删手环",
-                onClick = {
-                    bookToDelete?.let { viewModel.deleteBandBook(it) }
-                    Toast.makeText(context, "已发送手环删除指令", Toast.LENGTH_SHORT).show()
-                    viewModel.cancelDeleteBook()
-                },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
+            if (bandTransferEnabled) {
+                TextButton(
+                    text = "删手环",
+                    onClick = {
+                        bookToDelete?.let { viewModel.deleteBandBook(it) }
+                        Toast.makeText(context, "已发送手环删除指令", Toast.LENGTH_SHORT).show()
+                        viewModel.cancelDeleteBook()
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+            } else {
+                TextButton(
+                    text = "取消",
+                    onClick = { viewModel.cancelDeleteBook() },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             TextButton(
                 text = "删手机",
                 colors = ButtonDefaults.textButtonColorsPrimary(),

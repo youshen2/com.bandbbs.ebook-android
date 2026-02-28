@@ -191,7 +191,7 @@ fun BookItem(
                         )
                     }
 
-                    if (showSyncButton) {
+                    if (showSyncButton && !isPdf) {
                         Button(
                             onClick = {
                                 showDetailsDialog.value = false

@@ -94,6 +94,8 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("org.jsoup:jsoup:1.22.1")
 
+    implementation("com.google.re2j:re2j:1.8")
+
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     val room_version = "2.8.4"

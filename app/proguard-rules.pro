@@ -11,27 +11,25 @@
 # 恢复默认优化，仅禁用已知在某些架构上有问题的算术优化
 -optimizations !code/simplification/arithmetic,!code/simplification/cast
 
-# 移除没必要的冗余扫描，提升编译速度
 -dontusemixedcaseclassnames
 -dontpreverify
 -verbose
 
 # ============================================
-# 属性保留 (仅保留必要项)
+# 属性保留
 # ============================================
 -keepattributes Signature,Exceptions,InnerClasses,EnclosingMethod,*Annotation*
 -renamesourcefileattribute SourceFile
 -keepattributes SourceFile,LineNumberTable
 
 # ============================================
-# 强力日志剔除 (提升性能 & 减小体积)
+# 日志剔除
 # ============================================
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int i(...);
     public static int d(...);
-    # 注意：保留 e(...) 和 w(...) 用于线上排查错误，若追求极致可一并剔除
 }
 
 # ============================================
@@ -39,7 +37,7 @@
 # ============================================
 -dontwarn kotlin.**
 -dontwarn kotlinx.coroutines.**
-# 只有在需要反射获取 Kotlin 类信息时才保留 Metadata，否则建议注释掉以节省空间
+# 只有在需要反射获取 Kotlin 类信息时才保留 Metadata
 # -keep class kotlin.Metadata { *; }
 
 -keepclassmembers class **$WhenMappings {
@@ -50,7 +48,7 @@
 }
 
 # ============================================
-# Kotlinx Serialization (针对性保留而非包保留)
+# Kotlinx Serialization
 # ============================================
 -keep,includedescriptorclasses class com.bandbbs.ebook.**$$serializer { *; }
 -keepclassmembers class com.bandbbs.ebook.** {
@@ -61,7 +59,7 @@
 }
 
 # ============================================
-# Room 数据库 (优化：移除整个包的 keep)
+# Room 数据库
 # ============================================
 -keep @androidx.room.Entity class *
 -keep class * extends androidx.room.RoomDatabase
@@ -71,7 +69,6 @@
 # ============================================
 # 第三方库处理
 # ============================================
-# PDFBox & Xiaomi 库通常包含反射或 JNI，建议保守处理
 -keep class com.xiaomi.** { *; }
 -keep class com.tom_roush.pdfbox.** { *; }
 
@@ -84,8 +81,12 @@
     native <methods>;
 }
 
-# Enum 优化（R8 可以自动处理，但在某些复杂场景下手动指定可保平安）
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+-keep class com.google.re2j.** { *; }
+
+-keep class com.gemalto.jp2.** { *; }
+-dontwarn com.gemalto.jp2.**
