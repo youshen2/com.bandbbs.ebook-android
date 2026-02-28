@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.ui.components
+package com.bandbbs.ebook.ui.components.cell
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

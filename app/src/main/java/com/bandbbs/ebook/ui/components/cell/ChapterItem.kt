@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.ui.components
+package com.bandbbs.ebook.ui.components.cell
 
 import androidx.compose.runtime.Composable
 import com.bandbbs.ebook.database.ChapterInfo

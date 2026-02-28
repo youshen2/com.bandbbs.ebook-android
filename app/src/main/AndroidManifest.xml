@@ -18,7 +18,7 @@
         android:theme="@style/Theme.App"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.activity.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.App">
             <intent-filter>
@@ -35,7 +35,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".BookStatisticsActivity"
+            android:name=".ui.activity.BookStatisticsActivity"
             android:exported="false"
             android:theme="@style/Theme.App" />
 

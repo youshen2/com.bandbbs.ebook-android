@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.AppDatabase
-import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
@@ -60,6 +59,7 @@ import com.bandbbs.ebook.ui.components.OverwriteConfirmDialog
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.VersionIncompatibleDialog
+import com.bandbbs.ebook.ui.components.cell.BookItem
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
 import com.bandbbs.ebook.utils.StorageUtils

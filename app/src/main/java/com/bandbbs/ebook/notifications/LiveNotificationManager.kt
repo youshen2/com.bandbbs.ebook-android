@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.bandbbs.ebook.R
+import com.bandbbs.ebook.ui.activity.MainActivity
 
 object LiveNotificationManager {
     private lateinit var notificationManager: NotificationManager
@@ -54,7 +55,7 @@ object LiveNotificationManager {
 
         val launchIntent =
             appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
-                ?: Intent(appContext, com.bandbbs.ebook.MainActivity::class.java).apply {
+                ?: Intent(appContext, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
         val flags =
@@ -97,7 +98,7 @@ object LiveNotificationManager {
 
         val launchIntent =
             appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
-                ?: Intent(appContext, com.bandbbs.ebook.MainActivity::class.java).apply {
+                ?: Intent(appContext, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
         val flags =

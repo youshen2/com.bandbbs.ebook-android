@@ -1,4 +1,4 @@
-package com.bandbbs.ebook
+package com.bandbbs.ebook.ui.activity
 
 import android.content.Context
 import android.content.Intent
@@ -6,13 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bandbbs.ebook.ui.screens.BookStatisticsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
@@ -28,21 +23,11 @@ class BookStatisticsActivity : ComponentActivity() {
         setContent {
             val viewModel: MainViewModel = viewModel()
             val themeMode by viewModel.themeMode.collectAsState()
-            val darkTheme = when (themeMode) {
-                MainViewModel.ThemeMode.LIGHT -> false
-                MainViewModel.ThemeMode.DARK -> true
-                MainViewModel.ThemeMode.SYSTEM -> isSystemInDarkTheme()
-            }
-            EbookTheme(darkTheme = darkTheme) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    BookStatisticsScreen(
-                        bookName = bookName,
-                        onBackClick = { finish() }
-                    )
-                }
+            EbookTheme() {
+                BookStatisticsScreen(
+                    bookName = bookName,
+                    onBackClick = { finish() }
+                )
             }
         }
     }
