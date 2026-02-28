@@ -2,6 +2,7 @@ package com.bandbbs.ebook.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -9,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,6 +50,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
@@ -89,6 +93,7 @@ import top.yukonga.miuix.kmp.extra.SuperBottomSheet
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.ExpandLess
 import top.yukonga.miuix.kmp.icon.extended.ExpandMore
 import top.yukonga.miuix.kmp.icon.extended.Help
@@ -101,6 +106,7 @@ import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Update
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import kotlin.math.roundToInt
 
 private enum class ItemType {
     RECENT_HEADER, RECENT_BOOK, RECENT_UPDATE_HEADER, RECENT_UPDATE_BOOK, CATEGORY_HEADER, BOOK
@@ -1230,6 +1236,15 @@ fun MainScreen(
                                 val book = item.book!!
                                 val category = item.category!!
                                 val isCategoryExpanded = expandedCategories.contains(category)
+                                var swipeOffsetX by remember(book.path) { mutableStateOf(0f) }
+                                val animatedSwipeOffsetX by animateFloatAsState(
+                                    targetValue = swipeOffsetX,
+                                    animationSpec = tween(durationMillis = 180),
+                                    label = "bookSwipeOffset"
+                                )
+                                val maxSwipeDistance = -450f
+                                val swipeTriggerDistance = -80f
+
                                 AnimatedVisibility(
                                     visible = isCategoryExpanded,
                                     enter = fadeIn(animationSpec = tween(300)) + expandVertically(
@@ -1241,27 +1256,96 @@ fun MainScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(
-                                                top = if (shouldAddTopSpacing) 8.dp else 0.dp,
-                                                bottom = if (isLastItem) 16.dp else 0.dp
-                                            )
-                                            .pointerInput(book.path) {
-                                                detectTapGestures(
-                                                    onLongPress = {
-                                                        if (quickEditCategoryEnabled) {
-                                                            viewModel.showCategorySelector(book)
-                                                        } else {
-                                                            viewModel.enterMultiSelectMode()
-                                                            viewModel.selectBook(book.path)
-                                                        }
+                                    var boxModifier = Modifier
+                                        .padding(
+                                            top = if (shouldAddTopSpacing) 8.dp else 0.dp,
+                                            bottom = if (isLastItem) 16.dp else 0.dp
+                                        )
+                                        .pointerInput(book.path) {
+                                            detectTapGestures(
+                                                onLongPress = {
+                                                    if (quickEditCategoryEnabled) {
+                                                        viewModel.showCategorySelector(book)
+                                                    } else {
+                                                        viewModel.enterMultiSelectMode()
+                                                        viewModel.selectBook(book.path)
                                                     }
-                                                )
+                                                }
+                                            )
+                                        }
+
+                                    if (quickEditCategoryEnabled) {
+                                        boxModifier = boxModifier.pointerInput(book.path) {
+                                            detectDragGestures(
+                                                onDragEnd = {
+                                                    if (swipeOffsetX <= swipeTriggerDistance) {
+                                                        swipeOffsetX = 0f
+                                                        viewModel.showCategorySelector(book)
+                                                    } else {
+                                                        swipeOffsetX = 0f
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    swipeOffsetX = 0f
+                                                }
+                                            ) { change, dragAmount ->
+                                                val (dragX, _) = dragAmount
+                                                val newOffset = (swipeOffsetX + dragX).coerceIn(maxSwipeDistance, 0f)
+                                                swipeOffsetX = newOffset
+                                                change.consume()
                                             }
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = boxModifier
                                     ) {
+                                        if (quickEditCategoryEnabled) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .matchParentSize()
+                                                    .padding(horizontal = 8.dp),
+                                                horizontalArrangement = Arrangement.End,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Card(
+                                                    colors = CardDefaults.defaultColors(
+                                                        color = MiuixTheme.colorScheme.primary
+                                                    ),
+                                                    insideMargin = PaddingValues(
+                                                        horizontal = 12.dp,
+                                                        vertical = 8.dp
+                                                    ),
+                                                    pressFeedbackType = PressFeedbackType.Sink,
+                                                    showIndication = false
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = MiuixIcons.Edit,
+                                                            contentDescription = null,
+                                                            tint = MiuixTheme.colorScheme.onPrimary
+                                                        )
+                                                        Text(
+                                                            text = "切换分类",
+                                                            style = MiuixTheme.textStyles.body2,
+                                                            color = MiuixTheme.colorScheme.onPrimary
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         BookItem(
                                             book = book,
+                                            modifier = Modifier.offset {
+                                                IntOffset(
+                                                    animatedSwipeOffsetX.roundToInt(),
+                                                    0
+                                                )
+                                            },
                                             isSelected = selectedBooks.contains(book.path),
                                             onDeleteClick = { viewModel.requestDeleteBook(book) },
                                             onSyncClick = { viewModel.startPush(book) },

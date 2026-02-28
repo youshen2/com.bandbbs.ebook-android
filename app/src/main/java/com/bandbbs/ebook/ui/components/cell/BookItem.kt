@@ -48,6 +48,7 @@ import java.io.File
 @Composable
 fun BookItem(
     book: Book,
+    modifier: Modifier = Modifier,
     onDeleteClick: () -> Unit,
     onSyncClick: () -> Unit,
     onChapterListClick: () -> Unit,
@@ -292,7 +293,7 @@ fun BookItem(
 
     Card(
         onClick = { showDetailsDialog.value = true },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.defaultColors(
             color = if (isSelected) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.surfaceContainer
         ),
