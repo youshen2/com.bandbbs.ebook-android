@@ -53,12 +53,10 @@ import com.bandbbs.ebook.ui.components.BookItem
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
-import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmDialog
-import com.bandbbs.ebook.ui.components.PushBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
 import com.bandbbs.ebook.ui.components.VersionIncompatibleDialog
@@ -132,7 +130,6 @@ fun MainScreen(
     val hasClickedTransferButton by viewModel.hasClickedTransferButton.collectAsState()
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsState()
     val selectedBooks by viewModel.selectedBooks.collectAsState()
-    val pushState by viewModel.pushState.collectAsState()
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
     val importReportState by viewModel.importReportState.collectAsState()
@@ -143,7 +140,6 @@ fun MainScreen(
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
     val connectionErrorState by viewModel.connectionErrorState.collectAsState()
     val categoryState by viewModel.categoryState.collectAsState()
-    val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
     val syncResultState by viewModel.syncResultState.collectAsState()
@@ -521,20 +517,6 @@ fun MainScreen(
         )
     }
 
-    val showPushSheet = remember { mutableStateOf(false) }
-    LaunchedEffect(pushState.book) { showPushSheet.value = pushState.book != null }
-    SuperBottomSheet(
-        show = showPushSheet,
-        onDismissRequest = { viewModel.cancelPush() }
-    ) {
-        if (pushState.book != null) {
-            PushBottomSheet(
-                pushState = pushState,
-                onCancel = { viewModel.cancelPush() }
-            )
-        }
-    }
-
     LaunchedEffect(syncOptionsState) {
         if (syncOptionsState != null) {
             onNavigateToSyncOptions()
@@ -709,18 +691,6 @@ fun MainScreen(
         onCancel = { viewModel.cancelSyncReadingDataConfirm() }
     )
 
-    val showFirstSyncConfirmDialog = remember { mutableStateOf(false) }
-    LaunchedEffect(firstSyncConfirmState) {
-        showFirstSyncConfirmDialog.value = firstSyncConfirmState != null
-    }
-
-    FirstSyncConfirmDialog(
-        show = showFirstSyncConfirmDialog,
-        onConfirm = { viewModel.confirmFirstSync() },
-        onCancel = { viewModel.cancelFirstSyncConfirm() }
-    )
-
-
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
     val actionAlpha =
         if (scrollBehavior.state.collapsedFraction > 0.5f) 1f else scrollBehavior.state.collapsedFraction * 2f
@@ -821,84 +791,29 @@ fun MainScreen(
                     bottom = 120.dp
                 )
             ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Max)
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Card(
+                if (bandTransferEnabled) {
+                    item {
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            colors = CardDefaults.defaultColors(
-                                color = if (connectionState.isConnected) MiuixTheme.colorScheme.surfaceContainer else MiuixTheme.colorScheme.errorContainer
-                            ),
-                            onClick = {
-                                if (!connectionState.isConnected) {
-                                    viewModel.reconnect()
-                                } else if (bandTransferEnabled && !isMultiSelectMode) {
-                                    showMenuSheet.value = true
-                                }
-                            },
-                            pressFeedbackType = PressFeedbackType.Sink,
-                            showIndication = true
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max)
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = connectionState.statusText,
-                                        style = MiuixTheme.textStyles.title3,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = connectionState.descriptionText,
-                                        style = MiuixTheme.textStyles.body2,
-                                        color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.onErrorContainer.copy(
-                                            alpha = 0.8f
-                                        )
-                                    )
-                                }
-
-                                AnimatedVisibility(
-                                    visible = scrollBehavior.state.collapsedFraction < 0.5f && !isMultiSelectMode && bandTransferEnabled,
-                                    enter = fadeIn(),
-                                    exit = fadeOut(),
-                                    modifier = Modifier
-                                        .align(Alignment.End)
-                                        .padding(top = 8.dp)
-                                ) {
-                                    IconButton(onClick = { showMenuSheet.value = true }) {
-                                        Icon(
-                                            imageVector = MiuixIcons.More,
-                                            contentDescription = "更多选项",
-                                            tint = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        if (bandTransferEnabled && connectionState.isConnected && !bandStorageInfo.isLoading) {
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight(),
                                 colors = CardDefaults.defaultColors(
-                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
+                                    color = if (connectionState.isConnected) MiuixTheme.colorScheme.surfaceContainer else MiuixTheme.colorScheme.errorContainer
                                 ),
-                                onClick = { showStorageHelpDialog.value = true },
+                                onClick = {
+                                    if (!connectionState.isConnected) {
+                                        viewModel.reconnect()
+                                    } else if (bandTransferEnabled && !isMultiSelectMode) {
+                                        showMenuSheet.value = true
+                                    }
+                                },
                                 pressFeedbackType = PressFeedbackType.Sink,
                                 showIndication = true
                             ) {
@@ -906,111 +821,168 @@ fun MainScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(16.dp),
-                                    verticalArrangement = Arrangement.Center
+                                    verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                if (bandStorageInfo.showWarning) {
-                                                    Icon(
-                                                        imageVector = MiuixIcons.Info,
-                                                        contentDescription = null,
-                                                        tint = MiuixTheme.colorScheme.onErrorContainer,
-                                                        modifier = Modifier.size(20.dp)
+                                        Text(
+                                            text = connectionState.statusText,
+                                            style = MiuixTheme.textStyles.title3,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = connectionState.descriptionText,
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.onErrorContainer.copy(
+                                                alpha = 0.8f
+                                            )
+                                        )
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = scrollBehavior.state.collapsedFraction < 0.5f && !isMultiSelectMode && bandTransferEnabled,
+                                        enter = fadeIn(),
+                                        exit = fadeOut(),
+                                        modifier = Modifier
+                                            .align(Alignment.End)
+                                            .padding(top = 8.dp)
+                                    ) {
+                                        IconButton(onClick = { showMenuSheet.value = true }) {
+                                            Icon(
+                                                imageVector = MiuixIcons.More,
+                                                contentDescription = "更多选项",
+                                                tint = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (bandTransferEnabled && connectionState.isConnected && !bandStorageInfo.isLoading) {
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    colors = CardDefaults.defaultColors(
+                                        color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
+                                    ),
+                                    onClick = { showStorageHelpDialog.value = true },
+                                    pressFeedbackType = PressFeedbackType.Sink,
+                                    showIndication = true
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    if (bandStorageInfo.showWarning) {
+                                                        Icon(
+                                                            imageVector = MiuixIcons.Info,
+                                                            contentDescription = null,
+                                                            tint = MiuixTheme.colorScheme.onErrorContainer,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = "手环存储",
+                                                        style = MiuixTheme.textStyles.title3,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
                                                     )
                                                 }
-                                                Text(
-                                                    text = "手环存储",
-                                                    style = MiuixTheme.textStyles.title3,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
-                                                )
+                                                if (bandStorageInfo.product != null) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = bandStorageInfo.product!!,
+                                                        style = MiuixTheme.textStyles.footnote1,
+                                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                                    )
+                                                }
                                             }
-                                            if (bandStorageInfo.product != null) {
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = bandStorageInfo.product!!,
-                                                    style = MiuixTheme.textStyles.footnote1,
-                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                            IconButton(
+                                                onClick = { showStorageHelpDialog.value = true },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = MiuixIcons.Help,
+                                                    contentDescription = "帮助",
+                                                    modifier = Modifier.size(20.dp),
+                                                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                                 )
                                             }
                                         }
-                                        IconButton(
-                                            onClick = { showStorageHelpDialog.value = true },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = MiuixIcons.Help,
-                                                contentDescription = "帮助",
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "实际可用",
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                        )
-                                        Text(
-                                            text = bytesToReadable(bandStorageInfo.actualAvailable),
-                                            style = MiuixTheme.textStyles.body2,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    if (bandStorageInfo.totalStorage > 0) {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        val usableSpace =
-                                            bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
-                                        val progress = if (usableSpace > 0) {
-                                            (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(
-                                                0f,
-                                                1f
-                                            )
-                                        } else 0f
-                                        LinearProgressIndicator(
-                                            progress = progress,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(6.dp),
-                                            colors = ProgressIndicatorDefaults.progressIndicatorColors(
-                                                foregroundColor = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
-                                                backgroundColor = MiuixTheme.colorScheme.surfaceContainerHighest
-                                            )
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${
-                                                bytesToReadable(
-                                                    usableSpace
-                                                )
-                                            }",
-                                            style = MiuixTheme.textStyles.footnote1,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                        Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                    if (bandStorageInfo.showWarning) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "存储空间不足，可能影响功能使用",
-                                            style = MiuixTheme.textStyles.footnote1,
-                                            color = MiuixTheme.colorScheme.onErrorContainer
-                                        )
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "实际可用",
+                                                style = MiuixTheme.textStyles.body2,
+                                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                            )
+                                            Text(
+                                                text = bytesToReadable(bandStorageInfo.actualAvailable),
+                                                style = MiuixTheme.textStyles.body2,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        if (bandStorageInfo.totalStorage > 0) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            val usableSpace =
+                                                bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
+                                            val progress = if (usableSpace > 0) {
+                                                (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(
+                                                    0f,
+                                                    1f
+                                                )
+                                            } else 0f
+                                            LinearProgressIndicator(
+                                                progress = progress,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(6.dp),
+                                                colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                                                    foregroundColor = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
+                                                    backgroundColor = MiuixTheme.colorScheme.surfaceContainerHighest
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${
+                                                    bytesToReadable(
+                                                        usableSpace
+                                                    )
+                                                }",
+                                                style = MiuixTheme.textStyles.footnote1,
+                                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                        if (bandStorageInfo.showWarning) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "存储空间不足，可能影响功能使用",
+                                                style = MiuixTheme.textStyles.footnote1,
+                                                color = MiuixTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
                                     }
                                 }
                             }

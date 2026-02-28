@@ -2,7 +2,6 @@ package com.bandbbs.ebook
 
 import android.Manifest
 import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -48,11 +47,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.notifications.ForegroundTransferService
 import com.bandbbs.ebook.notifications.LiveNotificationManager
+import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionDialog
 import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
 import com.bandbbs.ebook.ui.screens.BandSettingsScreen
 import com.bandbbs.ebook.ui.screens.ChapterListScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
+import com.bandbbs.ebook.ui.screens.PushScreen
 import com.bandbbs.ebook.ui.screens.ReaderScreen
 import com.bandbbs.ebook.ui.screens.SettingsScreen
 import com.bandbbs.ebook.ui.screens.StatisticsScreen
@@ -164,6 +165,8 @@ class MainActivity : ComponentActivity() {
                     val updateCheckState by viewModel.updateCheckState.collectAsState()
                     val globalLoadingState by viewModel.globalLoadingState.collectAsState()
                     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
+                    val pushState by viewModel.pushState.collectAsState()
+                    val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
 
                     var currentScreen by remember { mutableStateOf("home") }
                     val isReaderOpen = chapterToPreview != null
@@ -181,9 +184,20 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    LaunchedEffect(pushState.book) {
+                        if (pushState.book != null) {
+                            currentScreen = "push"
+                        }
+                    }
+
+                    val showFirstSyncConfirmDialog = remember { mutableStateOf(false) }
+                    LaunchedEffect(firstSyncConfirmState) {
+                        showFirstSyncConfirmDialog.value = firstSyncConfirmState != null
+                    }
+
                     Scaffold(
                         bottomBar = {
-                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options" && currentScreen != "chapter_list") {
+                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options" && currentScreen != "chapter_list" && currentScreen != "push") {
                                 NavigationBar {
                                     NavigationBarItem(
                                         selected = currentScreen == "home",
@@ -281,9 +295,9 @@ class MainActivity : ComponentActivity() {
                                 targetState = targetScreenState,
                                 transitionSpec = {
                                     val isEnteringReaderOrBand =
-                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options" || targetState == "chapter_list"
+                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options" || targetState == "chapter_list" || targetState == "push"
                                     val isExitingReaderOrBand =
-                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options" || initialState == "chapter_list"
+                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options" || initialState == "chapter_list" || initialState == "push"
 
                                     if (isEnteringReaderOrBand) {
                                         slideInHorizontally(
@@ -322,7 +336,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 label = "ScreenTransition",
                                 modifier = Modifier.padding(
-                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options" && targetScreenState != "chapter_list")
+                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options" && targetScreenState != "chapter_list" && targetScreenState != "push")
                                         paddingValues.calculateBottomPadding() else 0.dp
                                 )
                             ) { screen ->
@@ -424,6 +438,18 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
+
+                                    "push" -> PushScreen(
+                                        pushState = pushState,
+                                        onBackClick = {
+                                            viewModel.cancelPush()
+                                            currentScreen = "home"
+                                        },
+                                        onCancelOrDone = {
+                                            viewModel.cancelPush()
+                                            currentScreen = "home"
+                                        }
+                                    )
 
                                     "chapter_list" -> {
                                         selectedBookForChapters?.let { book ->
@@ -566,6 +592,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+
+                            // 放在 Screen 切换之后，确保覆盖任何页面（包括 sync_options）
+                            FirstSyncConfirmDialog(
+                                show = showFirstSyncConfirmDialog,
+                                onConfirm = { viewModel.confirmFirstSync() },
+                                onCancel = { viewModel.cancelFirstSyncConfirm() }
+                            )
                         }
                     }
                 }

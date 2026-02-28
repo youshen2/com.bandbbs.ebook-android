@@ -68,8 +68,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
 import com.bandbbs.ebook.ui.components.PdfPageViewer
-import com.bandbbs.ebook.ui.screens.PageTurnMode
-import com.bandbbs.ebook.ui.screens.loadReaderSettings
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage

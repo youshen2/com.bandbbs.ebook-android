@@ -357,10 +357,13 @@ class PushHandler(
             currentTransferChapters = sortedIndices
             currentTransferSyncCover = syncCover
             currentTransferIsCoverAlreadySynced = isCoverAlreadySynced
-            currentTransferChapterIndex = 0
+            currentTransferChapterIndex = sortedIndices.firstOrNull() ?: 0
 
-            val firstChapterName = db.chapterDao().getChapterInfoForBook(bookEntity.id)
-                .find { it.index == sortedIndices.first() }?.name ?: ""
+            val chapterInfoList = db.chapterDao().getChapterInfoForBook(bookEntity.id)
+            val transferChapters = chapterInfoList
+                .filter { sortedIndices.contains(it.index) }
+                .sortedBy { it.index }
+            val firstChapterName = transferChapters.firstOrNull()?.name ?: ""
 
             val startFromIndex = sortedIndices.first()
             val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
@@ -369,6 +372,16 @@ class PushHandler(
                 if (syncCover && !isCoverAlreadySynced) bookEntity.coverImagePath else null
 
             withContext(Dispatchers.Main) {
+                pushState.update {
+                    it.copy(
+                        transferChapters = transferChapters,
+                        currentChapterIndex = currentTransferChapterIndex.takeIf { idx ->
+                            idx > 0 || sortedIndices.contains(
+                                idx
+                            )
+                        }
+                    )
+                }
                 addTransferLog("开始传输，共 ${sortedIndices.size} 章")
                 if (coverImagePath != null) {
                     addTransferLog("包含封面图片")
@@ -451,7 +464,10 @@ class PushHandler(
                                 preview = preview,
                                 speed = speed,
                                 statusText = "正在推送 $progressPercent%",
-                                isTransferring = true
+                                isTransferring = true,
+                                currentChapterIndex = currentTransferChapterIndex.takeIf { idx ->
+                                    sortedIndices.contains(idx)
+                                } ?: it.currentChapterIndex
                             )
                         }
                         val title = "$progressPercent%"
@@ -471,6 +487,7 @@ class PushHandler(
                             val currentIndex = (p * sortedIndices.size).toInt()
                                 .coerceAtMost(sortedIndices.size - 1)
                             currentTransferChapterIndex = sortedIndices[currentIndex]
+                            pushState.update { it.copy(currentChapterIndex = currentTransferChapterIndex) }
                         }
                     },
                     onCoverProgress = { current, total ->
@@ -713,7 +730,10 @@ class PushHandler(
                                     preview = preview,
                                     speed = speed,
                                     statusText = "正在推送 $progressPercent%",
-                                    isTransferring = true
+                                    isTransferring = true,
+                                    currentChapterIndex = currentTransferChapterIndex.takeIf { idx ->
+                                        retryChapters.contains(idx)
+                                    } ?: it.currentChapterIndex
                                 )
                             }
                             val title = "$progressPercent%"
@@ -733,6 +753,7 @@ class PushHandler(
                                 val currentIndex = (p * retryChapters.size).toInt()
                                     .coerceAtMost(retryChapters.size - 1)
                                 currentTransferChapterIndex = retryChapters[currentIndex]
+                                pushState.update { it.copy(currentChapterIndex = currentTransferChapterIndex) }
                             }
                         },
                         onCoverProgress = { current, total ->

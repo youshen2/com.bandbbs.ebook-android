@@ -28,7 +28,14 @@ data class PushState(
     val isSuccess: Boolean = false,
     val isSendingCover: Boolean = false,
     val coverProgress: String = "",
-    val isTransferring: Boolean = false
+    val isTransferring: Boolean = false,
+    /**
+     * 本次传输的章节列表（只包含被选中传输的章节，按 index 升序）。
+     * 用于 Push 详情页面展示“总列表”。
+     */
+    val transferChapters: List<ChapterInfo> = emptyList(),
+    /** 当前正在传输的章节 index（ChapterInfo.index），用于高亮与“当前章节”展示。 */
+    val currentChapterIndex: Int? = null
 )
 
 data class ImportFileInfo(
