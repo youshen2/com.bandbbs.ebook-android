@@ -375,11 +375,7 @@ class PushHandler(
                 pushState.update {
                     it.copy(
                         transferChapters = transferChapters,
-                        currentChapterIndex = currentTransferChapterIndex.takeIf { idx ->
-                            idx > 0 || sortedIndices.contains(
-                                idx
-                            )
-                        }
+                        currentChapterIndex = currentTransferChapterIndex.takeIf { idx -> idx > 0 || sortedIndices.contains(idx) }
                     )
                 }
                 addTransferLog("开始传输，共 ${sortedIndices.size} 章")

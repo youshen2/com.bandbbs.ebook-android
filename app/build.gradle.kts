@@ -104,6 +104,9 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 
+    implementation("androidx.navigation3:navigation3-runtime:1.0.1")
     implementation("top.yukonga.miuix.kmp:miuix:0.8.4")
     implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.4")
+    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.4")
+    implementation("top.yukonga.miuix.kmp:miuix-navigation3-adaptive:0.8.5")
 }

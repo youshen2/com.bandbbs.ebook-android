@@ -1,6 +1,7 @@
 package com.bandbbs.ebook
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,10 +16,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.with
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,14 +31,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +49,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.ui.NavDisplay
 import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.notifications.ForegroundTransferService
 import com.bandbbs.ebook.notifications.LiveNotificationManager
@@ -84,6 +93,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+sealed interface Screen : NavKey {
+    data object HomePager : Screen // 将原来的 Home、Statistics、Settings 整合为此 Pager 页面
+    data object BandSettings : Screen
+    data object SyncOptions : Screen
+    data object Push : Screen
+    data object ChapterList : Screen
+    data object Reader : Screen
+}
+
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
@@ -115,6 +133,8 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
 
+    @SuppressLint("UnusedContentLambdaTargetStateParameter")
+    @OptIn(ExperimentalAnimationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -168,26 +188,39 @@ class MainActivity : ComponentActivity() {
                     val pushState by viewModel.pushState.collectAsState()
                     val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
 
-                    var currentScreen by remember { mutableStateOf("home") }
-                    val isReaderOpen = chapterToPreview != null
+                    val backStack = remember { mutableStateListOf<NavKey>(Screen.HomePager) }
+                    val currentScreen = backStack.lastOrNull() ?: Screen.HomePager
                     val statisticsScrollState = rememberScrollState()
 
+                    // HorizontalPager 状态
+                    val pagerState = rememberPagerState(pageCount = { 3 })
+
+                    val navigateTo = { screen: Screen ->
+                        if (backStack.lastOrNull() != screen) {
+                            backStack.add(screen)
+                        }
+                    }
+                    val navigateBack = {
+                        if (backStack.size > 1) {
+                            backStack.removeAt(backStack.size - 1)
+                        }
+                    }
+                    val navigateToHome = {
+                        backStack.clear()
+                        backStack.add(Screen.HomePager)
+                    }
+
                     LaunchedEffect(syncOptionsState) {
-                        if (syncOptionsState != null) {
-                            currentScreen = "sync_options"
-                        }
+                        if (syncOptionsState != null) navigateTo(Screen.SyncOptions)
                     }
-
                     LaunchedEffect(selectedBookForChapters) {
-                        if (selectedBookForChapters != null) {
-                            currentScreen = "chapter_list"
-                        }
+                        if (selectedBookForChapters != null) navigateTo(Screen.ChapterList)
                     }
-
                     LaunchedEffect(pushState.book) {
-                        if (pushState.book != null) {
-                            currentScreen = "push"
-                        }
+                        if (pushState.book != null) navigateTo(Screen.Push)
+                    }
+                    LaunchedEffect(chapterToPreview) {
+                        if (chapterToPreview != null) navigateTo(Screen.Reader)
                     }
 
                     val showFirstSyncConfirmDialog = remember { mutableStateOf(false) }
@@ -195,25 +228,27 @@ class MainActivity : ComponentActivity() {
                         showFirstSyncConfirmDialog.value = firstSyncConfirmState != null
                     }
 
+                    val showBottomBar = currentScreen is Screen.HomePager
+
                     Scaffold(
                         bottomBar = {
-                            if (!isReaderOpen && currentScreen != "band_settings" && currentScreen != "sync_options" && currentScreen != "chapter_list" && currentScreen != "push") {
+                            if (showBottomBar) {
                                 NavigationBar {
                                     NavigationBarItem(
-                                        selected = currentScreen == "home",
-                                        onClick = { currentScreen = "home" },
+                                        selected = pagerState.currentPage == 0,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                                         icon = MiuixIcons.VerticalSplit,
                                         label = "主页"
                                     )
                                     NavigationBarItem(
-                                        selected = currentScreen == "statistics",
-                                        onClick = { currentScreen = "statistics" },
+                                        selected = pagerState.currentPage == 1,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
                                         icon = MiuixIcons.Sort,
                                         label = "统计"
                                     )
                                     NavigationBarItem(
-                                        selected = currentScreen == "settings",
-                                        onClick = { currentScreen = "settings" },
+                                        selected = pagerState.currentPage == 2,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
                                         icon = MiuixIcons.Settings,
                                         label = "设置"
                                     )
@@ -221,7 +256,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         floatingActionButton = {
-                            if (!isReaderOpen && currentScreen == "home") {
+                            if (currentScreen is Screen.HomePager && pagerState.currentPage == 0) {
                                 FloatingActionButton(
                                     onClick = {
                                         filePickerLauncher.launch(
@@ -248,7 +283,164 @@ class MainActivity : ComponentActivity() {
                         },
                         floatingActionButtonPosition = FabPosition.End
                     ) { paddingValues ->
-                        Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = if (showBottomBar) paddingValues.calculateBottomPadding() else 0.dp)
+                        ) {
+
+                            val entryProvider = remember(backStack) {
+                                entryProvider<NavKey> {
+                                    entry<Screen.HomePager> {
+                                        HorizontalPager(
+                                            state = pagerState,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) { page ->
+                                            when (page) {
+                                                0 -> MainScreen(
+                                                    viewModel = viewModel,
+                                                    onImportCoverClick = { coverPickerLauncher.launch(arrayOf("image/*")) },
+                                                    onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
+                                                )
+                                                1 -> StatisticsScreen(
+                                                    onBackClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                                    onBookStatClick = { bookName ->
+                                                        BookStatisticsActivity.start(this@MainActivity, bookName)
+                                                    },
+                                                    scrollState = statisticsScrollState
+                                                )
+                                                2 -> SettingsScreen(
+                                                    viewModel = viewModel,
+                                                    onBackClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                                    onBackupClick = {
+                                                        val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                                        createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
+                                                    },
+                                                    onRestoreClick = { openDocumentLauncher.launch(arrayOf("application/json")) },
+                                                    onBandSettingsClick = {
+                                                        if (viewModel.connectionState.value.isConnected) {
+                                                            viewModel.loadBandSettings()
+                                                            navigateTo(Screen.BandSettings)
+                                                        } else {
+                                                            Toast.makeText(context, "请先连接手环", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    entry<Screen.BandSettings> {
+                                        BandSettingsScreen(
+                                            viewModel = viewModel,
+                                            onBackClick = navigateBack
+                                        )
+                                    }
+                                    entry<Screen.SyncOptions> {
+                                        syncOptionsState?.let { state ->
+                                            SyncOptionsScreen(
+                                                state = state,
+                                                onBackClick = {
+                                                    viewModel.cancelPush()
+                                                    navigateBack()
+                                                },
+                                                onConfirm = { selectedChapters, syncCover ->
+                                                    viewModel.confirmPush(state.book, selectedChapters, syncCover)
+                                                    navigateToHome()
+                                                },
+                                                onResyncCoverOnly = {
+                                                    viewModel.cancelPush()
+                                                    viewModel.syncCoverOnly(state.book)
+                                                    navigateToHome()
+                                                },
+                                                onDeleteChapters = { chapterIndices ->
+                                                    viewModel.deleteBandChapters(state.book, chapterIndices)
+                                                }
+                                            )
+                                        }
+                                    }
+                                    entry<Screen.Push> {
+                                        PushScreen(
+                                            pushState = pushState,
+                                            onBackClick = {
+                                                viewModel.cancelPush()
+                                                navigateToHome()
+                                            },
+                                            onCancelOrDone = {
+                                                viewModel.cancelPush()
+                                                navigateToHome()
+                                            }
+                                        )
+                                    }
+                                    entry<Screen.ChapterList> {
+                                        selectedBookForChapters?.let { book ->
+                                            ChapterListScreen(
+                                                book = book,
+                                                chapters = chaptersForSelectedBook,
+                                                readOnly = chapterToPreview != null,
+                                                onBackClick = {
+                                                    viewModel.closeChapterList()
+                                                    navigateBack()
+                                                },
+                                                onPreviewChapter = { chapterId ->
+                                                    scope.launch {
+                                                        viewModel.closeChapterList()
+                                                        viewModel.showChapterPreview(chapterId)
+                                                    }
+                                                },
+                                                onEditContent = { chapterId -> viewModel.openChapterEditor(chapterId) },
+                                                onSaveChapterContent = { chapterId, title, content ->
+                                                    viewModel.saveChapterContent(chapterId, title, content)
+                                                },
+                                                onRenameChapter = { chapterId, title -> viewModel.renameChapter(chapterId, title) },
+                                                onAddChapter = { index, title, content -> viewModel.addChapter(index, title, content) },
+                                                onMergeChapters = { ids, title, insertBlank -> viewModel.mergeChapters(ids, title, insertBlank) },
+                                                onBatchRename = { ids, prefix, suffix, startNumber, padding ->
+                                                    viewModel.batchRenameChapters(ids, prefix, suffix, startNumber, padding)
+                                                },
+                                                loadChapterContent = { chapterId -> viewModel.loadChapterContent(chapterId) }
+                                            )
+                                        }
+                                    }
+                                    entry<Screen.Reader> {
+                                        ReaderScreen(
+                                            viewModel = viewModel,
+                                            onClose = {
+                                                viewModel.closeChapterPreview()
+                                                navigateBack()
+                                            },
+                                            onChapterChange = { chapterId -> viewModel.showChapterPreview(chapterId) },
+                                            onTableOfContents = {
+                                                viewModel.chapterToPreview.value?.let {
+                                                    val bookId = viewModel.chaptersForPreview.value.firstOrNull()?.bookId
+                                                    val currentBook = viewModel.books.value.find { it.id == bookId }
+                                                    currentBook?.let { viewModel.showChapterList(it) }
+                                                }
+                                            },
+                                            loadChapterContent = viewModel::loadChapterContent
+                                        )
+                                    }
+                                }
+                            }
+
+                            val entries = rememberDecoratedNavEntries(
+                                backStack = backStack,
+                                entryProvider = entryProvider
+                            )
+
+                            AnimatedContent(
+                                targetState = currentScreen,
+                                transitionSpec = {
+                                    slideInHorizontally { fullWidth -> fullWidth } + fadeIn() with
+                                            slideOutHorizontally { fullWidth -> -fullWidth } + fadeOut()
+                                },
+                                label = "MainScreenTransition"
+                            ) {
+                                NavDisplay(
+                                    entries = entries,
+                                    onBack = navigateBack
+                                )
+                            }
+
                             val showTutorialState = remember { mutableStateOf(firstLaunchTutorial) }
                             if (showTutorialState.value) {
                                 SuperDialog(
@@ -286,240 +478,15 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            val targetScreenState = when {
-                                currentScreen == "chapter_list" -> "chapter_list"
-                                isReaderOpen -> "reader"
-                                else -> currentScreen
-                            }
-                            AnimatedContent(
-                                targetState = targetScreenState,
-                                transitionSpec = {
-                                    val isEnteringReaderOrBand =
-                                        targetState == "reader" || targetState == "band_settings" || targetState == "sync_options" || targetState == "chapter_list" || targetState == "push"
-                                    val isExitingReaderOrBand =
-                                        initialState == "reader" || initialState == "band_settings" || initialState == "sync_options" || initialState == "chapter_list" || initialState == "push"
-
-                                    if (isEnteringReaderOrBand) {
-                                        slideInHorizontally(
-                                            initialOffsetX = { it },
-                                            animationSpec = tween(300)
-                                        ) togetherWith
-                                                slideOutHorizontally(
-                                                    targetOffsetX = { -it },
-                                                    animationSpec = tween(300)
-                                                )
-                                    } else if (isExitingReaderOrBand) {
-                                        slideInHorizontally(
-                                            initialOffsetX = { -it },
-                                            animationSpec = tween(300)
-                                        ) togetherWith
-                                                slideOutHorizontally(
-                                                    targetOffsetX = { it },
-                                                    animationSpec = tween(300)
-                                                )
-                                    } else {
-                                        val screenOrder = listOf("home", "statistics", "settings")
-                                        val direction =
-                                            if (screenOrder.indexOf(targetState) > screenOrder.indexOf(
-                                                    initialState
-                                                )
-                                            ) 1 else -1
-                                        slideInHorizontally(
-                                            initialOffsetX = { it * direction },
-                                            animationSpec = tween(300)
-                                        ) togetherWith
-                                                slideOutHorizontally(
-                                                    targetOffsetX = { -it * direction },
-                                                    animationSpec = tween(300)
-                                                )
-                                    }
-                                },
-                                label = "ScreenTransition",
-                                modifier = Modifier.padding(
-                                    bottom = if (targetScreenState != "reader" && targetScreenState != "band_settings" && targetScreenState != "sync_options" && targetScreenState != "chapter_list" && targetScreenState != "push")
-                                        paddingValues.calculateBottomPadding() else 0.dp
-                                )
-                            ) { screen ->
-                                when (screen) {
-                                    "reader" -> ReaderScreen(
-                                        viewModel = viewModel,
-                                        onClose = { viewModel.closeChapterPreview() },
-                                        onChapterChange = { chapterId ->
-                                            viewModel.showChapterPreview(
-                                                chapterId
-                                            )
-                                        },
-                                        onTableOfContents = {
-                                            viewModel.chapterToPreview.value?.let {
-                                                val bookId =
-                                                    viewModel.chaptersForPreview.value.firstOrNull()?.bookId
-                                                val currentBook =
-                                                    viewModel.books.value.find { it.id == bookId }
-                                                currentBook?.let { viewModel.showChapterList(it) }
-                                            }
-                                        },
-                                        loadChapterContent = viewModel::loadChapterContent
-                                    )
-
-                                    "home" -> MainScreen(
-                                        viewModel = viewModel,
-                                        onImportCoverClick = { coverPickerLauncher.launch(arrayOf("image/*")) },
-                                        onNavigateToSyncOptions = { currentScreen = "sync_options" }
-                                    )
-
-                                    "statistics" -> StatisticsScreen(
-                                        onBackClick = { currentScreen = "home" },
-                                        onBookStatClick = { bookName ->
-                                            BookStatisticsActivity.start(
-                                                this@MainActivity,
-                                                bookName
-                                            )
-                                        },
-                                        scrollState = statisticsScrollState
-                                    )
-
-                                    "settings" -> SettingsScreen(
-                                        viewModel = viewModel,
-                                        onBackClick = { currentScreen = "home" },
-                                        onBackupClick = {
-                                            val dateStr = SimpleDateFormat(
-                                                "yyyyMMdd_HHmmss",
-                                                Locale.getDefault()
-                                            ).format(Date())
-                                            createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
-                                        },
-                                        onRestoreClick = { openDocumentLauncher.launch(arrayOf("application/json")) },
-                                        onBandSettingsClick = {
-                                            if (viewModel.connectionState.value.isConnected) {
-                                                viewModel.loadBandSettings()
-                                                currentScreen = "band_settings"
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "请先连接手环",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    )
-
-                                    "band_settings" -> BandSettingsScreen(
-                                        viewModel = viewModel,
-                                        onBackClick = { currentScreen = "settings" }
-                                    )
-
-                                    "sync_options" -> {
-                                        syncOptionsState?.let { state ->
-                                            SyncOptionsScreen(
-                                                state = state,
-                                                onBackClick = {
-                                                    viewModel.cancelPush()
-                                                    currentScreen = "home"
-                                                },
-                                                onConfirm = { selectedChapters, syncCover ->
-                                                    viewModel.confirmPush(
-                                                        state.book,
-                                                        selectedChapters,
-                                                        syncCover
-                                                    )
-                                                    currentScreen = "home"
-                                                },
-                                                onResyncCoverOnly = {
-                                                    viewModel.cancelPush()
-                                                    viewModel.syncCoverOnly(state.book)
-                                                    currentScreen = "home"
-                                                },
-                                                onDeleteChapters = { chapterIndices ->
-                                                    viewModel.deleteBandChapters(
-                                                        state.book,
-                                                        chapterIndices
-                                                    )
-                                                }
-                                            )
-                                        }
-                                    }
-
-                                    "push" -> PushScreen(
-                                        pushState = pushState,
-                                        onBackClick = {
-                                            viewModel.cancelPush()
-                                            currentScreen = "home"
-                                        },
-                                        onCancelOrDone = {
-                                            viewModel.cancelPush()
-                                            currentScreen = "home"
-                                        }
-                                    )
-
-                                    "chapter_list" -> {
-                                        selectedBookForChapters?.let { book ->
-                                            ChapterListScreen(
-                                                book = book,
-                                                chapters = chaptersForSelectedBook,
-                                                readOnly = isReaderOpen,
-                                                onBackClick = {
-                                                    viewModel.closeChapterList()
-                                                    currentScreen =
-                                                        if (isReaderOpen) "reader" else "home"
-                                                },
-                                                onPreviewChapter = { chapterId ->
-                                                    scope.launch {
-                                                        viewModel.closeChapterList()
-                                                        viewModel.showChapterPreview(chapterId)
-                                                        currentScreen =
-                                                            if (isReaderOpen) "reader" else "home"
-                                                    }
-                                                },
-                                                onEditContent = { chapterId ->
-                                                    viewModel.openChapterEditor(chapterId)
-                                                },
-                                                onSaveChapterContent = { chapterId, title, content ->
-                                                    viewModel.saveChapterContent(
-                                                        chapterId,
-                                                        title,
-                                                        content
-                                                    )
-                                                },
-                                                onRenameChapter = { chapterId, title ->
-                                                    viewModel.renameChapter(chapterId, title)
-                                                },
-                                                onAddChapter = { index, title, content ->
-                                                    viewModel.addChapter(index, title, content)
-                                                },
-                                                onMergeChapters = { ids, title, insertBlank ->
-                                                    viewModel.mergeChapters(ids, title, insertBlank)
-                                                },
-                                                onBatchRename = { ids, prefix, suffix, startNumber, padding ->
-                                                    viewModel.batchRenameChapters(
-                                                        ids,
-                                                        prefix,
-                                                        suffix,
-                                                        startNumber,
-                                                        padding
-                                                    )
-                                                },
-                                                loadChapterContent = { chapterId ->
-                                                    viewModel.loadChapterContent(chapterId)
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-
                             val showIpSheetState = remember { mutableStateOf(false) }
-
                             LaunchedEffect(ipCollectionPermissionState.showSheet) {
                                 showIpSheetState.value = ipCollectionPermissionState.showSheet
                             }
-
                             LaunchedEffect(showIpSheetState.value) {
                                 if (!showIpSheetState.value && ipCollectionPermissionState.showSheet) {
                                     viewModel.dismissIpCollectionPermissionSheet()
                                 }
                             }
-
                             IpCollectionPermissionDialog(
                                 show = showIpSheetState,
                                 isFirstTime = ipCollectionPermissionState.isFirstTime,
@@ -593,7 +560,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // 放在 Screen 切换之后，确保覆盖任何页面（包括 sync_options）
                             FirstSyncConfirmDialog(
                                 show = showFirstSyncConfirmDialog,
                                 onConfirm = { viewModel.confirmFirstSync() },
