@@ -11,7 +11,11 @@ fun EbookTheme(
     darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
-    val controller = remember { ThemeController( if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light) }
+    val controller = remember(darkTheme) {
+        ThemeController(
+            if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light
+        )
+    }
     MiuixTheme(
         controller = controller,
         content = content
