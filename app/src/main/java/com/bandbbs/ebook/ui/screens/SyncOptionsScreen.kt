@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -102,10 +103,12 @@ fun SyncOptionsScreen(
 
     LaunchedEffect(state.syncedChapterIndices, state.totalChapters, state.chapters) {
         if (state.chapters.isNotEmpty() && selectedChapters.isEmpty()) {
-            val firstUnsyncedIndex = state.chapters.firstOrNull {
-                it.index !in state.syncedChapterIndices
-            }?.index ?: state.totalChapters
-            selectedChapters = (firstUnsyncedIndex until state.totalChapters).toSet()
+            val unsyncedChapterIndices = state.chapters
+                .filter { it.index !in state.syncedChapterIndices }
+                .map { it.index }
+                .toSet()
+
+            selectedChapters = unsyncedChapterIndices
         }
     }
 
@@ -370,6 +373,8 @@ fun SyncOptionsScreen(
             show = showChapterDialog,
             onDismissRequest = { showChapterDialog.value = false }
         ) {
+            val chapterListState = rememberLazyListState()
+
             Column {
                 Card(
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -386,7 +391,8 @@ fun SyncOptionsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 400.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp)),
+                    state = chapterListState
                 ) {
                     itemsIndexed(
                         items = sortedChapters,
@@ -407,6 +413,15 @@ fun SyncOptionsScreen(
                                 }
                             }
                         )
+                    }
+                }
+
+                LaunchedEffect(showChapterDialog.value, sortedChapters, state.syncedChapterIndices) {
+                    if (showChapterDialog.value) {
+                        val firstUnsyncedPosition = sortedChapters.indexOfFirst { it.index !in state.syncedChapterIndices }
+                        if (firstUnsyncedPosition >= 0) {
+                            chapterListState.scrollToItem(firstUnsyncedPosition)
+                        }
                     }
                 }
 
