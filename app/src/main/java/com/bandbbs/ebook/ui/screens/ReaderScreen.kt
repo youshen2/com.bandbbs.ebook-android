@@ -67,10 +67,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
-import com.bandbbs.ebook.ui.components.PageTurnMode
 import com.bandbbs.ebook.ui.components.PdfPageViewer
-import com.bandbbs.ebook.ui.components.ReaderSettingsBottomSheet
-import com.bandbbs.ebook.ui.components.loadReaderSettings
+import com.bandbbs.ebook.ui.screens.PageTurnMode
+import com.bandbbs.ebook.ui.screens.loadReaderSettings
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage
@@ -226,7 +225,7 @@ fun ReaderScreen(
         }
     }
 
-    BackHandler(enabled = true) {
+    BackHandler(enabled = !showSettings.value && !showBookmarks.value) {
         chapter?.let { ch ->
             if (!isPdf) {
                 saveReadingPosition(
@@ -829,16 +828,13 @@ fun ReaderScreen(
             }
         }
 
-        SuperBottomSheet(
-            show = showSettings,
-            title = "阅读设置",
-            onDismissRequest = { showSettings.value = false }
-        ) {
-            ReaderSettingsBottomSheet(
+        if (showSettings.value) {
+            ReaderSettingsScreen(
                 currentSettings = readerSettings,
                 onSettingsChanged = { newSettings ->
                     readerSettings = newSettings
-                }
+                },
+                onBackClick = { showSettings.value = false }
             )
         }
 
