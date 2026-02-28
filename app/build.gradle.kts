@@ -21,8 +21,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 126105
-        versionName = "V26.1.5"
+        versionCode = 126200
+        versionName = "V26.2.0"
 
         resConfigs("zh")
     }
