@@ -45,6 +45,7 @@ import top.yukonga.miuix.kmp.extra.SuperSwitch
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 import kotlin.math.roundToInt
 
 private const val PREFS_NAME = "reader_settings_prefs"
@@ -208,6 +209,7 @@ fun ReaderSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
                 top = paddingValues.calculateTopPadding(),

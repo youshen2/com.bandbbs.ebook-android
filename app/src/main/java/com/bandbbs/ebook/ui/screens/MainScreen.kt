@@ -106,6 +106,7 @@ import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Update
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 import kotlin.math.roundToInt
 
 private enum class ItemType {
@@ -797,6 +798,7 @@ fun MainScreen(
                 state = scrollState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .padding(paddingValues),
                 contentPadding = PaddingValues(
@@ -804,7 +806,7 @@ fun MainScreen(
                     top = 8.dp,
                     end = 16.dp,
                     bottom = 120.dp
-                )
+                ),
             ) {
                 if (bandTransferEnabled) {
                     item {
