@@ -64,6 +64,7 @@ import top.yukonga.miuix.kmp.icon.extended.SelectAll
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 private enum class SortType(val label: String) {
     INDEX_ASC("按索引升序"),
@@ -302,6 +303,7 @@ fun ChapterListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
+                    .scrollEndHaptic()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
                 state = listState,
                 contentPadding = PaddingValues(

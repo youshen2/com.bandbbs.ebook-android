@@ -46,6 +46,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import kotlin.math.roundToInt
 
 private const val PREFS_NAME = "reader_settings_prefs"
@@ -210,6 +211,7 @@ fun ReaderSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .overScrollVertical()
+                .scrollEndHaptic()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
                 top = paddingValues.calculateTopPadding(),

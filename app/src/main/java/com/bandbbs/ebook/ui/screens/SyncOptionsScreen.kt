@@ -63,6 +63,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.io.File
 
 private val sortOptions = listOf(
@@ -153,6 +154,7 @@ fun SyncOptionsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
+                    .scrollEndHaptic()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
                 contentPadding = PaddingValues(
                     top = paddingValues.calculateTopPadding(),

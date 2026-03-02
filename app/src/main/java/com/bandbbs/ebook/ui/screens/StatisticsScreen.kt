@@ -57,6 +57,7 @@ import top.yukonga.miuix.kmp.icon.extended.Report
 import top.yukonga.miuix.kmp.icon.extended.Timer
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -151,6 +152,7 @@ fun StatisticsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .overScrollVertical()
+                        .scrollEndHaptic()
                         .nestedScroll(scrollBehavior.nestedScrollConnection),
                     contentPadding = PaddingValues(
                         start = 16.dp,
@@ -982,6 +984,7 @@ fun BookStatisticsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .overScrollVertical()
+                        .scrollEndHaptic()
                         .nestedScroll(scrollBehavior.nestedScrollConnection),
                     contentPadding = PaddingValues(
                         start = 16.dp,

@@ -107,6 +107,7 @@ import top.yukonga.miuix.kmp.icon.extended.Update
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import kotlin.math.roundToInt
 
 private enum class ItemType {
@@ -799,6 +800,7 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
+                    .scrollEndHaptic()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .padding(paddingValues),
                 contentPadding = PaddingValues(
