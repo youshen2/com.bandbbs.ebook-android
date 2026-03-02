@@ -411,7 +411,6 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onPreviewChapter = { chapterId ->
                                                 scope.launch {
-                                                    viewModel.closeChapterList()
                                                     viewModel.showChapterPreview(chapterId)
                                                 }
                                             },
