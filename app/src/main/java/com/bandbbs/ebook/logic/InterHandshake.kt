@@ -7,7 +7,6 @@ import android.util.Log
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -58,6 +57,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     }
 
     init {
+        // 初始监听握手信号
         addListener(TYPE) { payload ->
             try {
                 val data: HandshakePayload = json.decodeFromString(payload)
@@ -73,15 +73,15 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                     }
                 }
 
-                if (currentCount > 0) {
-                    if (promise != null && !connected) {
-                        connected = true
-                        isHandshaking = false
-                        promise?.complete(Unit)
-                        onConnected.invoke()
-                    }
+                // 只要收到信号，就认为链路通畅，回传版本信息
+                if (promise != null && !connected) {
+                    connected = true
+                    isHandshaking = false
+                    promise?.complete(Unit)
+                    onConnected.invoke()
                 }
 
+                // 响应握手，发送手机端版本号
                 if (currentCount < 3) {
                     scope.launch {
                         try {
@@ -94,6 +94,16 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 }
             } catch (e: Exception) {
                 Log.e("Handshake", "Error handling handshake payload", e)
+            }
+        }
+
+        // 初始化时立即尝试同步一次版本
+        scope.launch {
+            try {
+                super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
+                    .await()
+            } catch (e: Exception) {
+                Log.e("Handshake", "Initial handshake failed", e)
             }
         }
     }
@@ -120,7 +130,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                         handler.postDelayed(timeoutCb, TIMEOUT)
 
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}").await()
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
+                                .await()
                             handshakePromise.await()
                             handler.removeCallbacks(timeoutCb)
                         } catch (e: Exception) {
@@ -156,7 +167,9 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         onDisconnected = callback
     }
 
-    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit = { _, _ -> }
+    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit =
+        { _, _ -> }
+
     fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
         onVersionIncompatible = callback
     }
@@ -170,7 +183,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         if (!connected && !isHandshaking) {
             scope.launch {
                 try {
-                    sendMessage("{\"tag\":\"$TYPE\",\"ping\":true}").await()
+                    super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
+                        .await()
                 } catch (e: Exception) {
                     Log.e("Handshake", "Manual init failed", e)
                 }

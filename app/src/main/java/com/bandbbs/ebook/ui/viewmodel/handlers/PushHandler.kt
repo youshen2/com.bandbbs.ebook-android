@@ -62,13 +62,6 @@ class PushHandler(
 
         scope.launch {
             try {
-                connectionHandler.reconnect()
-
-                delay(500L)
-
-                val conn = connectionHandler.getHandshake()
-                conn.init()
-                delay(500L)
                 val bookStatus = withContext(Dispatchers.IO) {
                     fileConn.getBookStatus(book.name)
                 }
@@ -110,11 +103,6 @@ class PushHandler(
         scope.launch {
             try {
                 if (book.format == "pdf") return@launch
-                connectionHandler.reconnect()
-                delay(500L)
-                val conn = connectionHandler.getHandshake()
-                conn.init()
-                delay(500L)
                 val fileConn = connectionHandler.getFileConnection()
                 val bookStatus = withContext(Dispatchers.IO) {
                     fileConn.getBookStatus(book.name)
