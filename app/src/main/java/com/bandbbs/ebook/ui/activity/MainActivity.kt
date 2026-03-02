@@ -79,9 +79,9 @@ import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.icon.extended.VerticalSplit
-import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -244,6 +244,11 @@ class MainActivity : ComponentActivity() {
                     floatingActionButton = {
                         if (currentScreen is Screen.HomePager && pagerState.currentPage == 0) {
                             FloatingActionButton(
+                                modifier = Modifier
+                                    .pressable(
+                                        interactionSource = null,
+                                        indication = SinkFeedback()
+                                    ),
                                 onClick = {
                                     filePickerLauncher.launch(
                                         arrayOf(

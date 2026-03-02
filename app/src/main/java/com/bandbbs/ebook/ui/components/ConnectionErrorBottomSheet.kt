@@ -31,6 +31,8 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun ConnectionErrorBottomSheet(
@@ -134,7 +136,14 @@ fun ConnectionErrorBottomSheet(
         ) {
             Button(
                 onClick = onDismiss,
-                modifier = if (isUnsupportedDevice) Modifier.fillMaxWidth() else Modifier.weight(1f),
+                modifier = if (isUnsupportedDevice) Modifier
+                    .fillMaxWidth()
+                    .pressable(
+                        interactionSource = null,
+                        indication = SinkFeedback()
+                    ) else Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback()),
                 colors = ButtonDefaults.buttonColors()
             ) {
                 Text("知道了")
@@ -144,7 +153,9 @@ fun ConnectionErrorBottomSheet(
                 Spacer(modifier = Modifier.width(16.dp))
                 Button(
                     onClick = onRetry,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
                     colors = ButtonDefaults.buttonColorsPrimary()
                 ) {
                     Text(

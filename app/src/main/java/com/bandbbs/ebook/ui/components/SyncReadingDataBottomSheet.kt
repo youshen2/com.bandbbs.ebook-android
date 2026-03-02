@@ -42,6 +42,8 @@ import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun SyncReadingDataBottomSheet(
@@ -303,7 +305,9 @@ fun SyncReadingDataBottomSheet(
                     show.value = false
                     onDismiss()
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pressable(interactionSource = null, indication = SinkFeedback()),
                 colors = if (!state.isSyncing) ButtonDefaults.buttonColorsPrimary() else ButtonDefaults.buttonColors()
             ) {
                 Text(if (!state.isSyncing) "确定" else "取消")

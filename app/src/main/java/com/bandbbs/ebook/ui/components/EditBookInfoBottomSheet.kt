@@ -36,6 +36,8 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun EditBookInfoBottomSheet(
@@ -174,7 +176,9 @@ fun EditBookInfoBottomSheet(
                 }
             },
             enabled = !isResyncing,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .pressable(interactionSource = null, indication = SinkFeedback())
         ) {
             if (isResyncing) {
                 CircularProgressIndicator(
@@ -199,7 +203,9 @@ fun EditBookInfoBottomSheet(
             TextButton(
                 text = "取消",
                 onClick = onCancel,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
             Spacer(Modifier.width(16.dp))
             TextButton(
@@ -218,7 +224,9 @@ fun EditBookInfoBottomSheet(
                         )
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
         }
 

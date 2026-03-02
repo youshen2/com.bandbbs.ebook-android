@@ -41,6 +41,9 @@ import top.yukonga.miuix.kmp.extra.SuperListPopup
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -196,7 +199,9 @@ private fun BookmarkItem(
         cornerRadius = 16.dp,
         colors = CardDefaults.defaultColors(
             color = MiuixTheme.colorScheme.secondaryVariant
-        )
+        ),
+        showIndication = true,
+        pressFeedbackType = PressFeedbackType.Sink
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -316,7 +321,9 @@ private fun EditBookmarkDialog(
                 TextButton(
                     text = "取消",
                     onClick = { showDialog.value = false },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
                 )
                 Spacer(Modifier.width(16.dp))
                 TextButton(
@@ -327,7 +334,9 @@ private fun EditBookmarkDialog(
                         }
                     },
                     enabled = bookmarkName.isNotBlank(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
                     colors = ButtonDefaults.textButtonColorsPrimary()
                 )
             }

@@ -45,7 +45,9 @@ import top.yukonga.miuix.kmp.extra.SuperSwitch
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.pressable
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import kotlin.math.roundToInt
 
@@ -390,7 +392,11 @@ fun ReaderSettingsScreen(
                         colors = ButtonDefaults.textButtonColorsPrimary(),
                         onClick = {
                             update { ReaderSettings() }
-                        }
+                        },
+                        modifier = Modifier.pressable(
+                            interactionSource = null,
+                            indication = SinkFeedback()
+                        )
                     )
                 }
             }

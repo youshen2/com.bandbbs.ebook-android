@@ -47,6 +47,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun PushScreen(
@@ -86,7 +88,8 @@ fun PushScreen(
                     onClick = onCancelOrDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
                     colors = if (pushState.isFinished) {
                         ButtonDefaults.buttonColorsPrimary()
                     } else {

@@ -19,6 +19,8 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.extra.SuperDialogDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun IpCollectionPermissionDialog(
@@ -64,7 +66,9 @@ fun IpCollectionPermissionDialog(
                 TextButton(
                     text = "再想想",
                     onClick = { isSecondConfirmation = false },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
                 )
                 Spacer(Modifier.width(20.dp))
                 TextButton(
@@ -73,13 +77,17 @@ fun IpCollectionPermissionDialog(
                         show.value = false
                         onDeny()
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
                 )
             } else {
                 TextButton(
                     text = "不允许",
                     onClick = { isSecondConfirmation = true },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
                 )
                 Spacer(Modifier.width(20.dp))
                 TextButton(
@@ -88,7 +96,9 @@ fun IpCollectionPermissionDialog(
                         show.value = false
                         onAllow()
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
                     colors = ButtonDefaults.textButtonColorsPrimary()
                 )
             }

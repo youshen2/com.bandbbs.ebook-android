@@ -62,7 +62,9 @@ import top.yukonga.miuix.kmp.extra.SuperSwitch
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.pressable
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.io.File
 
@@ -258,6 +260,10 @@ fun SyncOptionsScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(horizontal = 4.dp)
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                                 TextButton(
                                     text = "清空",
@@ -265,6 +271,10 @@ fun SyncOptionsScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(horizontal = 4.dp)
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                             }
                             Row(
@@ -294,6 +304,10 @@ fun SyncOptionsScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(horizontal = 4.dp)
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                                 TextButton(
                                     text = "已读",
@@ -310,13 +324,21 @@ fun SyncOptionsScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(horizontal = 4.dp)
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                                 if (onDeleteChapters != null && selectedCount > 0) {
                                     Button(
                                         onClick = { onDeleteChapters(selectedChapters) },
                                         modifier = Modifier
                                             .weight(1f)
-                                            .padding(horizontal = 4.dp),
+                                            .padding(horizontal = 4.dp)
+                                            .pressable(
+                                                interactionSource = null,
+                                                indication = SinkFeedback()
+                                            ),
                                         colors = ButtonDefaults.buttonColors(
                                             color = MiuixTheme.colorScheme.error
                                         )
@@ -345,7 +367,12 @@ fun SyncOptionsScreen(
                         ) {
                             Button(
                                 onClick = onBackClick,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .pressable(
+                                        interactionSource = null,
+                                        indication = SinkFeedback()
+                                    ),
                                 colors = ButtonDefaults.buttonColors()
                             ) {
                                 Text("取消")
@@ -358,7 +385,12 @@ fun SyncOptionsScreen(
                                     }
                                 },
                                 enabled = selectedChapters.isNotEmpty(),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .pressable(
+                                        interactionSource = null,
+                                        indication = SinkFeedback()
+                                    ),
                                 colors = ButtonDefaults.buttonColorsPrimary()
                             ) {
                                 Text(

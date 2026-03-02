@@ -33,6 +33,8 @@ import top.yukonga.miuix.kmp.icon.extended.Phone
 import top.yukonga.miuix.kmp.icon.extended.Stopwatch
 import top.yukonga.miuix.kmp.icon.extended.Update
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun UpdateCheckBottomSheet(
@@ -187,7 +189,9 @@ fun UpdateCheckBottomSheet(
                             onDismiss()
                             onOpenWebsite()
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .pressable(interactionSource = null, indication = SinkFeedback()),
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
                         Text(
@@ -198,7 +202,9 @@ fun UpdateCheckBottomSheet(
                 } else {
                     Button(
                         onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pressable(interactionSource = null, indication = SinkFeedback())
                     ) {
                         Text("确定")
                     }

@@ -43,6 +43,8 @@ import top.yukonga.miuix.kmp.icon.extended.Play
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 import java.io.File
 
 @Composable
@@ -175,7 +177,9 @@ fun BookItem(
                             showDetailsDialog.value = false
                             onContinueReadingClick()
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .pressable(interactionSource = null, indication = SinkFeedback()),
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
                         Icon(
@@ -198,7 +202,9 @@ fun BookItem(
                                 onSyncClick()
                             },
                             enabled = isSyncEnabled,
-                            modifier = Modifier.weight(1.6f)
+                            modifier = Modifier
+                                .weight(1.6f)
+                                .pressable(interactionSource = null, indication = SinkFeedback())
                         ) {
                             Icon(
                                 MiuixIcons.Refresh,
@@ -220,7 +226,9 @@ fun BookItem(
                             showDetailsDialog.value = false
                             onChapterListClick()
                         },
-                        modifier = Modifier.weight(1.7f)
+                        modifier = Modifier
+                            .weight(1.7f)
+                            .pressable(interactionSource = null, indication = SinkFeedback())
                     ) {
                         Icon(
                             MiuixIcons.ListView,
@@ -235,7 +243,9 @@ fun BookItem(
                     Box(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { showMenu.value = true },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pressable(interactionSource = null, indication = SinkFeedback())
                         ) {
                             Icon(
                                 MiuixIcons.More,

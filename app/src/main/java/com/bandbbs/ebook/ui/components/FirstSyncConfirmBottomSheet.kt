@@ -28,6 +28,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun FirstSyncConfirmDialog(
@@ -96,7 +98,9 @@ fun FirstSyncConfirmDialog(
                 TextButton(
                     text = "取消",
                     onClick = dismiss,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
                 )
                 Spacer(Modifier.width(20.dp))
                 TextButton(
@@ -106,7 +110,9 @@ fun FirstSyncConfirmDialog(
                         onConfirm()
                     },
                     enabled = !isCountingDown,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
                     colors = ButtonDefaults.textButtonColorsPrimary()
                 )
             }

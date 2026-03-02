@@ -37,6 +37,8 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun CategoryBottomSheet(
@@ -135,7 +137,9 @@ fun CategoryBottomSheet(
             TextButton(
                 text = "取消",
                 onClick = onDismiss,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
             Spacer(Modifier.width(16.dp))
             TextButton(
@@ -145,7 +149,9 @@ fun CategoryBottomSheet(
                     onCategorySelected(localSelectedCategory)
                     onDismiss()
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
         }
 
@@ -180,7 +186,9 @@ fun CategoryBottomSheet(
                     showCreateDialog.value = false
                     newCategoryName = ""
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
             Spacer(modifier = Modifier.width(16.dp))
             TextButton(
@@ -194,7 +202,9 @@ fun CategoryBottomSheet(
                 },
                 enabled = newCategoryName.isNotBlank(),
                 colors = ButtonDefaults.textButtonColorsPrimary(),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
         }
     }

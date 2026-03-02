@@ -74,7 +74,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             if (newCount < 3) {
                 scope.launch {
                     try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":$PHONE_VERSION_CODE}").await()
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":$PHONE_VERSION_CODE}")
+                            .await()
                     } catch (e: Exception) {
                         Log.e("Handshake", "Failed to send handshake reply", e)
                     }
@@ -111,7 +112,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                             connected = true
                         }
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}").await()
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
+                                .await()
                             handshakePromise.await()
                         } catch (e: Exception) {
                             cpe(e)
@@ -132,14 +134,24 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private data class HandshakePayload(val count: Int, val tag: String, val version: Int? = null)
 
     private var onConnected = {}
-    fun setOnConnected(callback: () -> Unit) { onConnected = callback }
+    fun setOnConnected(callback: () -> Unit) {
+        onConnected = callback
+    }
 
     private var onDisconnected = {}
-    fun setOnDisconnected(callback: () -> Unit) { onDisconnected = callback }
+    fun setOnDisconnected(callback: () -> Unit) {
+        onDisconnected = callback
+    }
 
-    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit = { _, _ -> }
-    fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) { onVersionIncompatible = callback }
+    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit =
+        { _, _ -> }
+
+    fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
+        onVersionIncompatible = callback
+    }
 
     private var onBandVersionReceived: (version: Int) -> Unit = { }
-    fun setOnBandVersionReceived(callback: (version: Int) -> Unit) { onBandVersionReceived = callback }
+    fun setOnBandVersionReceived(callback: (version: Int) -> Unit) {
+        onBandVersionReceived = callback
+    }
 }

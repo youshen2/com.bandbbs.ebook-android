@@ -18,6 +18,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun OverwriteConfirmDialog(
@@ -71,7 +73,9 @@ fun OverwriteConfirmDialog(
                     show.value = false
                     onCancel()
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
             Spacer(modifier = Modifier.width(16.dp))
             TextButton(
@@ -80,7 +84,9 @@ fun OverwriteConfirmDialog(
                     show.value = false
                     onOverwrite()
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback()),
                 colors = ButtonDefaults.textButtonColorsPrimary()
             )
         }

@@ -24,6 +24,8 @@ import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun VersionIncompatibleDialog(
@@ -117,7 +119,9 @@ fun VersionIncompatibleDialog(
             TextButton(
                 text = "知道了",
                 onClick = dismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
         }
     }

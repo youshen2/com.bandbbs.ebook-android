@@ -1017,7 +1017,9 @@ fun MainScreen(
                                 .padding(vertical = 8.dp),
                             colors = CardDefaults.defaultColors(
                                 color = MiuixTheme.colorScheme.primaryContainer
-                            )
+                            ),
+                            showIndication = true,
+                            pressFeedbackType = PressFeedbackType.Sink
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1303,7 +1305,10 @@ fun MainScreen(
                                                 }
                                             ) { change, dragAmount ->
                                                 val (dragX, _) = dragAmount
-                                                val newOffset = (swipeOffsetX + dragX).coerceIn(maxSwipeDistance, 0f)
+                                                val newOffset = (swipeOffsetX + dragX).coerceIn(
+                                                    maxSwipeDistance,
+                                                    0f
+                                                )
                                                 swipeOffsetX = newOffset
                                                 change.consume()
                                             }
@@ -1334,7 +1339,9 @@ fun MainScreen(
                                                 ) {
                                                     Row(
                                                         verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        horizontalArrangement = Arrangement.spacedBy(
+                                                            6.dp
+                                                        )
                                                     ) {
                                                         Icon(
                                                             imageVector = MiuixIcons.Edit,

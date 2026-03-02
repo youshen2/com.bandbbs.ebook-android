@@ -56,6 +56,7 @@ import top.yukonga.miuix.kmp.icon.extended.Recent
 import top.yukonga.miuix.kmp.icon.extended.Report
 import top.yukonga.miuix.kmp.icon.extended.Timer
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.text.SimpleDateFormat
@@ -169,7 +170,9 @@ fun StatisticsScreen(
                                 colors = CardDefaults.defaultColors(
                                     color = MiuixTheme.colorScheme.primaryContainer
                                 ),
-                                insideMargin = PaddingValues(16.dp)
+                                insideMargin = PaddingValues(16.dp),
+                                showIndication = true,
+                                pressFeedbackType = PressFeedbackType.Sink
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -984,7 +987,6 @@ fun BookStatisticsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .overScrollVertical()
-                        .scrollEndHaptic()
                         .nestedScroll(scrollBehavior.nestedScrollConnection),
                     contentPadding = PaddingValues(
                         start = 16.dp,

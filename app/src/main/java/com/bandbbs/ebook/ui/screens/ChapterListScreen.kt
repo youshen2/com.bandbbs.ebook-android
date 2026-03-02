@@ -63,7 +63,9 @@ import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.SelectAll
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.pressable
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 private enum class SortType(val label: String) {
@@ -364,7 +366,11 @@ fun ChapterListScreen(
                                 BasicComponentDefaults.titleColor()
                             },
                             summary = if (!isPdf) "${chapter.wordCount} 字" else null,
-                            onClick = { onPreviewChapter(chapter.id) }
+                            onClick = { onPreviewChapter(chapter.id) },
+                            modifier = Modifier.pressable(
+                                interactionSource = null,
+                                indication = SinkFeedback()
+                            )
                         )
                     }
                 }

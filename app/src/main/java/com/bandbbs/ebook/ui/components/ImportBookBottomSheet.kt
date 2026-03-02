@@ -37,6 +37,8 @@ import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.extra.SuperSwitch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 sealed class RenamePreviewResult {
     data class Success(val text: String) : RenamePreviewResult()
@@ -184,7 +186,8 @@ fun ImportBookBottomSheet(
                             SmallTitle(text = "分章方式")
                             val methodsList = ChapterSplitter.methods.toList()
                             val selectedIndex =
-                                methodsList.indexOfFirst { it.first == splitMethod }.coerceAtLeast(0)
+                                methodsList.indexOfFirst { it.first == splitMethod }
+                                    .coerceAtLeast(0)
 
                             Card(
                                 colors = CardDefaults.defaultColors(
@@ -202,7 +205,8 @@ fun ImportBookBottomSheet(
                                     TextField(
                                         value = wordsPerChapterText,
                                         onValueChange = {
-                                            if (it.all { c -> c.isDigit() }) wordsPerChapterText = it
+                                            if (it.all { c -> c.isDigit() }) wordsPerChapterText =
+                                                it
                                         },
                                         label = "每章字数",
                                         singleLine = true,
@@ -311,7 +315,9 @@ fun ImportBookBottomSheet(
             TextButton(
                 text = "取消",
                 onClick = onCancel,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
             Spacer(Modifier.width(16.dp))
             TextButton(
@@ -336,7 +342,9 @@ fun ImportBookBottomSheet(
                         customRegex
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             )
         }
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))

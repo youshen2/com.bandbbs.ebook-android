@@ -29,6 +29,8 @@ import top.yukonga.miuix.kmp.extra.SuperBottomSheet
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.SinkFeedback
+import top.yukonga.miuix.kmp.utils.pressable
 
 @Composable
 fun ImportReportBottomSheet(
@@ -113,7 +115,9 @@ fun ImportReportBottomSheet(
                     show.value = false
                     onDismiss()
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pressable(interactionSource = null, indication = SinkFeedback())
             ) {
                 Text("完成")
             }
