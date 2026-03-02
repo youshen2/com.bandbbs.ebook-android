@@ -129,7 +129,7 @@ open class Interconn(context: Context) {
         }
     }
 
-    suspend fun init() {
+    open suspend fun init() {
         if (currentNode != null) return
         connect().await()
         auth().await()

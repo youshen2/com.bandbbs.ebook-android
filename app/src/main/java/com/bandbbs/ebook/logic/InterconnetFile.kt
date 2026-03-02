@@ -14,6 +14,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -42,6 +44,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         encodeDefaults = true
         isLenient = true
     }
+    private val mutex = Mutex()
     private var chapterIndices: List<Int> = emptyList()
     private lateinit var chapterDao: ChapterDao
     private var bookId: Int = 0
@@ -361,10 +364,11 @@ class InterconnetFile(private val conn: InterHandshake) {
         onProgress: ((progress: Double, message: String) -> Unit)? = null,
         onSuccess: ((message: String) -> Unit)? = null,
         onError: ((message: String) -> Unit)? = null
-    ): Boolean {
+    ): Boolean = mutex.withLock {
         return try {
+            if (busy) return false
             conn.init()
-            delay(500L)
+            delay(200L)
             deleteChaptersCompleter = CompletableDeferred()
             this.deleteChaptersProgressCallback = onProgress
             this.deleteChaptersSuccessCallback = onSuccess
@@ -390,10 +394,11 @@ class InterconnetFile(private val conn: InterHandshake) {
         bookName: String,
         onSuccess: ((message: String) -> Unit)? = null,
         onError: ((message: String) -> Unit)? = null
-    ): Boolean {
+    ): Boolean = mutex.withLock {
         return try {
+            if (busy) return false
             conn.init()
-            delay(500L)
+            delay(200L)
             deleteBookCompleter = CompletableDeferred()
             this.deleteBookSuccessCallback = onSuccess
             this.deleteBookErrorCallback = onError
@@ -411,77 +416,90 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
     }
 
-    suspend fun getBookStatus(bookName: String): BookStatusResult {
+    suspend fun getBookStatus(bookName: String): BookStatusResult = mutex.withLock {
         conn.init()
-        delay(500L)
+        delay(100L)
         bookStatusCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookStatus(filename = bookName)))
             .await()
         return bookStatusCompleter!!.await()
     }
 
-    suspend fun getReadingData(bookName: String): ReadingDataResult {
+    suspend fun getReadingData(bookName: String): ReadingDataResult = mutex.withLock {
         conn.init()
-        delay(500L)
+        delay(100L)
         readingDataCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetReadingData(filename = bookName)))
             .await()
-        val result = readingDataCompleter!!.await()
-        return ReadingDataResult(progress = result.progress, readingTime = result.readingTime)
+        return try {
+            val result = readingDataCompleter!!.await()
+            ReadingDataResult(progress = result.progress, readingTime = result.readingTime)
+        } catch (e: Exception) {
+            ReadingDataResult(null, null)
+        }
     }
 
-    suspend fun getStorageInfo() {
+    suspend fun getStorageInfo() = mutex.withLock {
         conn.init()
-        delay(500L)
+        delay(100L)
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetStorageInfo())).await()
     }
 
-    suspend fun getSettings(keys: List<String>): Map<String, String> {
+    suspend fun getSettings(keys: List<String>): Map<String, String> = mutex.withLock {
         conn.init()
-        delay(500L)
+        delay(100L)
         settingsCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetSettings(keys = keys))).await()
-        return settingsCompleter!!.await()
+        return try {
+            settingsCompleter!!.await()
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
-    suspend fun setSettings(settings: Map<String, String>): Boolean {
+    suspend fun setSettings(settings: Map<String, String>): Boolean = mutex.withLock {
         conn.init()
-        delay(200L)
+        delay(100L)
         settingsUpdateCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings)))
             .await()
         return settingsUpdateCompleter!!.await()
     }
 
-    suspend fun getBookmarks(bookName: String): List<BookmarkData> {
+    suspend fun getBookmarks(bookName: String): List<BookmarkData> = mutex.withLock {
         conn.init()
-        delay(500L)
+        delay(100L)
         bookmarksCompleter = CompletableDeferred()
         conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookmarks(filename = bookName)))
             .await()
-        return bookmarksCompleter!!.await()
+        return try {
+            bookmarksCompleter!!.await()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
-    suspend fun setBookmarks(bookName: String, bookmarks: List<BookmarkData>): Boolean {
-        conn.init()
-        delay(200L)
-        bookmarksUpdateCompleter = CompletableDeferred()
-        conn.sendMessage(
-            json.encodeToString(
-                FileMessagesToSend.SetBookmarks(
-                    filename = bookName,
-                    bookmarks = bookmarks
+    suspend fun setBookmarks(bookName: String, bookmarks: List<BookmarkData>): Boolean =
+        mutex.withLock {
+            conn.init()
+            delay(100L)
+            bookmarksUpdateCompleter = CompletableDeferred()
+            conn.sendMessage(
+                json.encodeToString(
+                    FileMessagesToSend.SetBookmarks(
+                        filename = bookName,
+                        bookmarks = bookmarks
+                    )
                 )
-            )
-        ).await()
-        return bookmarksUpdateCompleter!!.await()
-    }
+            ).await()
+            return bookmarksUpdateCompleter!!.await()
+        }
 
     suspend fun setReadingData(
         bookName: String,
         progress: String? = null,
         readingTime: String? = null
-    ) {
+    ) = mutex.withLock {
         conn.sendMessage(
             json.encodeToString(
                 FileMessagesToSend.SetReadingData(
@@ -499,7 +517,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         onError: (message: String, count: Int) -> Unit,
         onSuccess: (message: String, count: Int) -> Unit,
         onCoverProgress: (current: Int, total: Int) -> Unit
-    ) {
+    ) = mutex.withLock {
+        if (busy) return@withLock
         conn.setOnDisconnected {
             onError("连接断开", 0)
             resetTransferState()
@@ -523,7 +542,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         bookStatus: String?,
         category: String?,
         localCategory: String?
-    ) {
+    ) = mutex.withLock {
         conn.sendMessage(
             json.encodeToString(
                 FileMessagesToSend.UpdateBookInfo(
@@ -552,11 +571,12 @@ class InterconnetFile(private val conn: InterHandshake) {
         onSuccess: (message: String, count: Int) -> Unit,
         onProgress: (progress: Double, String, status: String) -> Unit,
         onCoverProgress: (current: Int, total: Int) -> Unit = { _, _ -> }
-    ) {
+    ) = mutex.withLock {
+        if (busy) return@withLock
         if (bookEntity?.format == "pdf") {
             onError("PDF 禁止传输到手环", 0)
             resetTransferState()
-            return
+            return@withLock
         }
         conn.setOnDisconnected {
             onError("连接断开", 0)
@@ -736,7 +756,6 @@ class InterconnetFile(private val conn: InterHandshake) {
                 currentCoverChunkIndex = 0
 
                 withContext(Dispatchers.Main) {
-                    // Waiting for ready signal handled in listener
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -820,7 +839,6 @@ class InterconnetFile(private val conn: InterHandshake) {
             try {
                 conn.sendMessage(json.encodeToString(FileMessagesToSend.Cancel())).await()
             } catch (e: Exception) {
-                // Ignore
             }
         }
         resetTransferState()
@@ -851,11 +869,11 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
     }
 
-    // Data classes for messages (kept same structure, simplified formatting)
     @Serializable
     private sealed class FileMessagesFromDevice {
         @Serializable
         data class Header(val tag: String = "file", val type: String) : FileMessagesFromDevice()
+
         @Serializable
         data class Ready(val type: String = "ready", val usage: Long, val count: Int) :
             FileMessagesFromDevice()

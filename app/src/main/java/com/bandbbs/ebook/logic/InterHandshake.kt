@@ -19,9 +19,9 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         private const val MIN_BAND_VERSION_CODE = 260228
     }
 
-    private var promise: Deferred<Unit>? = null
+    private var promise: CompletableDeferred<Unit>? = null
     private var connected = false
-    private var resolve: (() -> Unit)? = null
+    private var isHandshaking = false
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
 
@@ -29,105 +29,118 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         private set
 
     override val onMessageListener = OnMessageReceivedListener { _, message ->
+        resetTimeout()
+        val messageStr = message.decodeToString()
+        try {
+            val msg = json.decodeFromString<Message>(messageStr)
+            onMessage[msg.tag]?.invoke(messageStr)
+        } catch (e: Exception) {
+            Log.e("Handshake", "Error parsing message: $messageStr", e)
+        }
+    }
+
+    private fun resetTimeout() {
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
-            promise = null
-            resolve = null
-            connected = false
+            Log.w("Handshake", "Connection timeout, resetting state")
+            cleanup()
             onDisconnected.invoke()
         }
         handler.postDelayed(timeoutRunnable!!, TIMEOUT)
-        val messageStr = message.decodeToString()
-        val msg = json.decodeFromString<Message>(messageStr)
-        onMessage[msg.tag]?.invoke(messageStr)
+    }
+
+    private fun cleanup() {
+        promise?.cancel()
+        promise = null
+        connected = false
+        isHandshaking = false
+        timeoutRunnable?.let { handler.removeCallbacks(it) }
     }
 
     init {
         addListener(TYPE) { payload ->
-            val data: HandshakePayload = json.decodeFromString(payload)
-            val currentCount = data.count
-            val bandVersion = data.version
+            try {
+                val data: HandshakePayload = json.decodeFromString(payload)
+                val currentCount = data.count
+                val bandVersion = data.version
 
-            connectedBandVersion = bandVersion
+                connectedBandVersion = bandVersion
 
-            if (bandVersion != null) {
-                onBandVersionReceived.invoke(bandVersion)
-                if (bandVersion < MIN_BAND_VERSION_CODE) {
-                    onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
-                }
-            } else {
-                onVersionIncompatible.invoke(0, MIN_BAND_VERSION_CODE)
-            }
-
-            if (currentCount > 0) {
-                if (promise != null) {
-                    resolve?.invoke()
-                    resolve = null
-                    promise = null
-                    onConnected.invoke()
-                } else {
-                    promise = CompletableDeferred(Unit)
-                }
-            }
-
-            val newCount = currentCount + 1
-            if (newCount < 3) {
-                scope.launch {
-                    try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":$newCount,\"version\":$PHONE_VERSION_CODE}")
-                            .await()
-                    } catch (e: Exception) {
-                        Log.e("Handshake", "Failed to send handshake reply", e)
+                if (bandVersion != null) {
+                    onBandVersionReceived.invoke(bandVersion)
+                    if (bandVersion < MIN_BAND_VERSION_CODE) {
+                        onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
                     }
                 }
+
+                if (currentCount > 0) {
+                    if (promise != null && !connected) {
+                        connected = true
+                        isHandshaking = false
+                        promise?.complete(Unit)
+                        onConnected.invoke()
+                    }
+                }
+
+                if (currentCount < 3) {
+                    scope.launch {
+                        try {
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":${currentCount + 1},\"version\":$PHONE_VERSION_CODE}")
+                                .await()
+                        } catch (e: Exception) {
+                            Log.e("Handshake", "Failed to send handshake reply", e)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Handshake", "Error handling handshake payload", e)
             }
         }
     }
 
     override fun sendMessage(message: String): CompletableDeferred<Unit> {
-        return CompletableDeferred<Unit>().apply {
-            val cpe = { e: Exception -> completeExceptionally(e) }
-            scope.launch {
+        val result = CompletableDeferred<Unit>()
+        scope.launch {
+            try {
                 if (!connected) {
-                    if (promise != null) {
-                        try {
-                            promise?.await()
-                        } catch (e: Exception) {
-                            cpe(e)
-                            return@launch
-                        }
+                    if (isHandshaking) {
+                        promise?.await()
                     } else {
+                        isHandshaking = true
                         val handshakePromise = CompletableDeferred<Unit>()
                         promise = handshakePromise
+
                         val timeoutCb = Runnable {
-                            promise = null
-                            resolve = null
-                            connected = false
-                            handshakePromise.completeExceptionally(Exception("握手超时，可尝试重启手机端"))
+                            if (!connected) {
+                                isHandshaking = false
+                                promise = null
+                                handshakePromise.completeExceptionally(Exception("握手超时，请检查设备连接状态"))
+                            }
                         }
                         handler.postDelayed(timeoutCb, TIMEOUT)
-                        resolve = {
-                            handshakePromise.complete(Unit)
-                            handler.removeCallbacks(timeoutCb)
-                            connected = true
-                        }
+
                         try {
-                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
-                                .await()
+                            super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}").await()
                             handshakePromise.await()
+                            handler.removeCallbacks(timeoutCb)
                         } catch (e: Exception) {
-                            cpe(e)
+                            isHandshaking = false
+                            promise = null
+                            handler.removeCallbacks(timeoutCb)
+                            result.completeExceptionally(e)
                             return@launch
                         }
                     }
                 }
-                try {
-                    complete(super.sendMessage(message).await())
-                } catch (e: Exception) {
-                    cpe(e)
-                }
+
+                resetTimeout()
+                val sendResult = super.sendMessage(message).await()
+                result.complete(sendResult)
+            } catch (e: Exception) {
+                result.completeExceptionally(e)
             }
         }
+        return result
     }
 
     @Serializable
@@ -143,9 +156,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         onDisconnected = callback
     }
 
-    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit =
-        { _, _ -> }
-
+    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit = { _, _ -> }
     fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
         onVersionIncompatible = callback
     }
@@ -153,5 +164,17 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private var onBandVersionReceived: (version: Int) -> Unit = { }
     fun setOnBandVersionReceived(callback: (version: Int) -> Unit) {
         onBandVersionReceived = callback
+    }
+
+    override suspend fun init() {
+        if (!connected && !isHandshaking) {
+            scope.launch {
+                try {
+                    sendMessage("{\"tag\":\"$TYPE\",\"ping\":true}").await()
+                } catch (e: Exception) {
+                    Log.e("Handshake", "Manual init failed", e)
+                }
+            }
+        }
     }
 }
