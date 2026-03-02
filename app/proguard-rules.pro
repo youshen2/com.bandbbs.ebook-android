@@ -4,9 +4,6 @@
 -optimizationpasses 5
 -allowaccessmodification
 -mergeinterfacesaggressively
--overloadaggressively
--repackageclasses 'a'
--flattenpackagehierarchy 'a'
 
 # 恢复默认优化，仅禁用已知在某些架构上有问题的算术优化
 -optimizations !code/simplification/arithmetic,!code/simplification/cast
