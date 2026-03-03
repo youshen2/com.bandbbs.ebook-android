@@ -32,7 +32,8 @@ fun VersionIncompatibleDialog(
     show: MutableState<Boolean>,
     currentVersion: Int,
     requiredVersion: Int,
-    onDismiss: () -> Unit = {}
+    onDismiss: () -> Unit = {},
+    onGetNewVersionClick: () -> Unit = {}
 ) {
     val dismiss = {
         show.value = false
@@ -115,7 +116,17 @@ fun VersionIncompatibleDialog(
                     )
                 }
             }
-
+            TextButton(
+                text = "获取手环端新版本",
+                onClick = {
+                    dismiss()
+                    onGetNewVersionClick()
+                },
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .fillMaxWidth()
+                    .pressable(interactionSource = null, indication = SinkFeedback())
+            )
             TextButton(
                 text = "知道了",
                 onClick = dismiss,

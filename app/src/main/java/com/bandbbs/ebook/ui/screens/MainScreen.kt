@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.screens
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -33,6 +32,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,6 +57,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.AppDatabase
+import com.bandbbs.ebook.ui.components.BandPackageExportDialog
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
@@ -66,6 +71,7 @@ import com.bandbbs.ebook.ui.components.VersionIncompatibleDialog
 import com.bandbbs.ebook.ui.components.cell.BookItem
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.ui.viewmodel.SyncMode
+import com.bandbbs.ebook.utils.BandAppExporter
 import com.bandbbs.ebook.utils.StorageUtils
 import com.bandbbs.ebook.utils.bytesToReadable
 import kotlinx.coroutines.Dispatchers
@@ -164,6 +170,31 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
+
+    val showBandExportDialog = remember { mutableStateOf(false) }
+    val bandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
+    val showExportSuccessDialog = remember { mutableStateOf(false) }
+    val lastExportUri = remember { mutableStateOf<Uri?>(null) }
+
+    val exportBandLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("*/*")
+    ) { uri ->
+        val model = bandModelForExport.value
+        if (uri != null && model != null) {
+            scope.launch {
+                val result = BandAppExporter.exportBandPackage(context, model, uri)
+                if (result.isSuccess) {
+                    lastExportUri.value = uri
+                    showExportSuccessDialog.value = true
+                }
+                Toast.makeText(
+                    context,
+                    if (result.isSuccess) "导出成功" else "导出失败: ${result.exceptionOrNull()?.message ?: "未知错误"}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
 
     LaunchedEffect(bandStorageInfo.totalStorage) {
         if (bandStorageInfo.totalStorage > 0 && !bandStorageInfo.isLoading) {
@@ -530,7 +561,10 @@ fun MainScreen(
             show = showVersionIncompatibleDialog,
             currentVersion = state.currentVersion,
             requiredVersion = state.requiredVersion,
-            onDismiss = { viewModel.dismissVersionIncompatible() }
+            onDismiss = { viewModel.dismissVersionIncompatible() },
+            onGetNewVersionClick = {
+                showBandExportDialog.value = true
+            }
         )
     }
 
@@ -539,6 +573,50 @@ fun MainScreen(
             onNavigateToSyncOptions()
         }
     }
+
+    SuperDialog(
+        title = "导出成功",
+        summary = "手环端安装包已保存到你选择的位置。",
+        show = showExportSuccessDialog,
+        onDismissRequest = { showExportSuccessDialog.value = false }
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TextButton(
+                text = "关闭",
+                onClick = { showExportSuccessDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "打开文件位置",
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                onClick = {
+                    val uri: Uri? = lastExportUri.value
+                    if (uri != null) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = uri
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "无法打开文件位置", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    showExportSuccessDialog.value = false
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+
+    BandPackageExportDialog(
+        show = showBandExportDialog,
+        onModelSelected = { model ->
+            bandModelForExport.value = model
+            exportBandLauncher.launch(BandAppExporter.getFileName(model))
+        }
+    )
 
     val showImportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importState) { showImportSheet.value = importState != null }

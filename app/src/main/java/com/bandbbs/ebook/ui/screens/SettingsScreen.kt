@@ -2,6 +2,9 @@ package com.bandbbs.ebook.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,13 +20,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.bandbbs.ebook.ui.components.BandPackageExportDialog
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import com.bandbbs.ebook.utils.BandAppExporter
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -54,6 +60,7 @@ import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -80,8 +87,33 @@ fun SettingsScreen(
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
     val showGetLatestVersionDialog = remember { mutableStateOf(false) }
     val showCleanDirtyDataDialog = remember { mutableStateOf(false) }
+    val showBandExportDialog = remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val bandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
+    val showExportSuccessDialog = remember { mutableStateOf(false) }
+    val lastExportUri = remember { mutableStateOf<Uri?>(null) }
+
+    val exportBandLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("*/*")
+    ) { uri ->
+        val model = bandModelForExport.value
+        if (uri != null && model != null) {
+            scope.launch {
+                val result = BandAppExporter.exportBandPackage(context, model, uri)
+                if (result.isSuccess) {
+                    lastExportUri.value = uri
+                    showExportSuccessDialog.value = true
+                }
+                Toast.makeText(
+                    context,
+                    if (result.isSuccess) "导出成功" else "导出失败: ${result.exceptionOrNull()?.message ?: "未知错误"}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
@@ -305,10 +337,10 @@ fun SettingsScreen(
                         )
                     }
                     SuperArrow(
-                        title = "获取最新版本",
-                        summary = "跳转到所有版本的下载页面",
+                        title = "保存手环端",
+                        summary = "选择手环型号并导出安装包",
                         startAction = { SettingsIcon(MiuixIcons.Download) },
-                        onClick = { showGetLatestVersionDialog.value = true }
+                        onClick = { showBandExportDialog.value = true }
                     )
                 }
             }
@@ -434,6 +466,42 @@ fun SettingsScreen(
     }
 
     SuperDialog(
+        title = "导出成功",
+        summary = "手环端安装包已保存到你选择的位置。",
+        show = showExportSuccessDialog,
+        onDismissRequest = { showExportSuccessDialog.value = false }
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(
+                text = "关闭",
+                onClick = { showExportSuccessDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "打开文件位置",
+                onClick = {
+                    val uri = lastExportUri.value
+                    if (uri != null) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = uri
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "无法打开文件位置", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    showExportSuccessDialog.value = false
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColorsPrimary()
+            )
+        }
+    }
+
+    SuperDialog(
         title = "各文件夹前缀介绍",
         summary = "MiBand和BandPro前缀是给小米手环8Pro、9Pro用的\nRW前缀是给REDMI Watch5、6用的\nBand9前缀是给小米手环9和9NFC用的\nBand10前缀是给小米手环10用的",
         show = showGetLatestVersionDialog,
@@ -464,6 +532,14 @@ fun SettingsScreen(
             )
         }
     }
+
+    BandPackageExportDialog(
+        show = showBandExportDialog,
+        onModelSelected = { model ->
+            bandModelForExport.value = model
+            exportBandLauncher.launch(BandAppExporter.getFileName(model))
+        }
+    )
 
     AboutBottomSheet(show = showAboutSheet)
 }
