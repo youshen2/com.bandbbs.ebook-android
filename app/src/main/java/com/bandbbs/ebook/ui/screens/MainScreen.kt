@@ -1,5 +1,10 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -32,11 +37,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -61,6 +61,7 @@ import com.bandbbs.ebook.ui.components.BandPackageExportDialog
 import com.bandbbs.ebook.ui.components.CategoryBottomSheet
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
+import com.bandbbs.ebook.ui.components.FirstBandExportWarningDialog
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
@@ -160,6 +161,8 @@ fun MainScreen(
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
+    val showBandExportTip by viewModel.showBandExportTip.collectAsState()
+    val bandExportWarningConfirmed by viewModel.bandExportWarningConfirmed.collectAsState()
 
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
@@ -175,6 +178,8 @@ fun MainScreen(
     val bandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
     val showExportSuccessDialog = remember { mutableStateOf(false) }
     val lastExportUri = remember { mutableStateOf<Uri?>(null) }
+    val showExportWarningDialog = remember { mutableStateOf(false) }
+    val pendingBandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
 
     val exportBandLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*")
@@ -610,11 +615,30 @@ fun MainScreen(
         }
     }
 
+    if (showExportWarningDialog.value) {
+        FirstBandExportWarningDialog(
+            show = showExportWarningDialog,
+            onConfirm = {
+                val model = pendingBandModelForExport.value
+                if (model != null) {
+                    viewModel.confirmBandExportWarning()
+                    bandModelForExport.value = model
+                    exportBandLauncher.launch(BandAppExporter.getFileName(model))
+                }
+            }
+        )
+    }
+
     BandPackageExportDialog(
         show = showBandExportDialog,
         onModelSelected = { model ->
-            bandModelForExport.value = model
-            exportBandLauncher.launch(BandAppExporter.getFileName(model))
+            if (bandExportWarningConfirmed) {
+                bandModelForExport.value = model
+                exportBandLauncher.launch(BandAppExporter.getFileName(model))
+            } else {
+                pendingBandModelForExport.value = model
+                showExportWarningDialog.value = true
+            }
         }
     )
 
@@ -888,6 +912,56 @@ fun MainScreen(
                     bottom = 120.dp
                 ),
             ) {
+                if (showBandExportTip) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            showIndication = true,
+                            pressFeedbackType = PressFeedbackType.Sink
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "关于手环端",
+                                    style = MiuixTheme.textStyles.subtitle
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "你可以在「设置 - 更新与隐私 - 保存手环端」里为自己的手环型号导出安装包，并通过表盘自定义工具或AstroBox进行安装。",
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "仅对从 vs.lucky-e.top 获取的安装包负责，其他渠道可能存在恶意修改版，请谨慎分辨来源后再安装。",
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        text = "已了解，不再提示",
+                                        onClick = { viewModel.dismissBandExportTip() },
+                                        insideMargin = PaddingValues(
+                                            vertical = 0.dp,
+                                            horizontal = 10.dp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (bandTransferEnabled) {
                     item {
                         Row(

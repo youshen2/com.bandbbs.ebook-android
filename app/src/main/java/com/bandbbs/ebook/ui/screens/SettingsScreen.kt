@@ -26,10 +26,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.ui.components.BandPackageExportDialog
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
+import com.bandbbs.ebook.ui.components.BandPackageExportDialog
+import com.bandbbs.ebook.ui.components.FirstBandExportWarningDialog
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.utils.BandAppExporter
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -60,7 +62,6 @@ import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -82,6 +83,7 @@ fun SettingsScreen(
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
+    val bandExportWarningConfirmed by viewModel.bandExportWarningConfirmed.collectAsState()
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
@@ -92,8 +94,10 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val bandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
+    val pendingBandModelForExport = remember { mutableStateOf<BandAppExporter.BandModel?>(null) }
     val showExportSuccessDialog = remember { mutableStateOf(false) }
     val lastExportUri = remember { mutableStateOf<Uri?>(null) }
+    val showExportWarningDialog = remember { mutableStateOf(false) }
 
     val exportBandLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*")
@@ -536,10 +540,29 @@ fun SettingsScreen(
     BandPackageExportDialog(
         show = showBandExportDialog,
         onModelSelected = { model ->
-            bandModelForExport.value = model
-            exportBandLauncher.launch(BandAppExporter.getFileName(model))
+            if (bandExportWarningConfirmed) {
+                bandModelForExport.value = model
+                exportBandLauncher.launch(BandAppExporter.getFileName(model))
+            } else {
+                pendingBandModelForExport.value = model
+                showExportWarningDialog.value = true
+            }
         }
     )
+
+    if (showExportWarningDialog.value) {
+        FirstBandExportWarningDialog(
+            show = showExportWarningDialog,
+            onConfirm = {
+                val model = pendingBandModelForExport.value
+                if (model != null) {
+                    viewModel.confirmBandExportWarning()
+                    bandModelForExport.value = model
+                    exportBandLauncher.launch(BandAppExporter.getFileName(model))
+                }
+            }
+        )
+    }
 
     AboutBottomSheet(show = showAboutSheet)
 }

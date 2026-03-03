@@ -57,7 +57,7 @@ fun BandPackageExportDialog(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
-            Card (
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp)

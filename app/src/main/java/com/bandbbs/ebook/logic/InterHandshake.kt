@@ -57,7 +57,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     }
 
     init {
-        // 初始监听握手信号
         addListener(TYPE) { payload ->
             try {
                 val data: HandshakePayload = json.decodeFromString(payload)
@@ -73,7 +72,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                     }
                 }
 
-                // 只要收到信号，就认为链路通畅，回传版本信息
                 if (promise != null && !connected) {
                     connected = true
                     isHandshaking = false
@@ -81,7 +79,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                     onConnected.invoke()
                 }
 
-                // 响应握手，发送手机端版本号
                 if (currentCount < 3) {
                     scope.launch {
                         try {
@@ -97,7 +94,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             }
         }
 
-        // 初始化时立即尝试同步一次版本
         scope.launch {
             try {
                 super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")

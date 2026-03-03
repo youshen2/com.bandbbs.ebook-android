@@ -218,6 +218,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
     private val BAND_TRANSFER_ENABLED_KEY = "band_transfer_enabled"
+    private val SHOW_BAND_EXPORT_TIP_KEY = "show_band_export_tip"
+    private val BAND_EXPORT_WARNING_CONFIRMED_KEY = "band_export_warning_confirmed"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -265,6 +267,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _bandTransferEnabled =
         MutableStateFlow(prefs.getBoolean(BAND_TRANSFER_ENABLED_KEY, true))
     val bandTransferEnabled = _bandTransferEnabled.asStateFlow()
+
+    private val _showBandExportTip =
+        MutableStateFlow(prefs.getBoolean(SHOW_BAND_EXPORT_TIP_KEY, true))
+    val showBandExportTip = _showBandExportTip.asStateFlow()
+
+    private val _bandExportWarningConfirmed =
+        MutableStateFlow(prefs.getBoolean(BAND_EXPORT_WARNING_CONFIRMED_KEY, false))
+    val bandExportWarningConfirmed = _bandExportWarningConfirmed.asStateFlow()
 
     private val _isMultiSelectMode = MutableStateFlow(false)
     val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
@@ -470,6 +480,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setConnection(connection: InterHandshake) = connectionHandler.setConnection(connection)
 
     fun reconnect() = connectionHandler.reconnect()
+
+    fun dismissBandExportTip() {
+        _showBandExportTip.value = false
+        prefs.edit().putBoolean(SHOW_BAND_EXPORT_TIP_KEY, false).apply()
+    }
+
+    fun confirmBandExportWarning() {
+        _bandExportWarningConfirmed.value = true
+        prefs.edit().putBoolean(BAND_EXPORT_WARNING_CONFIRMED_KEY, true).apply()
+    }
 
     fun refreshBandStorageInfo() {
         if (!connectionHandler.isConnected()) {

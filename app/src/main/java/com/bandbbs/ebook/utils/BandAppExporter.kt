@@ -49,7 +49,8 @@ object BandAppExporter {
                             output.write(buffer, 0, read)
                         }
                         output.flush()
-                    } ?: return@withContext Result.failure(IllegalStateException("无法打开目标文件"))
+                    }
+                        ?: return@withContext Result.failure(IllegalStateException("无法打开目标文件"))
                 }
                 Result.success(Unit)
             } catch (e: Exception) {
