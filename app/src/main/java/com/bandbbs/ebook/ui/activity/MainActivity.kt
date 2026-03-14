@@ -51,7 +51,7 @@ import com.bandbbs.ebook.notifications.ForegroundTransferService
 import com.bandbbs.ebook.notifications.LiveNotificationManager
 import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionDialog
-import com.bandbbs.ebook.ui.components.UpdateCheckBottomSheet
+import com.bandbbs.ebook.ui.components.UpdateCheckDialog
 import com.bandbbs.ebook.ui.screens.BandSettingsScreen
 import com.bandbbs.ebook.ui.screens.ChapterListScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
@@ -89,7 +89,7 @@ import java.util.Date
 import java.util.Locale
 
 sealed interface Screen : NavKey {
-    data object HomePager : Screen // 将原来的 Home、Statistics、Settings 整合为此 Pager 页面
+    data object HomePager : Screen
     data object BandSettings : Screen
     data object SyncOptions : Screen
     data object Push : Screen
@@ -601,39 +601,28 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        val showUpdateSheetState = remember { mutableStateOf(false) }
+                        val showUpdateDialogState = remember { mutableStateOf(false) }
                         LaunchedEffect(updateCheckState.showSheet) {
-                            showUpdateSheetState.value = updateCheckState.showSheet
+                            showUpdateDialogState.value = updateCheckState.showSheet
                         }
-                        SuperBottomSheet(
-                            show = showUpdateSheetState,
-                            title = "检查更新",
-                            onDismissRequest = {
-                                showUpdateSheetState.value = false
+                        UpdateCheckDialog(
+                            showDialog = showUpdateDialogState,
+                            isChecking = updateCheckState.isChecking,
+                            updateInfo = updateCheckState.updateInfo,
+                            updateInfoList = updateCheckState.updateInfoList,
+                            errorMessage = updateCheckState.errorMessage,
+                            deviceName = updateCheckState.deviceName,
+                            onDismiss = {
                                 viewModel.dismissUpdateCheck()
+                            },
+                            onOpenWebsite = {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://vs.lucky-e.top")
+                                )
+                                context.startActivity(intent)
                             }
-                        ) {
-                            UpdateCheckBottomSheet(
-                                isChecking = updateCheckState.isChecking,
-                                updateInfo = updateCheckState.updateInfo,
-                                updateInfoList = updateCheckState.updateInfoList,
-                                errorMessage = updateCheckState.errorMessage,
-                                deviceName = updateCheckState.deviceName,
-                                onDismiss = {
-                                    scope.launch {
-                                        showUpdateSheetState.value = false
-                                        viewModel.dismissUpdateCheck()
-                                    }
-                                },
-                                onOpenWebsite = {
-                                    val intent = Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://vs.lucky-e.top")
-                                    )
-                                    context.startActivity(intent)
-                                }
-                            )
-                        }
+                        )
 
                         val showLoadingState = remember { mutableStateOf(false) }
                         LaunchedEffect(globalLoadingState.isLoading) {

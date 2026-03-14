@@ -221,7 +221,7 @@ fun ReaderSettingsScreen(
             )
         ) {
             item {
-                SmallTitle(text = "背景主题")
+                SmallTitle(text = "背景主题", modifier = Modifier.padding(top = 12.dp))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     Column {
                         val themeNames = ReaderThemes.map { it.name }
@@ -246,7 +246,7 @@ fun ReaderSettingsScreen(
                                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Box(
                             modifier = Modifier
@@ -270,7 +270,7 @@ fun ReaderSettingsScreen(
             }
 
             item {
-                SmallTitle(text = "字体与排版")
+                SmallTitle(text = "字体与排版", modifier = Modifier.padding(top = 12.dp))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     Column {
                         ReaderValueSlider(
@@ -293,7 +293,7 @@ fun ReaderSettingsScreen(
             }
 
             item {
-                SmallTitle(text = "翻章")
+                SmallTitle(text = "操作", modifier = Modifier.padding(top = 12.dp))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     Column {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -328,7 +328,7 @@ fun ReaderSettingsScreen(
             }
 
             item {
-                SmallTitle(text = "屏幕")
+                SmallTitle(text = "屏幕", modifier = Modifier.padding(top = 12.dp))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     Column {
                         SuperSwitch(
@@ -357,7 +357,7 @@ fun ReaderSettingsScreen(
             }
 
             item {
-                SmallTitle(text = "自动滚动")
+                SmallTitle(text = "自动滚动", modifier = Modifier.padding(top = 12.dp))
                 Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     Column {
                         val isAutoScrollEnabled = current.autoScrollSpeed > 0
@@ -380,25 +380,20 @@ fun ReaderSettingsScreen(
                         }
                     }
                 }
+            }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    TextButton(
-                        text = "恢复默认",
-                        colors = ButtonDefaults.textButtonColorsPrimary(),
-                        onClick = {
-                            update { ReaderSettings() }
-                        },
-                        modifier = Modifier.pressable(
-                            interactionSource = null,
-                            indication = SinkFeedback()
-                        )
-                    )
-                }
+            item {
+                TextButton(
+                    text = "恢复默认",
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                    onClick = {
+                        update { ReaderSettings() }
+                    },
+                    modifier = Modifier.pressable(
+                        interactionSource = null,
+                        indication = SinkFeedback()
+                    ).fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp)
+                )
             }
         }
     }

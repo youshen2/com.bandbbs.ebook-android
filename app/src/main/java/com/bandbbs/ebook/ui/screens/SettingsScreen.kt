@@ -304,7 +304,7 @@ fun SettingsScreen(
             }
 
             item {
-                SmallTitle(text = "高级")
+                SmallTitle(text = "高级", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     insideMargin = PaddingValues(0.dp)

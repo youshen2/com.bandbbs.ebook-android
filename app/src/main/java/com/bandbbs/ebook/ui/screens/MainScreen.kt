@@ -53,15 +53,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.database.AppDatabase
-import com.bandbbs.ebook.ui.components.CategoryBottomSheet
+import com.bandbbs.ebook.ui.components.CategoryDialog
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
-import com.bandbbs.ebook.ui.components.ImportProgressBottomSheet
+import com.bandbbs.ebook.ui.components.ImportProgressDialog
 import com.bandbbs.ebook.ui.components.ImportReportBottomSheet
 import com.bandbbs.ebook.ui.components.OverwriteConfirmDialog
-import com.bandbbs.ebook.ui.components.SyncReadingDataBottomSheet
 import com.bandbbs.ebook.ui.components.SyncReadingDataConfirmDialog
+import com.bandbbs.ebook.ui.components.SyncReadingDataDialog
 import com.bandbbs.ebook.ui.components.VersionIncompatibleDialog
 import com.bandbbs.ebook.ui.components.cell.BookItem
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
@@ -508,7 +508,7 @@ fun MainScreen(
                 syncReadingDataState.statusText.isNotEmpty() ||
                 syncResultState != null
     }
-    SyncReadingDataBottomSheet(
+    SyncReadingDataDialog(
         show = showSyncReadingDataSheet,
         state = syncReadingDataState,
         resultState = syncResultState,
@@ -571,34 +571,38 @@ fun MainScreen(
         }
     }
 
-    val showCategorySheet = remember { mutableStateOf(false) }
-    LaunchedEffect(categoryState) { showCategorySheet.value = categoryState != null }
-    SuperBottomSheet(
-        show = showCategorySheet,
-        onDismissRequest = { viewModel.dismissCategorySelector() }
-    ) {
-        categoryState?.let { state ->
-            CategoryBottomSheet(
-                categories = state.categories,
-                selectedCategory = state.selectedCategory,
-                onCategorySelected = { category -> viewModel.selectCategory(category) },
-                onCategoryCreated = { categoryName -> viewModel.createCategory(categoryName) },
-                onCategoryDeleted = { categoryName -> viewModel.deleteCategory(categoryName) },
-                onDismiss = { viewModel.dismissCategorySelector() }
-            )
+    val showCategoryDialog = remember { mutableStateOf(false) }
+    LaunchedEffect(categoryState) {
+        showCategoryDialog.value = categoryState != null
+    }
+    LaunchedEffect(showCategoryDialog.value) {
+        if (!showCategoryDialog.value && categoryState != null) {
+            viewModel.dismissCategorySelector()
         }
+    }
+    categoryState?.let { state ->
+        CategoryDialog(
+            show = showCategoryDialog,
+            categories = state.categories,
+            selectedCategory = state.selectedCategory,
+            onCategorySelected = { category -> viewModel.selectCategory(category) },
+            onCategoryCreated = { categoryName -> viewModel.createCategory(categoryName) },
+            onCategoryDeleted = { categoryName -> viewModel.deleteCategory(categoryName) }
+        )
     }
 
-    val showImportProgressSheet = remember { mutableStateOf(false) }
-    LaunchedEffect(importingState) { showImportProgressSheet.value = importingState != null }
-    SuperBottomSheet(
-        show = showImportProgressSheet,
-        onDismissRequest = { viewModel.dismissImportProgress() }
-    ) {
-        importingState?.let { state ->
-            ImportProgressBottomSheet(state = state)
-        }
+    val showImportProgressDialog = remember { mutableStateOf(false) }
+    LaunchedEffect(importingState) {
+        showImportProgressDialog.value = importingState != null
     }
+    importingState?.let { state ->
+        ImportProgressDialog(
+            show = showImportProgressDialog,
+            state = state,
+            onDismiss = { viewModel.dismissImportProgress() }
+        )
+    }
+
 
     val showImportReportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importReportState) { showImportReportSheet.value = importReportState != null }
@@ -1437,11 +1441,6 @@ fun MainScreen(
                                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                                             )
                                         }
-                                        Icon(
-                                            imageVector = if (isExpanded) MiuixIcons.ExpandLess else MiuixIcons.ExpandMore,
-                                            contentDescription = if (isExpanded) "折叠" else "展开",
-                                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                        )
                                     }
                                 }
                             }
