@@ -67,6 +67,8 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
@@ -174,6 +176,7 @@ class MainActivity : ComponentActivity() {
                 val syncOptionsState by viewModel.syncOptionsState.collectAsState()
                 val pushState by viewModel.pushState.collectAsState()
                 val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
+                val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
 
                 val backStack = remember { mutableStateListOf<NavKey>(Screen.HomePager) }
                 val currentScreen = backStack.lastOrNull() ?: Screen.HomePager
@@ -219,25 +222,48 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
-                            NavigationBar {
-                                NavigationBarItem(
-                                    selected = pagerState.currentPage == 0,
-                                    onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                                    icon = MiuixIcons.VerticalSplit,
-                                    label = "主页"
-                                )
-                                NavigationBarItem(
-                                    selected = pagerState.currentPage == 1,
-                                    onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                                    icon = MiuixIcons.Sort,
-                                    label = "统计"
-                                )
-                                NavigationBarItem(
-                                    selected = pagerState.currentPage == 2,
-                                    onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
-                                    icon = MiuixIcons.Settings,
-                                    label = "设置"
-                                )
+                            if (useFloatingNavigationBar) {
+                                FloatingNavigationBar {
+                                    FloatingNavigationBarItem(
+                                        selected = pagerState.currentPage == 0,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                        icon = MiuixIcons.VerticalSplit,
+                                        label = "主页"
+                                    )
+                                    FloatingNavigationBarItem(
+                                        selected = pagerState.currentPage == 1,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                        icon = MiuixIcons.Sort,
+                                        label = "统计"
+                                    )
+                                    FloatingNavigationBarItem(
+                                        selected = pagerState.currentPage == 2,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                        icon = MiuixIcons.Settings,
+                                        label = "设置"
+                                    )
+                                }
+                            } else {
+                                NavigationBar {
+                                    NavigationBarItem(
+                                        selected = pagerState.currentPage == 0,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                        icon = MiuixIcons.VerticalSplit,
+                                        label = "主页"
+                                    )
+                                    NavigationBarItem(
+                                        selected = pagerState.currentPage == 1,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                        icon = MiuixIcons.Sort,
+                                        label = "统计"
+                                    )
+                                    NavigationBarItem(
+                                        selected = pagerState.currentPage == 2,
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                        icon = MiuixIcons.Settings,
+                                        label = "设置"
+                                    )
+                                }
                             }
                         }
                     },
@@ -277,7 +303,13 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = if (showBottomBar) paddingValues.calculateBottomPadding() else 0.dp)
+                            .padding(
+                                bottom = if (showBottomBar && !useFloatingNavigationBar) {
+                                    paddingValues.calculateBottomPadding()
+                                } else {
+                                    0.dp
+                                }
+                            )
                     ) {
 
                         val entryProvider = remember(backStack) {

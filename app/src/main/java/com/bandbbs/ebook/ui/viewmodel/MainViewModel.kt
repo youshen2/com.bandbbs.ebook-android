@@ -220,6 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
     private val BAND_TRANSFER_ENABLED_KEY = "band_transfer_enabled"
+    private val USE_FLOATING_NAVIGATION_BAR_KEY = "use_floating_navigation_bar"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -267,6 +268,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _bandTransferEnabled =
         MutableStateFlow(prefs.getBoolean(BAND_TRANSFER_ENABLED_KEY, true))
     val bandTransferEnabled = _bandTransferEnabled.asStateFlow()
+
+    private val _useFloatingNavigationBar =
+        MutableStateFlow(prefs.getBoolean(USE_FLOATING_NAVIGATION_BAR_KEY, false))
+    val useFloatingNavigationBar = _useFloatingNavigationBar.asStateFlow()
 
     private val _isMultiSelectMode = MutableStateFlow(false)
     val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
@@ -1721,6 +1726,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setQuickRenameCategory(enabled: Boolean) {
         prefs.edit().putBoolean(QUICK_RENAME_CATEGORY_KEY, enabled).apply()
         _quickRenameCategoryEnabled.value = enabled
+    }
+
+    fun setUseFloatingNavigationBar(enabled: Boolean) {
+        prefs.edit().putBoolean(USE_FLOATING_NAVIGATION_BAR_KEY, enabled).apply()
+        _useFloatingNavigationBar.value = enabled
     }
 
     fun renameCategory(oldName: String, newName: String) {

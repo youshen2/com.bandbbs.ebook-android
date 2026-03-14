@@ -33,12 +33,12 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Download
@@ -75,6 +75,7 @@ fun SettingsScreen(
     val autoMinimizeOnTransfer by viewModel.autoMinimizeOnTransfer.collectAsState()
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
+    val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
@@ -107,7 +108,7 @@ fun SettingsScreen(
         ) {
             if (bandTransferEnabled) {
                 item {
-                    SmallTitle(text = "设备")
+                    SmallTitle(text = "设备", modifier = Modifier.padding(top = 12.dp))
                     Card(
                         modifier = Modifier.padding(horizontal = 12.dp),
                         insideMargin = PaddingValues(0.dp)
@@ -115,7 +116,6 @@ fun SettingsScreen(
                         SuperArrow(
                             title = "手环端设置",
                             summary = "修改手环端的各项设置项",
-                            startAction = { SettingsIcon(MiuixIcons.Settings) },
                             onClick = onBandSettingsClick
                         )
                     }
@@ -123,7 +123,7 @@ fun SettingsScreen(
             }
 
             item {
-                SmallTitle(text = "显示与交互")
+                SmallTitle(text = "功能", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     insideMargin = PaddingValues(0.dp)
@@ -131,7 +131,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "显示最近导入",
                         summary = "在主页顶部显示最近导入的书籍",
-                        startAction = { SettingsIcon(MiuixIcons.Show) },
                         endActions = {
                             Switch(
                                 checked = showRecentImport,
@@ -141,7 +140,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "显示最近更新",
                         summary = "在主页显示最近阅读或更新的书籍",
-                        startAction = { SettingsIcon(MiuixIcons.Show) },
                         endActions = {
                             Switch(
                                 checked = showRecentUpdate,
@@ -151,7 +149,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "显示搜索栏",
                         summary = "在主页顶部显示搜索框",
-                        startAction = { SettingsIcon(MiuixIcons.Show) },
                         endActions = {
                             Switch(
                                 checked = showSearchBar,
@@ -161,7 +158,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "左滑快速分类",
                         summary = "书籍条目左滑可直接修改分类",
-                        startAction = { SettingsIcon(MiuixIcons.Edit) },
                         endActions = {
                             Switch(
                                 checked = quickEditCategoryEnabled,
@@ -171,7 +167,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "长按分类改名",
                         summary = "长按分类标题栏可重命名分类",
-                        startAction = { SettingsIcon(MiuixIcons.Edit) },
                         endActions = {
                             Switch(
                                 checked = quickRenameCategoryEnabled,
@@ -182,31 +177,24 @@ fun SettingsScreen(
             }
 
             item {
-                SmallTitle(text = "外观")
+                SmallTitle(text = "外观", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     insideMargin = PaddingValues(0.dp)
                 ) {
-                    Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                        BasicComponent(
-                            title = "应用主题",
-                            startAction = { SettingsIcon(MiuixIcons.Theme) },
-                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
-                        )
-
+                    Column {
                         val themes = listOf("浅色", "深色", "跟随系统")
                         val selectedThemeIndex = when (themeMode) {
                             MainViewModel.ThemeMode.LIGHT -> 0
                             MainViewModel.ThemeMode.DARK -> 1
                             MainViewModel.ThemeMode.SYSTEM -> 2
                         }
-                        TabRowWithContour(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            tabs = themes,
-                            selectedTabIndex = selectedThemeIndex,
-                            onTabSelected = { index ->
+                        SuperDropdown(
+                            title = "应用主题",
+                            summary = "选择应用主题",
+                            items = themes,
+                            selectedIndex = selectedThemeIndex,
+                            onSelectedIndexChange = { index ->
                                 val mode = when (index) {
                                     0 -> MainViewModel.ThemeMode.LIGHT
                                     1 -> MainViewModel.ThemeMode.DARK
@@ -215,20 +203,29 @@ fun SettingsScreen(
                                 viewModel.setThemeMode(mode)
                             }
                         )
+
+                        BasicComponent(
+                            title = "悬浮导航栏",
+                            summary = "启用后底部导航栏悬浮显示",
+                            endActions = {
+                                Switch(
+                                    checked = useFloatingNavigationBar,
+                                    onCheckedChange = { viewModel.setUseFloatingNavigationBar(it) })
+                            }
+                        )
                     }
                 }
             }
 
             item {
-                SmallTitle(text = "同步与连接")
+                SmallTitle(text = "同步与连接", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     insideMargin = PaddingValues(0.dp)
                 ) {
                     BasicComponent(
                         title = "小米手环传输",
-                        summary = "控制是否启用与小米手环的连接与传输功能",
-                        startAction = { SettingsIcon(MiuixIcons.Refresh) },
+                        summary = "启用与小米手环的连接与传输功能",
                         endActions = {
                             Switch(
                                 checked = bandTransferEnabled,
@@ -239,7 +236,6 @@ fun SettingsScreen(
                         BasicComponent(
                             title = "传输后自动后台",
                             summary = "开始传输后自动将应用最小化",
-                            startAction = { SettingsIcon(MiuixIcons.Refresh) },
                             endActions = {
                                 Switch(
                                     checked = autoMinimizeOnTransfer,
@@ -249,7 +245,6 @@ fun SettingsScreen(
                         BasicComponent(
                             title = "自动重试中断",
                             summary = "传输中断时每5秒自动尝试重连",
-                            startAction = { SettingsIcon(MiuixIcons.Refresh) },
                             endActions = {
                                 Switch(
                                     checked = autoRetryOnTransferError,
@@ -259,7 +254,6 @@ fun SettingsScreen(
                         BasicComponent(
                             title = "连接失败提示",
                             summary = "连接手环失败时弹出详细提示",
-                            startAction = { SettingsIcon(MiuixIcons.Info) },
                             endActions = {
                                 Switch(
                                     checked = showConnectionError,
@@ -271,7 +265,7 @@ fun SettingsScreen(
             }
 
             item {
-                SmallTitle(text = "更新与隐私")
+                SmallTitle(text = "更新与隐私", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier.padding(horizontal = 12.dp),
                     insideMargin = PaddingValues(0.dp)
@@ -279,7 +273,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "自动检查更新",
                         summary = "应用启动时自动检测新版本",
-                        startAction = { SettingsIcon(MiuixIcons.Update) },
                         endActions = {
                             Switch(
                                 checked = autoCheckUpdates,
@@ -289,7 +282,6 @@ fun SettingsScreen(
                     BasicComponent(
                         title = "允许联网",
                         summary = "允许应用联网以检查更新等功能",
-                        startAction = { SettingsIcon(MiuixIcons.Lock) },
                         endActions = {
                             Switch(
                                 checked = ipCollectionAllowed,
@@ -300,14 +292,12 @@ fun SettingsScreen(
                         SuperArrow(
                             title = "检查更新",
                             summary = "手动检查应用版本更新",
-                            startAction = { SettingsIcon(MiuixIcons.Update) },
                             onClick = { viewModel.checkForUpdates() }
                         )
                     }
                     SuperArrow(
                         title = "获取最新版本",
                         summary = "跳转到所有版本的下载页面",
-                        startAction = { SettingsIcon(MiuixIcons.Download) },
                         onClick = { showGetLatestVersionDialog.value = true }
                     )
                 }
@@ -322,44 +312,29 @@ fun SettingsScreen(
                     SuperArrow(
                         title = "导出数据",
                         summary = "备份阅读时长和阅读进度",
-                        startAction = { SettingsIcon(MiuixIcons.UploadCloud) },
                         onClick = onBackupClick
                     )
                     SuperArrow(
                         title = "导入数据",
                         summary = "恢复备份的阅读数据",
-                        startAction = { SettingsIcon(MiuixIcons.Download) },
                         onClick = onRestoreClick
+                    )
+                    SuperArrow(
+                        title = "清理脏数据",
+                        summary = "删除无效书籍记录及其阅读进度和阅读时长(不可恢复)",
+                        onClick = { showCleanDirtyDataDialog.value = true }
                     )
                     SuperArrow(
                         title = "清除阅读记录",
                         summary = "删除本地所有阅读时长数据(不可恢复)",
                         titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.error),
-                        startAction = {
-                            SettingsIcon(
-                                MiuixIcons.Delete,
-                                tint = MiuixTheme.colorScheme.error
-                            )
-                        },
                         onClick = { showDeleteReadingTimeDialog.value = true }
-                    )
-                    SuperArrow(
-                        title = "清理脏数据",
-                        summary = "删除无效书籍记录及其阅读进度和阅读时长(不可恢复)",
-                        titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.error),
-                        startAction = {
-                            SettingsIcon(
-                                MiuixIcons.Delete,
-                                tint = MiuixTheme.colorScheme.error
-                            )
-                        },
-                        onClick = { showCleanDirtyDataDialog.value = true }
                     )
                 }
             }
 
             item {
-                SmallTitle(text = "其他")
+                SmallTitle(text = "其他", modifier = Modifier.padding(top = 12.dp))
                 Card(
                     modifier = Modifier
                         .padding(horizontal = 12.dp)
@@ -369,7 +344,6 @@ fun SettingsScreen(
                     SuperArrow(
                         title = "关于",
                         summary = "版本信息与开发者",
-                        startAction = { SettingsIcon(MiuixIcons.Info) },
                         onClick = { showAboutSheet.value = true }
                     )
                 }
