@@ -43,7 +43,7 @@ object StorageUtils {
             product == "Xiaomi Smart Band 9 Pro" -> "64MB"
             product == "Xiaomi Smart Band 8 Pro" -> "84MB"
             product != null && product.contains("Xiaomi Smart Band 10") -> "90MB"
-            else -> "0MB"
+            else -> "未知"
         }
     }
 
