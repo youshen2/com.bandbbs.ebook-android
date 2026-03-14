@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +63,7 @@ import com.bandbbs.ebook.ui.screens.StatisticsScreen
 import com.bandbbs.ebook.ui.screens.SyncOptionsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
+import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
@@ -84,6 +86,7 @@ import top.yukonga.miuix.kmp.icon.extended.VerticalSplit
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.pressable
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -112,7 +115,37 @@ class MainActivity : ComponentActivity() {
 
     private val coverPickerLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let { viewModel.importCoverForBook(it) }
+            uri?.let { selectedUri ->
+                val destUri = Uri.fromFile(
+                    File(cacheDir, "cover_crop_${System.currentTimeMillis()}.jpg")
+                )
+                val options = UCrop.Options().apply {
+                    setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
+                    setCompressionQuality(95)
+                    setHideBottomControls(false)
+                    setFreeStyleCropEnabled(true)
+                }
+                val uCrop = UCrop.of(selectedUri, destUri)
+                    .withAspectRatio(3f, 4f)
+                    .withMaxResultSize(1200, 1600)
+                    .withOptions(options)
+                cropCoverLauncher.launch(uCrop.getIntent(this))
+            }
+        }
+
+    private val cropCoverLauncher =
+        registerForActivityResult(StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val outputUri = result.data?.let { UCrop.getOutput(it) }
+                outputUri?.let { viewModel.importCoverForBook(it) }
+            } else if (result.resultCode == UCrop.RESULT_ERROR) {
+                val error = result.data?.let { UCrop.getError(it) }
+                Toast.makeText(
+                    this,
+                    error?.message ?: "裁剪失败",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
 
     private val createDocumentLauncher =

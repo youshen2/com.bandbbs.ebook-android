@@ -96,7 +96,10 @@ dependencies {
 
     implementation("com.google.re2j:re2j:1.8")
 
+    implementation("androidx.appcompat:appcompat:1.7.1")
+
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.github.yalantis:ucrop:2.2.11")
 
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
@@ -104,8 +107,8 @@ dependencies {
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("androidx.navigation3:navigation3-runtime:1.0.1")
-    implementation("top.yukonga.miuix.kmp:miuix:0.8.5")
-    implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.5")
-    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.5")
+    implementation("top.yukonga.miuix.kmp:miuix:0.8.7")
+    implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.7")
+    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.7")
     implementation("top.yukonga.miuix.kmp:miuix-navigation3-adaptive:0.8.5")
 }

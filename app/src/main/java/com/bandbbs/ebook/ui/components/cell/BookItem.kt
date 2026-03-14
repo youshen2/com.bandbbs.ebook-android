@@ -20,10 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.utils.bytesToReadable
 import top.yukonga.miuix.kmp.basic.Button
@@ -66,6 +68,13 @@ fun BookItem(
     val showDetailsDialog = remember { mutableStateOf(false) }
     val isPdf = book.format == "pdf"
 
+    val context = LocalContext.current
+    val coverSignature = remember(book.coverImagePath) {
+        book.coverImagePath?.let { path ->
+            runCatching { File(path).lastModified() }.getOrDefault(0L)
+        }
+    }
+
     if (showCoverDialog.value && book.coverImagePath != null) {
         SuperDialog(
             title = "封面大图",
@@ -73,7 +82,10 @@ fun BookItem(
             onDismissRequest = { showCoverDialog.value = false }
         ) {
             AsyncImage(
-                model = File(book.coverImagePath),
+                model = ImageRequest.Builder(context)
+                    .data(book.coverImagePath)
+                    .setParameter("lastModified", coverSignature)
+                    .build(),
                 contentDescription = "封面大图",
                 modifier = Modifier
                     .fillMaxWidth()
@@ -314,7 +326,10 @@ fun BookItem(
         Row {
             if (book.coverImagePath != null && File(book.coverImagePath).exists()) {
                 AsyncImage(
-                    model = File(book.coverImagePath),
+                    model = ImageRequest.Builder(context)
+                        .data(book.coverImagePath)
+                        .setParameter("lastModified", coverSignature)
+                        .build(),
                     contentDescription = "书籍封面",
                     modifier = Modifier
                         .size(width = 60.dp, height = 80.dp)
