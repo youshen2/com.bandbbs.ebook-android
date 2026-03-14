@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -32,7 +33,8 @@ fun VersionIncompatibleDialog(
     show: MutableState<Boolean>,
     currentVersion: Int,
     requiredVersion: Int,
-    onDismiss: () -> Unit = {}
+    onDismiss: () -> Unit = {},
+    onOpenWebsite: () -> Unit
 ) {
     val dismiss = {
         show.value = false
@@ -122,6 +124,17 @@ fun VersionIncompatibleDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .pressable(interactionSource = null, indication = SinkFeedback())
+            )
+            TextButton(
+                text = "前往官网下载",
+                onClick = {
+                    dismiss()
+                    onOpenWebsite()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pressable(interactionSource = null, indication = SinkFeedback()),
+                colors = ButtonDefaults.textButtonColorsPrimary()
             )
         }
     }

@@ -1,5 +1,7 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -530,7 +532,14 @@ fun MainScreen(
             show = showVersionIncompatibleDialog,
             currentVersion = state.currentVersion,
             requiredVersion = state.requiredVersion,
-            onDismiss = { viewModel.dismissVersionIncompatible() }
+            onDismiss = { viewModel.dismissVersionIncompatible() },
+            onOpenWebsite = {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://vs.lucky-e.top")
+                )
+                context.startActivity(intent)
+            }
         )
     }
 
