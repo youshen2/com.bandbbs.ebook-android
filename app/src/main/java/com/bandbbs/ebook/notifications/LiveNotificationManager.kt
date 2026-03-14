@@ -19,6 +19,9 @@ object LiveNotificationManager {
     private const val CHANNEL_NAME = "传输通知"
     const val NOTIFICATION_ID = 2001
 
+    private const val MIN_UPDATE_INTERVAL_MS = 1000L
+    private var lastUpdateTimeMs = 0L
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createChannel() {
         val channel =
@@ -39,6 +42,12 @@ object LiveNotificationManager {
         contentText: String? = null,
         progressPercent: Int? = null
     ) {
+        val nowMs = System.currentTimeMillis()
+        if (lastUpdateTimeMs != 0L && nowMs - lastUpdateTimeMs < MIN_UPDATE_INTERVAL_MS) {
+            return
+        }
+        lastUpdateTimeMs = nowMs
+
         val supportsPromoted = isPostPromotionsEnabled()
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
@@ -126,6 +135,7 @@ object LiveNotificationManager {
         if (::notificationManager.isInitialized) {
             notificationManager.cancel(NOTIFICATION_ID)
         }
+        lastUpdateTimeMs = 0L
     }
 
     fun isPostPromotionsEnabled(): Boolean {
