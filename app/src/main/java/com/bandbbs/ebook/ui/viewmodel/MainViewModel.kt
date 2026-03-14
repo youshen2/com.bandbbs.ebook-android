@@ -28,6 +28,7 @@ import com.bandbbs.ebook.utils.EpubParser
 import com.bandbbs.ebook.utils.NvbParser
 import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.VersionChecker
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -181,6 +182,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val syncResultState = _syncResultState.asStateFlow()
 
     private var syncReadingDataJob: Job? = null
+    private var autoMergeLatch: CompletableDeferred<Unit>? = null
 
     private val _versionIncompatibleState = MutableStateFlow<VersionIncompatibleState?>(null)
     val versionIncompatibleState = _versionIncompatibleState.asStateFlow()
@@ -294,6 +296,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onBandConnected = { deviceName ->
             if (FIRST_AUTO_CHECK) autoCheckUpdates()
             refreshBandStorageInfo()
+            setupFileConnectionListeners()
         }
         onBandVersionReceived = { bandVersion ->
             checkBandUpdateOnly(bandVersion)
@@ -353,6 +356,276 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         loadBooks()
         performInitialUpdateCheck()
+    }
+
+    private fun setupFileConnectionListeners() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val fileConn = connectionHandler.getFileConnection()
+                fileConn.onSyncReadingData = { filename, progress, readingTime ->
+                    handleSyncReadingData(filename, progress, readingTime)
+                }
+                fileConn.onSyncBatchReadingData = { books ->
+                    handleSyncBatchReadingData(books)
+                }
+                fileConn.onSyncBookmarks = { filename, bookmarks ->
+                    handleSyncBookmarks(filename, bookmarks)
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to setup file connection listeners", e)
+            }
+        }
+    }
+
+    private fun handleSyncReadingData(filename: String, progressJson: String?, readingTimeJson: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val book = _books.value.find { it.name == filename } ?: return@launch
+            try {
+                val bandProgress = parseProgressJson(progressJson)
+                val bandReadingTime = parseReadingTimeJson(readingTimeJson)
+
+                val phoneProgress = getPhoneReadingProgress(book)
+                val phoneReadingTime = getPhoneReadingTime(book.name)
+
+                val finalProgress = mergeProgress(phoneProgress, bandProgress)
+                val finalReadingTime = mergeReadingTime(phoneReadingTime, bandReadingTime)
+
+                savePhoneReadingProgress(book, finalProgress)
+                savePhoneReadingTime(book.name, finalReadingTime)
+                loadBooks()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to handle sync reading data for $filename", e)
+            }
+        }
+    }
+
+    private fun handleSyncBatchReadingData(books: List<com.bandbbs.ebook.logic.SyncReadingData>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val latch = autoMergeLatch
+                if (latch != null) {
+                    autoMergeLatch = null
+                }
+
+                withContext(Dispatchers.Main) {
+                    _syncReadingDataState.value = SyncReadingDataState(
+                        isSyncing = true,
+                        statusText = "正在处理手环推送的阅读数据...",
+                        progress = 0f,
+                        totalBooks = books.size,
+                        syncedBooks = 0
+                    )
+                }
+
+                var syncedCount = 0
+                val changedBooks = mutableListOf<String>()
+                val failedBooks = mutableMapOf<String, String>()
+
+                for ((index, syncData) in books.withIndex()) {
+                    withContext(Dispatchers.Main) {
+                        _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                            currentBook = syncData.filename,
+                            progress = if (books.isNotEmpty()) index.toFloat() / books.size else 0f
+                        )
+                    }
+
+                    val book = _books.value.find { it.name == syncData.filename }
+                    if (book == null) {
+                        failedBooks[syncData.filename] = "手机端不存在该书"
+                        continue
+                    }
+
+                    try {
+                        val bandProgress = parseProgressJson(syncData.progress)
+                        val bandReadingTime = parseReadingTimeJson(syncData.readingTime)
+
+                        val phoneProgress = getPhoneReadingProgress(book)
+                        val phoneReadingTime = getPhoneReadingTime(book.name)
+
+                        val finalProgress = mergeProgress(phoneProgress, bandProgress)
+                        val finalReadingTime = mergeReadingTime(phoneReadingTime, bandReadingTime)
+
+                        val hasProgressChange = finalProgress != phoneProgress
+                        val hasReadingTimeChange = finalReadingTime != phoneReadingTime
+
+                        if (hasProgressChange || hasReadingTimeChange) {
+                            changedBooks.add(book.name)
+                        }
+
+                        savePhoneReadingProgress(book, finalProgress)
+                        savePhoneReadingTime(book.name, finalReadingTime)
+
+                        syncedCount++
+                        withContext(Dispatchers.Main) {
+                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
+                                syncedBooks = syncedCount
+                            )
+                        }
+                    } catch (e: Exception) {
+                        failedBooks[syncData.filename] = "处理失败: ${e.message}"
+                    }
+                }
+
+                loadBooks()
+
+                withContext(Dispatchers.Main) {
+                    val statusText = if (failedBooks.isEmpty()) {
+                        "同步完成，共同步 $syncedCount 本书"
+                    } else {
+                        "同步完成，成功 $syncedCount 本，失败 ${failedBooks.size} 本"
+                    }
+                    _syncReadingDataState.value = SyncReadingDataState(
+                        isSyncing = false,
+                        statusText = statusText,
+                        progress = 1f,
+                        totalBooks = books.size,
+                        syncedBooks = syncedCount,
+                        failedBooks = failedBooks
+                    )
+                    if (changedBooks.isNotEmpty()) {
+                        _syncResultState.value = SyncResultState(
+                            changedBooks = changedBooks,
+                            syncedCount = syncedCount
+                        )
+                    }
+                }
+
+                latch?.complete(Unit)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to handle batch sync reading data", e)
+                withContext(Dispatchers.Main) {
+                    _syncReadingDataState.value = SyncReadingDataState(
+                        isSyncing = false,
+                        statusText = "同步失败: ${e.message}",
+                        progress = 0f
+                    )
+                }
+            } finally {
+                autoMergeLatch?.complete(Unit)
+                autoMergeLatch = null
+            }
+        }
+    }
+
+    private fun handleSyncBookmarks(filename: String, bandBookmarks: List<com.bandbbs.ebook.logic.BookmarkData>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val book = _books.value.find { it.name == filename } ?: return@launch
+            try {
+                val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
+                val mergedBookmarks = mutableListOf<BookmarkEntity>()
+                val bandBookmarkMap = bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+
+                bandBookmarks.forEach { bm ->
+                    mergedBookmarks.add(
+                        BookmarkEntity(
+                            bookId = book.id,
+                            name = bm.name,
+                            chapterIndex = bm.chapterIndex,
+                            chapterName = bm.chapterName,
+                            offsetInChapter = bm.offsetInChapter,
+                            scrollOffset = bm.scrollOffset,
+                            time = bm.time
+                        )
+                    )
+                }
+
+                phoneBookmarks.forEach { bm ->
+                    val key = "${bm.chapterIndex}_${bm.offsetInChapter}"
+                    if (!bandBookmarkMap.containsKey(key)) {
+                        mergedBookmarks.add(bm)
+                    }
+                }
+
+                if (mergedBookmarks.isNotEmpty()) {
+                    BookmarkManager.syncBookmarksFromBand(
+                        getApplication(),
+                        book.id,
+                        mergedBookmarks
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to handle sync bookmarks for $filename", e)
+            }
+        }
+    }
+
+    private fun parseProgressJson(jsonStr: String?): Map<String, Any>? {
+        if (jsonStr.isNullOrEmpty()) return null
+        return try {
+            val progressMap = JSONObject(jsonStr)
+            val tempMap = mutableMapOf<String, Any>()
+            val keys = progressMap.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = progressMap.get(key)
+                if (key == "chapterIndex") {
+                    when {
+                        value == JSONObject.NULL -> continue
+                        value is Int -> tempMap[key] = value
+                        value is Long -> tempMap[key] = value.toInt()
+                        value is Double -> tempMap[key] = value.toInt()
+                        value is String -> {
+                            val intValue = value.toIntOrNull()
+                            if (intValue != null && intValue >= 0) tempMap[key] = intValue
+                        }
+                        else -> {
+                            val intValue = (value as? Number)?.toInt()
+                            if (intValue != null && intValue >= 0) tempMap[key] = intValue
+                        }
+                    }
+                } else {
+                    tempMap[key] = when (value) {
+                        is JSONObject, is org.json.JSONArray -> value.toString()
+                        else -> value
+                    }
+                }
+            }
+            if (tempMap.containsKey("chapterIndex")) tempMap else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun parseReadingTimeJson(jsonStr: String?): Map<String, Any>? {
+        if (jsonStr.isNullOrEmpty()) return null
+        return try {
+            val readingTimeMap = JSONObject(jsonStr)
+            val tempMap = mutableMapOf<String, Any>()
+            val keys = readingTimeMap.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = readingTimeMap.get(key)
+                tempMap[key] = when (value) {
+                    is JSONObject -> {
+                        val sessionMap = mutableMapOf<String, Any>()
+                        val sessionKeys = value.keys()
+                        while (sessionKeys.hasNext()) {
+                            val sessionKey = sessionKeys.next()
+                            sessionMap[sessionKey] = value.get(sessionKey)
+                        }
+                        sessionMap
+                    }
+                    is org.json.JSONArray -> {
+                        val sessionList = mutableListOf<Any>()
+                        for (i in 0 until value.length()) {
+                            val sessionObj = value.getJSONObject(i)
+                            val sessionMap = mutableMapOf<String, Any>()
+                            val sessionKeys = sessionObj.keys()
+                            while (sessionKeys.hasNext()) {
+                                val sessionKey = sessionKeys.next()
+                                sessionMap[sessionKey] = sessionObj.get(sessionKey).toString()
+                            }
+                            sessionList.add(sessionMap)
+                        }
+                        sessionList
+                    }
+                    else -> value
+                }
+            }
+            tempMap
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun performInitialUpdateCheck() {
@@ -1025,598 +1298,118 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         readingTimeMode: SyncMode,
         bookmarkMode: SyncMode = SyncMode.AUTO
     ) {
-        Log.d(
-            "MainViewModel",
-            "setSyncModesAndStart() called with progressMode: $progressMode, readingTimeMode: $readingTimeMode, bookmarkMode: $bookmarkMode"
-        )
         syncReadingDataJob?.cancel()
 
         syncReadingDataJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-
-                val currentProgressMode = progressMode
-                val currentReadingTimeMode = readingTimeMode
-                val currentBookmarkMode = bookmarkMode
-
                 withContext(Dispatchers.Main) {
                     _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         showModeDialog = false,
-                        progressSyncMode = currentProgressMode,
-                        readingTimeSyncMode = currentReadingTimeMode,
-                        bookmarkSyncMode = currentBookmarkMode
-                    )
-                }
-
-                val allBooks = _books.value
-                Log.d("MainViewModel", "Starting sync for ${allBooks.size} books")
-                if (allBooks.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        _syncReadingDataState.value = SyncReadingDataState(
-                            isSyncing = false,
-                            statusText = "没有书籍需要同步",
-                            progress = 1f
-                        )
-                    }
-                    return@launch
-                }
-
-                withContext(Dispatchers.Main) {
-                    _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         isSyncing = true,
-                        statusText = "开始同步阅读数据...",
+                        statusText = "正在将手机数据推送到手环...",
                         progress = 0f,
-                        totalBooks = allBooks.size,
+                        totalBooks = _books.value.size,
                         syncedBooks = 0
                     )
                 }
 
                 val fileConn = connectionHandler.getFileConnection()
                 var syncedCount = 0
-                val changedBooks = mutableListOf<String>()
                 val failedBooks = mutableMapOf<String, String>()
 
-                for ((index, book) in allBooks.withIndex()) {
-
-                    if (!coroutineContext.isActive) {
-                        withContext(Dispatchers.Main) {
-                            _syncReadingDataState.value = SyncReadingDataState(
-                                isSyncing = false,
-                                statusText = "同步已取消",
-                                progress = 0f
-                            )
-                        }
-                        return@launch
+                if (_books.value.isEmpty()) {
+                    Log.w("MainViewModel", "No books to sync reading data")
+                    withContext(Dispatchers.Main) {
+                        _syncReadingDataState.value = SyncReadingDataState(
+                            isSyncing = false,
+                            statusText = "没有可同步的书籍",
+                            progress = 1f,
+                            totalBooks = 0,
+                            syncedBooks = 0
+                        )
                     }
+                    return@launch
+                }
+
+                if (progressMode == SyncMode.AUTO || readingTimeMode == SyncMode.AUTO || bookmarkMode == SyncMode.AUTO) {
+                    autoMergeLatch = CompletableDeferred()
+                    val requestSuccess = fileConn.requestAllReadingData()
+                    if (!requestSuccess) {
+                        Log.w("MainViewModel", "Failed to request band reading data for auto merge")
+                        failedBooks["全部书籍"] = "无法获取手环数据，已使用手机端数据"
+                        autoMergeLatch = null
+                    } else {
+                        try {
+                            withTimeout(8000L) {
+                                autoMergeLatch?.await()
+                            }
+                        } catch (e: Exception) {
+                            Log.w("MainViewModel", "Auto merge wait timeout")
+                            failedBooks["全部书籍"] = "等待手环数据超时，已使用手机端数据"
+                            autoMergeLatch = null
+                        }
+                    }
+                }
+
+                for ((index, book) in _books.value.withIndex()) {
+                    if (!coroutineContext.isActive) return@launch
 
                     withContext(Dispatchers.Main) {
                         _syncReadingDataState.value = _syncReadingDataState.value.copy(
                             currentBook = book.name,
-                            progress = index.toFloat() / allBooks.size
+                            progress = index.toFloat() / _books.value.size
                         )
                     }
-
-                    val bookStatus = try {
-                        fileConn.getBookStatus(book.name)
-                    } catch (e: Exception) {
-                        Log.e("MainViewModel", "Failed to get book status for ${book.name}", e)
-                        failedBooks[book.name] = "获取书籍状态失败: ${e.message ?: "未知错误"}"
-                        withContext(Dispatchers.Main) {
-                            val currentFailed =
-                                _syncReadingDataState.value.failedBooks.toMutableMap()
-                            currentFailed[book.name] =
-                                "获取书籍状态失败: ${e.message ?: "未知错误"}"
-                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
-                                failedBooks = currentFailed
-                            )
-                        }
-                        continue
-                    }
-
-                    val bookExistsOnBand =
-                        bookStatus.syncedChapters.isNotEmpty() || bookStatus.hasCover
-                    if (!bookExistsOnBand) {
-                        Log.d(
-                            "MainViewModel",
-                            "Book ${book.name} does not exist on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}"
-                        )
-                        failedBooks[book.name] = "手环端不存在"
-                        withContext(Dispatchers.Main) {
-                            val currentFailed =
-                                _syncReadingDataState.value.failedBooks.toMutableMap()
-                            currentFailed[book.name] = "手环端不存在"
-                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
-                                failedBooks = currentFailed
-                            )
-                        }
-                        continue
-                    }
-
-                    Log.d(
-                        "MainViewModel",
-                        "Book ${book.name} exists on band: syncedChapters=${bookStatus.syncedChapters.size}, hasCover=${bookStatus.hasCover}"
-                    )
 
                     try {
-                        Log.d("MainViewModel", "Syncing reading data for book: ${book.name}")
-
-                        val bandReadingData: com.bandbbs.ebook.logic.ReadingDataResult? = try {
-                            val data = fileConn.getReadingData(book.name)
-                            Log.d(
-                                "MainViewModel",
-                                "Got reading data from band for ${book.name}: progress=${data.progress != null}, readingTime=${data.readingTime != null}"
-                            )
-                            data
-                        } catch (e: Exception) {
-                            Log.e(
-                                "MainViewModel",
-                                "Failed to get reading data from band for ${book.name}",
-                                e
-                            )
-                            null
-                        }
-
-
                         val phoneProgress = getPhoneReadingProgress(book)
-                        Log.d(
-                            "MainViewModel",
-                            "Phone progress for ${book.name}: ${phoneProgress != null}"
-                        )
-                        var bandProgress: Map<String, Any>? = null
-                        if (bandReadingData != null) {
-                            try {
-                                if (bandReadingData.progress != null) {
-                                    val progressMap = JSONObject(bandReadingData.progress)
-                                    val tempMap = mutableMapOf<String, Any>()
-                                    val keys = progressMap.keys()
-                                    while (keys.hasNext()) {
-                                        val key = keys.next()
-                                        val value = progressMap.get(key)
-
-                                        if (key == "chapterIndex") {
-                                            when {
-                                                value == JSONObject.NULL -> {
-                                                    continue
-                                                }
-
-                                                value is Int -> tempMap[key] = value
-                                                value is Long -> tempMap[key] = value.toInt()
-                                                value is Double -> tempMap[key] = value.toInt()
-                                                value is String -> {
-                                                    try {
-                                                        val intValue = value.toInt()
-                                                        if (intValue >= 0) {
-                                                            tempMap[key] = intValue
-                                                        }
-                                                    } catch (e: Exception) {
-                                                    }
-                                                }
-
-                                                else -> {
-                                                    try {
-                                                        val intValue = (value as? Number)?.toInt()
-                                                        if (intValue != null && intValue >= 0) {
-                                                            tempMap[key] = intValue
-                                                        }
-                                                    } catch (e: Exception) {
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            tempMap[key] = when (value) {
-                                                is JSONObject -> value.toString()
-                                                is org.json.JSONArray -> value.toString()
-                                                is Boolean -> value
-                                                is Int -> value
-                                                is Long -> value
-                                                is Double -> value
-                                                is String -> value
-                                                else -> value.toString()
-                                            }
-                                        }
-                                    }
-
-                                    if (tempMap.containsKey("chapterIndex")) {
-                                        bandProgress = tempMap
-                                    } else {
-                                        Log.d(
-                                            "MainViewModel",
-                                            "Band progress has no valid chapterIndex, ignoring"
-                                        )
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MainViewModel", "Failed to parse band reading data", e)
-                            }
-                        }
-
-
                         val phoneReadingTime = getPhoneReadingTime(book.name)
-                        Log.d(
-                            "MainViewModel",
-                            "Phone reading time for ${book.name}: ${if (phoneReadingTime != null) "exists (totalSeconds=${phoneReadingTime["totalSeconds"]})" else "null"}"
-                        )
 
-                        var bandReadingTime: Map<String, Any>? = null
-                        if (bandReadingData != null && bandReadingData.readingTime != null) {
-                            try {
-                                Log.d("MainViewModel", "Parsing band reading time for ${book.name}")
-                                val readingTimeMap =
-                                    JSONObject(bandReadingData.readingTime)
-                                val tempMap = mutableMapOf<String, Any>()
-                                val keys = readingTimeMap.keys()
-                                while (keys.hasNext()) {
-                                    val key = keys.next()
-                                    val value = readingTimeMap.get(key)
-                                    tempMap[key] = when (value) {
-                                        is JSONObject -> {
-                                            val sessionMap = mutableMapOf<String, Any>()
-                                            val sessionKeys = value.keys()
-                                            while (sessionKeys.hasNext()) {
-                                                val sessionKey = sessionKeys.next()
-                                                sessionMap[sessionKey] = value.get(sessionKey)
-                                            }
-                                            sessionMap
-                                        }
-
-                                        is org.json.JSONArray -> {
-                                            val sessionList = mutableListOf<Any>()
-                                            for (i in 0 until value.length()) {
-                                                val sessionObj = value.getJSONObject(i)
-                                                val sessionMap = mutableMapOf<String, Any>()
-                                                val sessionKeys = sessionObj.keys()
-                                                while (sessionKeys.hasNext()) {
-                                                    val sessionKey = sessionKeys.next()
-                                                    val sessionValue = sessionObj.get(sessionKey)
-                                                    sessionMap[sessionKey] = when (sessionValue) {
-                                                        is JSONObject -> sessionValue.toString()
-                                                        is org.json.JSONArray -> sessionValue.toString()
-                                                        is Boolean -> sessionValue
-                                                        is Int -> sessionValue
-                                                        is Long -> sessionValue
-                                                        is Double -> sessionValue
-                                                        is String -> sessionValue
-                                                        else -> sessionValue.toString()
-                                                    }
-                                                }
-                                                sessionList.add(sessionMap)
-                                            }
-                                            sessionList
-                                        }
-
-                                        is Boolean -> value
-                                        is Int -> value
-                                        is Long -> value
-                                        is Double -> value
-                                        is String -> value
-                                        else -> value.toString()
-                                    }
-                                }
-                                bandReadingTime = tempMap
-                                val sessionsSize =
-                                    when (val sessions = bandReadingTime["sessions"]) {
-                                        is List<*> -> sessions.size
-                                        else -> 0
-                                    }
-                                Log.d(
-                                    "MainViewModel",
-                                    "Parsed band reading time for ${book.name}: totalSeconds=${bandReadingTime["totalSeconds"]}, sessions=$sessionsSize"
-                                )
-                            } catch (e: Exception) {
-                                Log.e(
-                                    "MainViewModel",
-                                    "Failed to parse band reading time for ${book.name}",
-                                    e
-                                )
+                        val progressJson = if (progressMode == SyncMode.BAND_ONLY) null else phoneProgress?.let { fp ->
+                            val normalized = HashMap<String, Any?>()
+                            normalized.putAll(fp)
+                            val rawOffsetAny = fp["offsetInChapter"]
+                            val rawOffset = when (rawOffsetAny) {
+                                is Number -> rawOffsetAny.toInt()
+                                is String -> rawOffsetAny.toIntOrNull() ?: 0
+                                else -> 0
                             }
-                        } else {
-                            Log.d("MainViewModel", "No band reading time data for ${book.name}")
+                            var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
+                            if (normalizedOffset % 2 == 1) normalizedOffset = Math.max(0, normalizedOffset - 1)
+                            if (fp.containsKey("offsetInChapter")) {
+                                normalized["offsetInChapter"] = normalizedOffset
+                            }
+                            JSONObject(normalized).toString()
                         }
 
-
-                        Log.d(
-                            "MainViewModel",
-                            "Merging data for ${book.name} with progressMode: $currentProgressMode, readingTimeMode: $currentReadingTimeMode"
-                        )
-
-
-                        val finalProgress = when (currentProgressMode) {
-                            SyncMode.AUTO -> {
-                                val merged = mergeProgress(phoneProgress, bandProgress)
-                                Log.d(
-                                    "MainViewModel",
-                                    "Auto merged progress for ${book.name}: ${merged != null}"
-                                )
-                                merged
-                            }
-
-                            SyncMode.BAND_ONLY -> {
-                                Log.d("MainViewModel", "Using band progress for ${book.name}")
-                                bandProgress
-                            }
-
-                            SyncMode.PHONE_ONLY -> {
-                                Log.d("MainViewModel", "Using phone progress for ${book.name}")
-                                phoneProgress
-                            }
-                        }
-
-                        val finalReadingTime = when (currentReadingTimeMode) {
-                            SyncMode.AUTO -> {
-                                val merged = mergeReadingTime(phoneReadingTime, bandReadingTime)
-                                Log.d(
-                                    "MainViewModel",
-                                    "Auto merged reading time for ${book.name}: ${if (merged != null) "totalSeconds=${merged["totalSeconds"]}, sessions=${(merged["sessions"] as? List<*>)?.size ?: 0}" else "null"}"
-                                )
-                                merged
-                            }
-
-                            SyncMode.BAND_ONLY -> {
-                                Log.d("MainViewModel", "Using band reading time for ${book.name}")
-                                bandReadingTime
-                            }
-
-                            SyncMode.PHONE_ONLY -> {
-                                Log.d("MainViewModel", "Using phone reading time for ${book.name}")
-                                phoneReadingTime
-                            }
-                        }
-
-                        val hasProgressChange = when (currentProgressMode) {
-                            SyncMode.AUTO -> finalProgress != phoneProgress
-                            SyncMode.BAND_ONLY -> bandProgress != null
-                            SyncMode.PHONE_ONLY -> false
-                        }
-
-                        val hasReadingTimeChange = when (currentReadingTimeMode) {
-                            SyncMode.AUTO -> {
-                                val phoneTotal =
-                                    (phoneReadingTime?.get("totalSeconds") as? Number)?.toLong()
-                                        ?: 0L
-                                val bandTotal =
-                                    (bandReadingTime?.get("totalSeconds") as? Number)?.toLong()
-                                        ?: 0L
-                                val finalTotal =
-                                    (finalReadingTime?.get("totalSeconds") as? Number)?.toLong()
-                                        ?: 0L
-                                finalTotal != phoneTotal || (bandTotal > 0 && finalTotal != bandTotal)
-                            }
-
-                            SyncMode.BAND_ONLY -> bandReadingTime != null
-                            SyncMode.PHONE_ONLY -> false
-                        }
-
-                        if (hasProgressChange || hasReadingTimeChange) {
-                            changedBooks.add(book.name)
-                        }
-
-
-                        when (currentProgressMode) {
-                            SyncMode.AUTO, SyncMode.BAND_ONLY -> {
-                                savePhoneReadingProgress(book, finalProgress)
-                            }
-
-                            SyncMode.PHONE_ONLY -> {
-
-                                Log.d(
-                                    "MainViewModel",
-                                    "PHONE_ONLY mode: keeping phone progress unchanged for ${book.name}"
-                                )
-                            }
-                        }
-
-                        when (currentReadingTimeMode) {
-                            SyncMode.AUTO, SyncMode.BAND_ONLY -> {
-                                savePhoneReadingTime(book.name, finalReadingTime)
-                                Log.d("MainViewModel", "Saved reading time for ${book.name}")
-                            }
-
-                            SyncMode.PHONE_ONLY -> {
-
-                                Log.d(
-                                    "MainViewModel",
-                                    "PHONE_ONLY mode: keeping phone reading time unchanged for ${book.name}"
-                                )
-                            }
-                        }
-
-
-                        val progressJson = when (currentProgressMode) {
-                            SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
-                                finalProgress?.let { fp ->
-                                    try {
-                                        val normalized = HashMap<String, Any?>()
-                                        normalized.putAll(fp)
-                                        val rawOffsetAny = fp["offsetInChapter"]
-                                        val rawOffset = when (rawOffsetAny) {
-                                            is Number -> rawOffsetAny.toInt()
-                                            is String -> rawOffsetAny.toIntOrNull() ?: 0
-                                            else -> 0
-                                        }
-                                        var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
-                                        if (normalizedOffset % 2 == 1) normalizedOffset =
-                                            Math.max(0, normalizedOffset - 1)
-                                        if (fp.containsKey("offsetInChapter")) {
-                                            normalized["offsetInChapter"] = normalizedOffset
-                                        }
-                                        JSONObject(normalized).toString()
-                                    } catch (e: Exception) {
-                                        Log.e("MainViewModel", "Failed to serialize progress", e)
-                                        null
-                                    }
-                                }
-                            }
-
-                            SyncMode.BAND_ONLY -> {
-                                Log.d(
-                                    "MainViewModel",
-                                    "BAND_ONLY mode: keeping band progress unchanged for ${book.name}"
-                                )
-                                null
-                            }
-                        }
-
-                        val readingTimeJson = when (currentReadingTimeMode) {
-                            SyncMode.AUTO, SyncMode.PHONE_ONLY -> {
-                                finalReadingTime?.let {
-                                    try {
-                                        val json = JSONObject(it).toString()
-                                        Log.d(
-                                            "MainViewModel",
-                                            "Serialized reading time JSON for ${book.name}: ${json.length} chars"
-                                        )
-                                        json
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                            "MainViewModel",
-                                            "Failed to serialize reading time for ${book.name}",
-                                            e
-                                        )
-                                        null
-                                    }
-                                }
-                            }
-
-                            SyncMode.BAND_ONLY -> {
-
-                                Log.d(
-                                    "MainViewModel",
-                                    "BAND_ONLY mode: keeping band reading time unchanged for ${book.name}"
-                                )
-                                null
-                            }
+                        val readingTimeJson = if (readingTimeMode == SyncMode.BAND_ONLY) null else phoneReadingTime?.let {
+                            JSONObject(it).toString()
                         }
 
                         if (progressJson != null || readingTimeJson != null) {
-                            Log.d(
-                                "MainViewModel",
-                                "Sending reading data to band for ${book.name}: progress=${progressJson != null}, readingTime=${readingTimeJson != null}"
-                            )
-                            fileConn.setReadingData(book.name, progressJson, readingTimeJson)
-                            Log.d(
-                                "MainViewModel",
-                                "Successfully sent reading data to band for ${book.name}"
-                            )
-                        } else {
-                            Log.d(
-                                "MainViewModel",
-                                "No reading data to send to band for ${book.name}"
-                            )
+                            val success = fileConn.setReadingData(book.name, progressJson, readingTimeJson)
+                            if (!success) {
+                                Log.w("MainViewModel", "Reading data sync failed or timed out for ${book.name}")
+                                failedBooks[book.name] = "手环未响应或同步失败"
+                                continue
+                            }
                         }
 
-                        try {
-                            val phoneBookmarks =
-                                BookmarkManager.getBookmarksForSync(getApplication(), book.id)
-                            val bandBookmarks = try {
-                                fileConn.getBookmarks(book.name)
-                            } catch (e: Exception) {
-                                Log.e(
-                                    "MainViewModel",
-                                    "Failed to get bookmarks from band for ${book.name}",
-                                    e
-                                )
-                                emptyList()
+                        if (bookmarkMode != SyncMode.BAND_ONLY) {
+                            val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
+                            if (phoneBookmarks.isNotEmpty()) {
+                                val bookmarkData = phoneBookmarks.map { bm ->
+                                    com.bandbbs.ebook.logic.BookmarkData(
+                                        name = bm.name,
+                                        chapterIndex = bm.chapterIndex,
+                                        chapterName = bm.chapterName,
+                                        offsetInChapter = bm.offsetInChapter,
+                                        scrollOffset = bm.scrollOffset,
+                                        time = bm.time
+                                    )
+                                }
+                                fileConn.setBookmarks(book.name, bookmarkData)
                             }
-
-                            val currentBookmarkMode = _syncReadingDataState.value.bookmarkSyncMode
-                            when (currentBookmarkMode) {
-                                SyncMode.PHONE_ONLY -> {
-                                    if (phoneBookmarks.isNotEmpty()) {
-                                        val bookmarkData = phoneBookmarks.map { bm ->
-                                            com.bandbbs.ebook.logic.BookmarkData(
-                                                name = bm.name,
-                                                chapterIndex = bm.chapterIndex,
-                                                chapterName = bm.chapterName,
-                                                offsetInChapter = bm.offsetInChapter,
-                                                scrollOffset = bm.scrollOffset,
-                                                time = bm.time
-                                            )
-                                        }
-                                        fileConn.setBookmarks(book.name, bookmarkData)
-                                        Log.d(
-                                            "MainViewModel",
-                                            "Synced ${bookmarkData.size} bookmarks from phone to band for ${book.name}"
-                                        )
-                                    }
-                                }
-
-                                SyncMode.BAND_ONLY -> {
-                                    if (bandBookmarks.isNotEmpty()) {
-                                        val bookmarkEntities = bandBookmarks.map { bm ->
-                                            BookmarkEntity(
-                                                bookId = book.id,
-                                                name = bm.name,
-                                                chapterIndex = bm.chapterIndex,
-                                                chapterName = bm.chapterName,
-                                                offsetInChapter = bm.offsetInChapter,
-                                                scrollOffset = bm.scrollOffset,
-                                                time = bm.time
-                                            )
-                                        }
-                                        BookmarkManager.syncBookmarksFromBand(
-                                            getApplication(),
-                                            book.id,
-                                            bookmarkEntities
-                                        )
-                                        Log.d(
-                                            "MainViewModel",
-                                            "Synced ${bookmarkEntities.size} bookmarks from band to phone for ${book.name}"
-                                        )
-                                    }
-                                }
-
-                                SyncMode.AUTO -> {
-                                    val mergedBookmarks = mutableListOf<BookmarkEntity>()
-                                    val bandBookmarkMap =
-                                        bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
-                                    phoneBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
-
-                                    bandBookmarks.forEach { bm ->
-                                        mergedBookmarks.add(
-                                            BookmarkEntity(
-                                                bookId = book.id,
-                                                name = bm.name,
-                                                chapterIndex = bm.chapterIndex,
-                                                chapterName = bm.chapterName,
-                                                offsetInChapter = bm.offsetInChapter,
-                                                scrollOffset = bm.scrollOffset,
-                                                time = bm.time
-                                            )
-                                        )
-                                    }
-
-                                    phoneBookmarks.forEach { bm ->
-                                        val key = "${bm.chapterIndex}_${bm.offsetInChapter}"
-                                        if (!bandBookmarkMap.containsKey(key)) {
-                                            mergedBookmarks.add(bm)
-                                        }
-                                    }
-
-                                    if (mergedBookmarks.isNotEmpty()) {
-                                        val bookmarkData = mergedBookmarks.map { bm ->
-                                            com.bandbbs.ebook.logic.BookmarkData(
-                                                name = bm.name,
-                                                chapterIndex = bm.chapterIndex,
-                                                chapterName = bm.chapterName,
-                                                offsetInChapter = bm.offsetInChapter,
-                                                scrollOffset = bm.scrollOffset,
-                                                time = bm.time
-                                            )
-                                        }
-                                        fileConn.setBookmarks(book.name, bookmarkData)
-                                        BookmarkManager.syncBookmarksFromBand(
-                                            getApplication(),
-                                            book.id,
-                                            mergedBookmarks
-                                        )
-                                        Log.d(
-                                            "MainViewModel",
-                                            "Merged and synced ${mergedBookmarks.size} bookmarks for ${book.name}"
-                                        )
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainViewModel", "Failed to sync bookmarks for ${book.name}", e)
                         }
 
                         syncedCount++
@@ -1626,63 +1419,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
                     } catch (e: Exception) {
-                        Log.e("MainViewModel", "Failed to sync reading data for ${book.name}", e)
-                        failedBooks[book.name] = "同步失败: ${e.message ?: "未知错误"}"
-                        withContext(Dispatchers.Main) {
-                            val currentFailed =
-                                _syncReadingDataState.value.failedBooks.toMutableMap()
-                            currentFailed[book.name] = "同步失败: ${e.message ?: "未知错误"}"
-                            _syncReadingDataState.value = _syncReadingDataState.value.copy(
-                                failedBooks = currentFailed
-                            )
-                        }
+                        failedBooks[book.name] = "推送失败: ${e.message}"
                     }
                 }
 
-
-                loadBooks()
-
                 withContext(Dispatchers.Main) {
                     val statusText = if (failedBooks.isEmpty()) {
-                        "同步完成，共同步 $syncedCount 本书"
+                        "推送完成，共推送 $syncedCount 本书"
                     } else {
-                        val failedCount = failedBooks.size
-                        "同步完成，成功 $syncedCount 本，失败 $failedCount 本"
+                        "推送完成，成功 $syncedCount 本，失败 ${failedBooks.size} 本"
                     }
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
                         statusText = statusText,
                         progress = 1f,
-                        totalBooks = allBooks.size,
+                        totalBooks = _books.value.size,
                         syncedBooks = syncedCount,
                         failedBooks = failedBooks
                     )
-                    if (changedBooks.isNotEmpty()) {
-                        _syncResultState.value = SyncResultState(
-                            changedBooks = changedBooks,
-                            syncedCount = syncedCount
-                        )
-                    }
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) {
-
-                    withContext(Dispatchers.Main) {
-                        _syncReadingDataState.value = SyncReadingDataState(
-                            isSyncing = false,
-                            statusText = "同步已取消",
-                            progress = 0f
-                        )
-                    }
-                } else {
-                    Log.e("MainViewModel", "Failed to sync reading data", e)
-                    withContext(Dispatchers.Main) {
-                        _syncReadingDataState.value = SyncReadingDataState(
-                            isSyncing = false,
-                            statusText = "同步失败: ${e.message}",
-                            progress = 0f
-                        )
-                    }
+                withContext(Dispatchers.Main) {
+                    _syncReadingDataState.value = SyncReadingDataState(
+                        isSyncing = false,
+                        statusText = "推送失败: ${e.message}",
+                        progress = 0f
+                    )
                 }
             } finally {
                 syncReadingDataJob = null
@@ -1693,6 +1455,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelSyncReadingData() {
         syncReadingDataJob?.cancel()
         syncReadingDataJob = null
+        autoMergeLatch?.cancel()
+        autoMergeLatch = null
     }
 
     fun clearSyncReadingDataState() {
