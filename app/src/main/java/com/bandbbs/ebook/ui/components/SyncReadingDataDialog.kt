@@ -50,6 +50,7 @@ fun SyncReadingDataDialog(
             val base = state.statusText.ifBlank { "同步完成" }
             "$base，其中 ${resultState.changedBooks.size} 本有数据变化"
         }
+
         else -> state.statusText
     }
 
@@ -71,7 +72,9 @@ fun SyncReadingDataDialog(
         ) {
             if (state.isSyncing && state.totalBooks > 0) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     LinearProgressIndicator(
@@ -119,7 +122,10 @@ fun SyncReadingDataDialog(
                         var isExpanded by remember { mutableStateOf(false) }
                         val maxVisibleItems = 3
                         val failedBooksList = state.failedBooks.entries.toList()
-                        val visibleItems = if (isExpanded) failedBooksList else failedBooksList.take(maxVisibleItems)
+                        val visibleItems =
+                            if (isExpanded) failedBooksList else failedBooksList.take(
+                                maxVisibleItems
+                            )
                         val hasMore = failedBooksList.size > maxVisibleItems
 
                         Card(
@@ -167,7 +173,9 @@ fun SyncReadingDataDialog(
                                         Text(
                                             text = reason,
                                             style = MiuixTheme.textStyles.footnote1,
-                                            color = MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                                            color = MiuixTheme.colorScheme.onErrorContainer.copy(
+                                                alpha = 0.7f
+                                            )
                                         )
                                     }
                                 }

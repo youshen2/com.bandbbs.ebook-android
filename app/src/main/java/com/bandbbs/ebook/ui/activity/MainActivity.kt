@@ -76,7 +76,6 @@ import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.extra.SuperBottomSheet
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
@@ -575,7 +574,7 @@ class MainActivity : ComponentActivity() {
                         if (showTutorialState.value) {
                             SuperDialog(
                                 title = "首次使用提示",
-                                summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。\n\n澎湃OS3.0.300及以上可使用超级岛显示进度。",
+                                summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。",
                                 show = showTutorialState,
                                 onDismissRequest = {
                                     markTutorialShown()

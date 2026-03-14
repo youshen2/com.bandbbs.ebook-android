@@ -60,7 +60,8 @@ class InterconnetFile(private val conn: InterHandshake) {
     var onCoverProgress: ((current: Int, total: Int) -> Unit)? = null
     var onStorageInfo: ((BandStorageInfoData) -> Unit)? = null
 
-    var onSyncReadingData: ((filename: String, progress: String?, readingTime: String?) -> Unit)? = null
+    var onSyncReadingData: ((filename: String, progress: String?, readingTime: String?) -> Unit)? =
+        null
     var onSyncBatchReadingData: ((books: List<SyncReadingData>) -> Unit)? = null
     var onSyncBookmarks: ((filename: String, bookmarks: List<BookmarkData>) -> Unit)? = null
 
@@ -240,12 +241,18 @@ class InterconnetFile(private val conn: InterHandshake) {
                     }
 
                     "sync_reading_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SyncReadingDataMessage>(it)
-                        onSyncReadingData?.invoke(jsonMessage.filename, jsonMessage.progress, jsonMessage.readingTime)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SyncReadingDataMessage>(it)
+                        onSyncReadingData?.invoke(
+                            jsonMessage.filename,
+                            jsonMessage.progress,
+                            jsonMessage.readingTime
+                        )
                     }
 
                     "sync_batch_reading_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SyncBatchReadingData>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SyncBatchReadingData>(it)
                         onSyncBatchReadingData?.invoke(jsonMessage.books)
                     }
 
@@ -279,7 +286,8 @@ class InterconnetFile(private val conn: InterHandshake) {
                     }
 
                     "sync_bookmarks" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SyncBookmarks>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SyncBookmarks>(it)
                         onSyncBookmarks?.invoke(jsonMessage.filename, jsonMessage.bookmarks)
                     }
 
@@ -293,7 +301,8 @@ class InterconnetFile(private val conn: InterHandshake) {
                             readDataCompleter?.complete(true)
                             readDataCompleter = null
                         } else {
-                            val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
+                            val jsonMessage =
+                                json.decodeFromString<FileMessagesFromDevice.Success>(it)
                             handleSuccessResponse(jsonMessage.message, jsonMessage.count)
                         }
                     }

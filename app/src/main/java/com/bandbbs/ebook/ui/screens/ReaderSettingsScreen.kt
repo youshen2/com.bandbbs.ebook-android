@@ -389,10 +389,13 @@ fun ReaderSettingsScreen(
                     onClick = {
                         update { ReaderSettings() }
                     },
-                    modifier = Modifier.pressable(
-                        interactionSource = null,
-                        indication = SinkFeedback()
-                    ).fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp)
+                    modifier = Modifier
+                        .pressable(
+                            interactionSource = null,
+                            indication = SinkFeedback()
+                        )
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
                 )
             }
         }

@@ -382,7 +382,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun handleSyncReadingData(filename: String, progressJson: String?, readingTimeJson: String?) {
+    private fun handleSyncReadingData(
+        filename: String,
+        progressJson: String?,
+        readingTimeJson: String?
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val book = _books.value.find { it.name == filename } ?: return@launch
             try {
@@ -512,13 +516,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun handleSyncBookmarks(filename: String, bandBookmarks: List<com.bandbbs.ebook.logic.BookmarkData>) {
+    private fun handleSyncBookmarks(
+        filename: String,
+        bandBookmarks: List<com.bandbbs.ebook.logic.BookmarkData>
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val book = _books.value.find { it.name == filename } ?: return@launch
             try {
                 val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
                 val mergedBookmarks = mutableListOf<BookmarkEntity>()
-                val bandBookmarkMap = bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
+                val bandBookmarkMap =
+                    bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
 
                 bandBookmarks.forEach { bm ->
                     mergedBookmarks.add(
@@ -573,6 +581,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             val intValue = value.toIntOrNull()
                             if (intValue != null && intValue >= 0) tempMap[key] = intValue
                         }
+
                         else -> {
                             val intValue = (value as? Number)?.toInt()
                             if (intValue != null && intValue >= 0) tempMap[key] = intValue
@@ -610,6 +619,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         sessionMap
                     }
+
                     is org.json.JSONArray -> {
                         val sessionList = mutableListOf<Any>()
                         for (i in 0 until value.length()) {
@@ -624,6 +634,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         sessionList
                     }
+
                     else -> value
                 }
             }
@@ -1370,38 +1381,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val phoneProgress = getPhoneReadingProgress(book)
                         val phoneReadingTime = getPhoneReadingTime(book.name)
 
-                        val progressJson = if (progressMode == SyncMode.BAND_ONLY) null else phoneProgress?.let { fp ->
-                            val normalized = HashMap<String, Any?>()
-                            normalized.putAll(fp)
-                            val rawOffsetAny = fp["offsetInChapter"]
-                            val rawOffset = when (rawOffsetAny) {
-                                is Number -> rawOffsetAny.toInt()
-                                is String -> rawOffsetAny.toIntOrNull() ?: 0
-                                else -> 0
+                        val progressJson =
+                            if (progressMode == SyncMode.BAND_ONLY) null else phoneProgress?.let { fp ->
+                                val normalized = HashMap<String, Any?>()
+                                normalized.putAll(fp)
+                                val rawOffsetAny = fp["offsetInChapter"]
+                                val rawOffset = when (rawOffsetAny) {
+                                    is Number -> rawOffsetAny.toInt()
+                                    is String -> rawOffsetAny.toIntOrNull() ?: 0
+                                    else -> 0
+                                }
+                                var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
+                                if (normalizedOffset % 2 == 1) normalizedOffset =
+                                    Math.max(0, normalizedOffset - 1)
+                                if (fp.containsKey("offsetInChapter")) {
+                                    normalized["offsetInChapter"] = normalizedOffset
+                                }
+                                JSONObject(normalized).toString()
                             }
-                            var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
-                            if (normalizedOffset % 2 == 1) normalizedOffset = Math.max(0, normalizedOffset - 1)
-                            if (fp.containsKey("offsetInChapter")) {
-                                normalized["offsetInChapter"] = normalizedOffset
-                            }
-                            JSONObject(normalized).toString()
-                        }
 
-                        val readingTimeJson = if (readingTimeMode == SyncMode.BAND_ONLY) null else phoneReadingTime?.let {
-                            JSONObject(it).toString()
-                        }
+                        val readingTimeJson =
+                            if (readingTimeMode == SyncMode.BAND_ONLY) null else phoneReadingTime?.let {
+                                JSONObject(it).toString()
+                            }
 
                         if (progressJson != null || readingTimeJson != null) {
-                            val success = fileConn.setReadingData(book.name, progressJson, readingTimeJson)
+                            val success =
+                                fileConn.setReadingData(book.name, progressJson, readingTimeJson)
                             if (!success) {
-                                Log.w("MainViewModel", "Reading data sync failed or timed out for ${book.name}")
+                                Log.w(
+                                    "MainViewModel",
+                                    "Reading data sync failed or timed out for ${book.name}"
+                                )
                                 failedBooks[book.name] = "手环未响应或同步失败"
                                 continue
                             }
                         }
 
                         if (bookmarkMode != SyncMode.BAND_ONLY) {
-                            val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
+                            val phoneBookmarks =
+                                BookmarkManager.getBookmarksForSync(getApplication(), book.id)
                             if (phoneBookmarks.isNotEmpty()) {
                                 val bookmarkData = phoneBookmarks.map { bm ->
                                     com.bandbbs.ebook.logic.BookmarkData(
