@@ -161,6 +161,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _overwriteConfirmState = MutableStateFlow<OverwriteConfirmState?>(null)
     val overwriteConfirmState = _overwriteConfirmState.asStateFlow()
 
+    private val _largeChapterWarningState = MutableStateFlow<LargeChapterWarningState?>(null)
+    val largeChapterWarningState = _largeChapterWarningState.asStateFlow()
+
     private val _bookForCoverImport = MutableStateFlow<Book?>(null)
     val bookForCoverImport = _bookForCoverImport.asStateFlow()
 
@@ -336,6 +339,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         importingState = _importingState,
         importReportState = _importReportState,
         overwriteConfirmState = _overwriteConfirmState,
+        largeChapterWarningState = _largeChapterWarningState,
         onBooksChanged = { loadBooks() }
     )
 
@@ -893,6 +897,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmOverwrite() = importHandler.confirmOverwrite()
 
     fun dismissImportReport() = importHandler.dismissImportReport()
+
+    fun dismissLargeChapterWarning() = importHandler.dismissLargeChapterWarning()
 
     fun requestDeleteBook(book: Book) = libraryHandler.requestDeleteBook(book)
 

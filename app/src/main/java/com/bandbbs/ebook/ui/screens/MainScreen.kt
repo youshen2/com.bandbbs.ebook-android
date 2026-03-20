@@ -146,6 +146,7 @@ fun MainScreen(
     val booksToDelete by viewModel.booksToDelete.collectAsState()
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
+    val largeChapterWarningState by viewModel.largeChapterWarningState.collectAsState()
     val connectionErrorState by viewModel.connectionErrorState.collectAsState()
     val connectionRequiredDialogState by viewModel.connectionRequiredDialogState.collectAsState()
     val categoryState by viewModel.categoryState.collectAsState()
@@ -676,6 +677,27 @@ fun MainScreen(
                 viewModel.confirmOverwrite()
             }
         )
+    }
+
+    val showLargeChapterWarningDialog = remember { mutableStateOf(false) }
+    LaunchedEffect(largeChapterWarningState) {
+        showLargeChapterWarningDialog.value = largeChapterWarningState != null
+    }
+
+    largeChapterWarningState?.let { state ->
+        SuperDialog(
+            title = "存在过大章节",
+            summary = state.message,
+            show = showLargeChapterWarningDialog,
+            onDismissRequest = { viewModel.dismissLargeChapterWarning() }
+        ) {
+            TextButton(
+                text = "我知道了",
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                onClick = { viewModel.dismissLargeChapterWarning() },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     val showConnectionErrorSheet = remember { mutableStateOf(false) }

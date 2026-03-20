@@ -5,8 +5,11 @@ import android.net.Uri
 import com.bandbbs.ebook.database.Chapter
 import org.mozilla.universalchardet.UniversalDetector
 import java.nio.charset.Charset
+import kotlin.math.max
 
 object ChapterSplitter {
+
+    const val MAX_CHAPTER_SIZE_BYTES = 5 * 1024 * 1024
 
     const val METHOD_DEFAULT = "METHOD_DEFAULT"
     const val METHOD_DEFAULT_LOOSE = "METHOD_DEFAULT_LOOSE"
@@ -177,6 +180,77 @@ object ChapterSplitter {
 
         onProgress(0.95f, "分章完成, 共 ${chapters.size} 章")
         return chapters
+    }
+
+    fun estimateMaxChapterBytesFromText(
+        content: String,
+        method: String,
+        wordsPerChapter: Int = 5000,
+        customRegex: String? = null
+    ): Int {
+        if (content.isEmpty()) return 0
+
+        if (method == METHOD_BY_WORD_COUNT) {
+            return estimateByWordCount(content, wordsPerChapter)
+        }
+
+        val regex = when (method) {
+            METHOD_CHAPTER -> regexChapter
+            METHOD_DEFAULT_LOOSE -> regexDefaultLoose
+            METHOD_ZH_NUM_DOT -> regexZhNumDot
+            METHOD_DIGIT_DOT -> regexDigitDot
+            METHOD_CUSTOM -> {
+                if (customRegex != null && customRegex.isNotBlank()) {
+                    runCatching { Regex(customRegex) }.getOrElse { regexDefault }
+                } else {
+                    regexDefault
+                }
+            }
+
+            else -> regexDefault
+        }
+
+        val lines = content.lines()
+        var maxBytes = 0
+        var currentChapterTitle: String? = null
+        var currentChapterContent = StringBuilder()
+
+        fun flushChapter() {
+            if (currentChapterTitle != null) {
+                maxBytes = max(maxBytes, currentChapterContent.toString().trim().toByteArray().size)
+            } else if (currentChapterContent.toString().trim().isNotEmpty()) {
+                maxBytes = max(maxBytes, currentChapterContent.toString().trim().toByteArray().size)
+            }
+        }
+
+        lines.forEach { line ->
+            if (regex.matches(line.trim())) {
+                flushChapter()
+                currentChapterTitle = line
+                currentChapterContent = StringBuilder()
+            } else {
+                currentChapterContent.append(line).append("\n")
+            }
+        }
+        flushChapter()
+
+        return maxBytes
+    }
+
+    private fun estimateByWordCount(content: String, wordsPerChapter: Int): Int {
+        val safeWords = wordsPerChapter.coerceAtLeast(1)
+        val totalLength = content.length
+        var startIndex = 0
+        var maxBytes = 0
+
+        while (startIndex < totalLength) {
+            val endIndex = (startIndex + safeWords).coerceAtMost(totalLength)
+            val chapterContent = content.substring(startIndex, endIndex).trim()
+            maxBytes = max(maxBytes, chapterContent.toByteArray().size)
+            startIndex = endIndex
+        }
+
+        return maxBytes
     }
 
     private fun splitByWordCountFromText(

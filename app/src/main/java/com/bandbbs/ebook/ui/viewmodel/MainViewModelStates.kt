@@ -112,6 +112,10 @@ data class OverwriteConfirmState(
     val wordsPerChapter: Int
 )
 
+data class LargeChapterWarningState(
+    val message: String
+)
+
 data class CategoryState(
     val categories: List<String>,
     val selectedCategory: String?,

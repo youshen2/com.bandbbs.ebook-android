@@ -11,6 +11,7 @@ import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.ui.viewmodel.ImportReportState
 import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.ui.viewmodel.ImportingState
+import com.bandbbs.ebook.ui.viewmodel.LargeChapterWarningState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.ui.viewmodel.RegexTemplate
 import com.bandbbs.ebook.utils.BookInfoParser
@@ -44,6 +45,7 @@ class ImportHandler(
     private val importingState: MutableStateFlow<ImportingState?>,
     private val importReportState: MutableStateFlow<ImportReportState?>,
     private val overwriteConfirmState: MutableStateFlow<OverwriteConfirmState?>,
+    private val largeChapterWarningState: MutableStateFlow<LargeChapterWarningState?>,
     private val onBooksChanged: () -> Unit,
 ) {
 
@@ -166,10 +168,27 @@ class ImportHandler(
         prefs.edit().putString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, selectedCustomRegexTemplateName).apply()
 
         scope.launch(Dispatchers.IO) {
+            val finalCategory = selectedCategory ?: state.selectedCategory
+
+            val oversizedChapterMessage = findOversizedChapterWarningMessage(
+                state = state,
+                splitMethod = splitMethod,
+                noSplit = noSplit,
+                wordsPerChapter = wordsPerChapter,
+                customRegex = customRegex
+            )
+            if (oversizedChapterMessage != null) {
+                withContext(Dispatchers.Main) {
+                    largeChapterWarningState.value = LargeChapterWarningState(
+                        message = oversizedChapterMessage
+                    )
+                }
+                return@launch
+            }
+
             withContext(Dispatchers.Main) {
                 importState.value = null
             }
-            val finalCategory = selectedCategory ?: state.selectedCategory
 
             if (state.isMultipleFiles) {
 
@@ -1474,5 +1493,81 @@ class ImportHandler(
 
     fun dismissImportReport() {
         importReportState.value = null
+    }
+
+    fun dismissLargeChapterWarning() {
+        largeChapterWarningState.value = null
+    }
+
+    private suspend fun findOversizedChapterWarningMessage(
+        state: ImportState,
+        splitMethod: String,
+        noSplit: Boolean,
+        wordsPerChapter: Int,
+        customRegex: String
+    ): String? {
+        if (noSplit) return null
+
+        for (file in state.files) {
+            if (file.fileFormat !in listOf("txt", "docx", "mobi")) continue
+
+            val estimatedMaxChapterBytes = estimateMaxChapterBytes(
+                uri = file.uri,
+                fileFormat = file.fileFormat,
+                splitMethod = splitMethod,
+                wordsPerChapter = wordsPerChapter,
+                customRegex = customRegex
+            ) ?: continue
+
+            if (estimatedMaxChapterBytes > ChapterSplitter.MAX_CHAPTER_SIZE_BYTES) {
+                return buildString {
+                    append("检测到单章节内容可能超过 5MB（文件：${file.bookName}）。\n这可能会导致传输时不停重启，无法完成传输该过大章节。\n")
+                    append("请尝试修改分章方式，或自行编写正则表达式，或按字数分章。")
+                }
+            }
+        }
+
+        return null
+    }
+
+    private suspend fun estimateMaxChapterBytes(
+        uri: Uri,
+        fileFormat: String,
+        splitMethod: String,
+        wordsPerChapter: Int,
+        customRegex: String
+    ): Int? {
+        val context = application.applicationContext
+        val textContent = when (fileFormat) {
+            "txt" -> ChapterSplitter.readTextFromUri(context, uri)
+            "docx" -> DocxParser.extractPlainText(context, uri)
+            "mobi" -> {
+                if (splitMethod == ChapterSplitter.METHOD_DEFAULT) {
+                    val chapters = MobiParser.extractChapters(context, uri) { _, _ -> }
+                    if (chapters.isNotEmpty()) {
+                        chapters.maxOfOrNull { it.content.trim().toByteArray().size } ?: 0
+                    } else {
+                        val plainText = MobiParser.extractPlainText(context, uri) { _, _ -> }
+                        plainText
+                    }
+                } else {
+                    MobiParser.extractPlainText(context, uri) { _, _ -> }
+                }
+            }
+
+            else -> return null
+        }
+
+        if (textContent is Int) {
+            return textContent
+        }
+
+        val content = textContent as String
+        return ChapterSplitter.estimateMaxChapterBytesFromText(
+            content = content,
+            method = splitMethod,
+            wordsPerChapter = wordsPerChapter,
+            customRegex = if (splitMethod == ChapterSplitter.METHOD_CUSTOM) customRegex else null
+        )
     }
 }
