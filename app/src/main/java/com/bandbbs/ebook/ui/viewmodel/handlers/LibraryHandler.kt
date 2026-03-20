@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.bandbbs.ebook.database.AppDatabase
+import com.bandbbs.ebook.database.BookEntity
 import com.bandbbs.ebook.database.Chapter
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.ui.model.ChapterEditContent
@@ -26,6 +27,7 @@ class LibraryHandler(
     private val db: AppDatabase,
     private val booksDir: File,
     private val scope: CoroutineScope,
+    private val booksState: MutableStateFlow<List<Book>>,
     private val bookToDelete: MutableStateFlow<Book?>,
     private val selectedBookForChapters: MutableStateFlow<Book?>,
     private val chaptersForSelectedBook: MutableStateFlow<List<com.bandbbs.ebook.database.ChapterInfo>>,
@@ -38,6 +40,55 @@ class LibraryHandler(
 
     fun requestDeleteBook(book: Book) {
         bookToDelete.value = book
+    }
+
+    fun createBook(bookName: String, selectedCategory: String?) {
+        val finalBookName = bookName.trim()
+        if (finalBookName.isEmpty()) return
+
+        scope.launch(Dispatchers.IO) {
+            val existedByName = db.bookDao().getBookByName(finalBookName)
+                ?: booksState.value.find { it.name == finalBookName }
+            if (existedByName != null) {
+                return@launch
+            }
+
+            val file = File(booksDir, "$finalBookName.txt")
+            if (!file.exists()) {
+                file.writeText("")
+            }
+
+            val insertedId = db.bookDao().insert(
+                BookEntity(
+                    name = finalBookName,
+                    path = file.absolutePath,
+                    size = file.length(),
+                    format = "txt",
+                    localCategory = selectedCategory
+                )
+            ).toInt()
+
+            val initialContent = ""
+            val chapterPath = ChapterContentManager.saveChapterContent(
+                application.applicationContext,
+                insertedId,
+                0,
+                initialContent
+            )
+            db.chapterDao().insertChapter(
+                Chapter(
+                    bookId = insertedId,
+                    index = 0,
+                    name = "正文",
+                    contentFilePath = chapterPath,
+                    wordCount = 0
+                )
+            )
+
+            withContext(Dispatchers.Main) {
+                onBooksChanged()
+            }
+        }
     }
 
     fun cancelDeleteBook() {

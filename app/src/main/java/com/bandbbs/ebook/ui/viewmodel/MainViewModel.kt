@@ -361,6 +361,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         db = db,
         booksDir = booksDir,
         scope = viewModelScope,
+        booksState = _books,
         bookToDelete = _bookToDelete,
         selectedBookForChapters = _selectedBookForChapters,
         chaptersForSelectedBook = _chaptersForSelectedBook,
@@ -901,6 +902,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissLargeChapterWarning() = importHandler.dismissLargeChapterWarning()
 
     fun requestDeleteBook(book: Book) = libraryHandler.requestDeleteBook(book)
+
+    fun createBook(bookName: String, selectedCategory: String?) =
+        libraryHandler.createBook(bookName, selectedCategory)
 
     fun confirmDeleteBook() = libraryHandler.confirmDeleteBook()
 

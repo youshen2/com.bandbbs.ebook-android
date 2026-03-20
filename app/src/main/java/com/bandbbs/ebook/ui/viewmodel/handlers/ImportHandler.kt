@@ -1518,7 +1518,7 @@ class ImportHandler(
 
             if (estimatedMaxChapterBytes > ChapterSplitter.MAX_CHAPTER_SIZE_BYTES) {
                 return buildString {
-                    append("检测到单章节内容可能超过 5MB（文件：${file.bookName}）。\n这可能会导致传输时不停重启，无法完成传输该过大章节。\n")
+                    append("检测到单章节内容可能超过 5MB（文件：${file.bookName}）。\n这可能会导致传输时不停重启，无法完成该过大章节传输。\n")
                     append("请尝试修改分章方式，或自行编写正则表达式，或按字数分章。")
                 }
             }

@@ -493,6 +493,66 @@ fun MainScreen(
         }
     }
 
+    val showCreateBookDialog = remember { mutableStateOf(false) }
+    var createBookName by remember { mutableStateOf("") }
+    var createBookCategory by remember { mutableStateOf("") }
+    SuperDialog(
+        title = "创建书籍",
+        show = showCreateBookDialog,
+        onDismissRequest = {
+            showCreateBookDialog.value = false
+            createBookName = ""
+            createBookCategory = ""
+        }
+    ) {
+        TextField(
+            value = createBookName,
+            onValueChange = { createBookName = it },
+            label = "书名",
+            singleLine = true,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        TextField(
+            value = createBookCategory,
+            onValueChange = { createBookCategory = it },
+            label = "分类（可选）",
+            singleLine = true,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TextButton(
+                text = "取消",
+                onClick = {
+                    showCreateBookDialog.value = false
+                    createBookName = ""
+                    createBookCategory = ""
+                },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "创建",
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                onClick = {
+                    val finalName = createBookName.trim()
+                    if (finalName.isBlank()) {
+                        Toast.makeText(context, "请输入书名", Toast.LENGTH_SHORT).show()
+                        return@TextButton
+                    }
+                    if (books.any { it.name == finalName }) {
+                        Toast.makeText(context, "已存在同名书籍", Toast.LENGTH_SHORT).show()
+                        return@TextButton
+                    }
+                    viewModel.createBook(finalName, createBookCategory.trim().ifBlank { null })
+                    showCreateBookDialog.value = false
+                    createBookName = ""
+                    createBookCategory = ""
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+
     val showMenuSheet = remember { mutableStateOf(false) }
     SuperBottomSheet(
         show = showMenuSheet,
@@ -502,6 +562,20 @@ fun MainScreen(
         Card(
             modifier = Modifier.padding(bottom = 40.dp)
         ) {
+            BasicComponent(
+                title = "创建书籍",
+                startAction = {
+                    Icon(
+                        MiuixIcons.Notes,
+                        contentDescription = null,
+                        tint = MiuixTheme.colorScheme.onSurface
+                    )
+                },
+                onClick = {
+                    showMenuSheet.value = false
+                    showCreateBookDialog.value = true
+                }
+            )
             BasicComponent(
                 title = "同步数据",
                 startAction = {

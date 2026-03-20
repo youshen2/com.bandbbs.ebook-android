@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,6 +70,7 @@ import com.bandbbs.ebook.ui.screens.SyncOptionsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.yalantis.ucrop.UCrop
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
@@ -325,6 +327,14 @@ class MainActivity : ComponentActivity() {
                 val navigateToHome = {
                     backStack.clear()
                     backStack.add(Screen.HomePager)
+                }
+
+                PredictiveBackHandler(enabled = backStack.size > 1) { progress ->
+                    try {
+                        progress.collect { }
+                        navigateBack()
+                    } catch (_: CancellationException) {
+                    }
                 }
 
                 LaunchedEffect(syncOptionsState) {
