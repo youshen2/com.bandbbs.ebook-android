@@ -1133,6 +1133,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importCoverForBook(uri: Uri) = libraryHandler.importCoverForBook(uri)
 
+    fun exportBookToUri(book: Book, uri: Uri) = libraryHandler.exportBookToUri(book, uri)
+
     fun showEditBookInfo(book: Book) {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path)

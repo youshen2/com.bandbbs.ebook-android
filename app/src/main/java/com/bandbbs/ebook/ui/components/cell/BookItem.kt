@@ -59,6 +59,7 @@ fun BookItem(
     onContinueReadingClick: () -> Unit,
     onImportCoverClick: () -> Unit = {},
     onEditInfoClick: () -> Unit = {},
+    onExportClick: () -> Unit = {},
     isSyncEnabled: Boolean,
     lastChapterName: String? = null,
     isSelected: Boolean = false,
@@ -295,15 +296,26 @@ fun BookItem(
                                     index = 1
                                 )
                                 DropdownImpl(
+                                    text = "导出书籍文件",
+                                    optionSize = 4,
+                                    isSelected = false,
+                                    onSelectedIndexChange = {
+                                        showMenu.value = false
+                                        showDetailsDialog.value = false
+                                        onExportClick()
+                                    },
+                                    index = 2
+                                )
+                                DropdownImpl(
                                     text = "删除书籍",
-                                    optionSize = 3,
+                                    optionSize = 4,
                                     isSelected = false,
                                     onSelectedIndexChange = {
                                         showMenu.value = false
                                         showDetailsDialog.value = false
                                         onDeleteClick()
                                     },
-                                    index = 2
+                                    index = 3
                                 )
                             }
                         }

@@ -3,6 +3,8 @@ package com.bandbbs.ebook.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -166,6 +168,17 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
+    var pendingExportBook by remember { mutableStateOf<com.bandbbs.ebook.ui.model.Book?>(null) }
+
+    val exportBookLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val book = pendingExportBook
+        if (uri != null && book != null) {
+            viewModel.exportBookToUri(book, uri)
+        }
+        pendingExportBook = null
+    }
 
     LaunchedEffect(bandStorageInfo.totalStorage) {
         if (bandStorageInfo.totalStorage > 0 && !bandStorageInfo.isLoading) {
@@ -1383,6 +1396,19 @@ fun MainScreen(
                                                 onImportCoverClick()
                                             },
                                             onEditInfoClick = { viewModel.showEditBookInfo(book) },
+                                            onExportClick = {
+                                                val exportFormat = book.format.lowercase()
+                                                if (exportFormat in setOf("txt", "epub", "nvb")) {
+                                                    pendingExportBook = book
+                                                    exportBookLauncher.launch("${book.name}.$exportFormat")
+                                                } else {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "仅支持导出 TXT、EPUB、NVB",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            },
                                             isSyncEnabled = true,
                                             lastChapterName = lastChapterNames[book.path],
                                             showSyncButton = bandTransferEnabled
@@ -1524,6 +1550,19 @@ fun MainScreen(
                                                 onImportCoverClick()
                                             },
                                             onEditInfoClick = { viewModel.showEditBookInfo(book) },
+                                            onExportClick = {
+                                                val exportFormat = book.format.lowercase()
+                                                if (exportFormat in setOf("txt", "epub", "nvb")) {
+                                                    pendingExportBook = book
+                                                    exportBookLauncher.launch("${book.name}.$exportFormat")
+                                                } else {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "仅支持导出 TXT、EPUB、NVB",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            },
                                             isSyncEnabled = connectionState.isConnected,
                                             lastChapterName = lastChapterNames[book.path],
                                             showSyncButton = bandTransferEnabled

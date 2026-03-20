@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.database.BookEntity
 import com.bandbbs.ebook.database.Chapter
@@ -227,6 +228,60 @@ class LibraryHandler(
                 }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to import cover", e)
+            }
+        }
+    }
+
+    fun exportBookToUri(book: Book, uri: Uri) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val format = book.format.lowercase()
+                if (format !in setOf("txt", "epub", "nvb")) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            application.applicationContext,
+                            "仅支持导出 TXT、EPUB、NVB",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val sourceFile = File(book.path)
+                if (!sourceFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            application.applicationContext,
+                            "源文件不存在，无法导出",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val context = application.applicationContext
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    sourceFile.inputStream().use { input ->
+                        input.copyTo(output)
+                    }
+                } ?: throw IllegalStateException("无法打开目标文件")
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        application.applicationContext,
+                        "导出成功",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to export book", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        application.applicationContext,
+                        "导出失败: ${e.message ?: "未知错误"}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
