@@ -94,6 +94,18 @@ fun SyncOptionsScreen(
     val focusManager = LocalFocusManager.current
     val sortType = ChapterSortType.values()[sortIndex]
 
+    val applyQuickSelectRange = {
+        val range = parseChapterRange(
+            quickSelectText,
+            state.totalChapters
+        )
+        if (range != null) {
+            selectedChapters = range
+            quickSelectText = ""
+            focusManager.clearFocus()
+        }
+    }
+
     val sortedChapters = remember(state.chapters, sortType) {
         when (sortType) {
             ChapterSortType.INDEX_ASC -> state.chapters.sortedBy { it.index }
@@ -230,17 +242,21 @@ fun SyncOptionsScreen(
                                     ),
                                     keyboardActions = KeyboardActions(
                                         onDone = {
-                                            val range = parseChapterRange(
-                                                quickSelectText,
-                                                state.totalChapters
-                                            )
-                                            if (range != null) {
-                                                selectedChapters = range
-                                                quickSelectText = ""
-                                                focusManager.clearFocus()
-                                            }
+                                            applyQuickSelectRange()
                                         }
                                     )
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                TextButton(
+                                    text = "确认",
+                                    onClick = { applyQuickSelectRange() },
+                                    modifier = Modifier
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                             }
 
