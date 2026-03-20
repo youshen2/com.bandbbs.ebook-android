@@ -38,6 +38,7 @@ object StorageUtils {
     }
 
     fun getReservedStorageText(product: String?): String {
+        if (product == null) return "未知"
         return when {
             product == "REDMI Watch 6" -> "120MB"
             product == "REDMI Watch 5" -> "120MB"

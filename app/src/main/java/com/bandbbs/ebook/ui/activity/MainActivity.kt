@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -18,6 +20,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +58,7 @@ import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
 import com.bandbbs.ebook.ui.components.IpCollectionPermissionDialog
 import com.bandbbs.ebook.ui.components.UpdateCheckDialog
 import com.bandbbs.ebook.ui.screens.BandSettingsScreen
+import com.bandbbs.ebook.ui.screens.BuiltinFileManagerScreen
 import com.bandbbs.ebook.ui.screens.ChapterListScreen
 import com.bandbbs.ebook.ui.screens.MainScreen
 import com.bandbbs.ebook.ui.screens.PushScreen
@@ -97,6 +102,7 @@ sealed interface Screen : NavKey {
     data object Push : Screen
     data object ChapterList : Screen
     data object Reader : Screen
+    data object BuiltinFileManager : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -159,6 +165,96 @@ class MainActivity : ComponentActivity() {
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+
+    private var openBuiltinFileManagerAction: (() -> Unit)? = null
+
+    private val storagePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                openBuiltinFileManagerAction?.invoke()
+            } else {
+                Toast.makeText(this, "未授予存储读取权限", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private val allFilesAccessSettingsLauncher =
+        registerForActivityResult(StartActivityForResult()) {
+            if (hasStoragePermission()) {
+                openBuiltinFileManagerAction?.invoke()
+            } else {
+                Toast.makeText(this, "请在系统设置中授予“所有文件访问权限”", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+    private fun getRequiredStoragePermission(): String? {
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> null
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.P -> Manifest.permission.READ_EXTERNAL_STORAGE
+            else -> null
+        }
+    }
+
+    private fun hasStoragePermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            val permission = getRequiredStoragePermission() ?: return true
+            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestAllFilesAccessPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            allFilesAccessSettingsLauncher.launch(intent)
+        }
+    }
+
+    private fun openBuiltinFileManager(navigateToFileManager: () -> Unit) {
+        navigateToFileManager()
+    }
+
+    private fun openImportPicker(navigateToFileManager: () -> Unit) {
+        val useBuiltin = viewModel.useBuiltinFileManager.value
+        if (useBuiltin) {
+            openBuiltinFileManagerAction = { openBuiltinFileManager(navigateToFileManager) }
+            if (hasStoragePermission()) {
+                openBuiltinFileManagerAction?.invoke()
+            } else {
+                when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                        requestAllFilesAccessPermission()
+                    }
+
+                    else -> {
+                        val permission = getRequiredStoragePermission()
+                        if (permission != null) {
+                            storagePermissionLauncher.launch(permission)
+                        } else {
+                            openBuiltinFileManagerAction?.invoke()
+                        }
+                    }
+                }
+            }
+        } else {
+            filePickerLauncher.launch(
+                arrayOf(
+                    "text/plain",
+                    "application/epub+zip",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/pdf",
+                    "application/x-pdf",
+                    "application/x-mobipocket-ebook",
+                    "application/vnd.amazon.ebook",
+                    "application/octet-stream"
+                )
+            )
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -308,18 +404,7 @@ class MainActivity : ComponentActivity() {
                                         indication = SinkFeedback()
                                     ),
                                 onClick = {
-                                    filePickerLauncher.launch(
-                                        arrayOf(
-                                            "text/plain",
-                                            "application/epub+zip",
-                                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                            "application/pdf",
-                                            "application/x-pdf",
-                                            "application/x-mobipocket-ebook",
-                                            "application/vnd.amazon.ebook",
-                                            "application/octet-stream"
-                                        )
-                                    )
+                                    openImportPicker { navigateTo(Screen.BuiltinFileManager) }
                                 }
                             ) {
                                 Icon(
@@ -549,6 +634,19 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         loadChapterContent = viewModel::loadChapterContent
+                                    )
+                                }
+                                entry<Screen.BuiltinFileManager> {
+                                    BuiltinFileManagerScreen(
+                                        onBackClick = navigateBack,
+                                        onSelectFiles = { files ->
+                                            if (files.size == 1) {
+                                                viewModel.startImport(Uri.fromFile(files.first()))
+                                            } else {
+                                                viewModel.startImportBatch(files.map { Uri.fromFile(it) })
+                                            }
+                                            navigateBack()
+                                        }
                                     )
                                 }
                             }

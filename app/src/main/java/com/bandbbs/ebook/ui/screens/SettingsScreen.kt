@@ -63,6 +63,7 @@ fun SettingsScreen(
     val autoRetryOnTransferError by viewModel.autoRetryOnTransferError.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
     val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
+    val useBuiltinFileManager by viewModel.useBuiltinFileManager.collectAsState()
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
@@ -140,6 +141,15 @@ fun SettingsScreen(
                             Switch(
                                 checked = showSearchBar,
                                 onCheckedChange = { viewModel.setShowSearchBar(it) })
+                        }
+                    )
+                    BasicComponent(
+                        title = "使用内置文件管理器",
+                        summary = "开启后使用应用内文件浏览器；关闭后调用系统文件选择器",
+                        endActions = {
+                            Switch(
+                                checked = useBuiltinFileManager,
+                                onCheckedChange = { viewModel.setUseBuiltinFileManager(it) })
                         }
                     )
                     BasicComponent(
