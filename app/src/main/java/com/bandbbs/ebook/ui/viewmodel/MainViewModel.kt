@@ -229,6 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val BAND_TRANSFER_ENABLED_KEY = "band_transfer_enabled"
     private val USE_FLOATING_NAVIGATION_BAR_KEY = "use_floating_navigation_bar"
     private val USE_BUILTIN_FILE_MANAGER_KEY = "use_builtin_file_manager"
+    private val AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY = "auto_delete_source_after_import"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -285,6 +286,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         MutableStateFlow(prefs.getBoolean(USE_BUILTIN_FILE_MANAGER_KEY, true))
     val useBuiltinFileManager = _useBuiltinFileManager.asStateFlow()
 
+    private val _autoDeleteSourceAfterImport =
+        MutableStateFlow(prefs.getBoolean(AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY, false))
+    val autoDeleteSourceAfterImport = _autoDeleteSourceAfterImport.asStateFlow()
+
     private val _isMultiSelectMode = MutableStateFlow(false)
     val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
 
@@ -340,6 +345,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         importReportState = _importReportState,
         overwriteConfirmState = _overwriteConfirmState,
         largeChapterWarningState = _largeChapterWarningState,
+        autoDeleteSourceAfterImport = _autoDeleteSourceAfterImport,
         onBooksChanged = { loadBooks() }
     )
 
@@ -1864,6 +1870,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setUseBuiltinFileManager(enabled: Boolean) {
         prefs.edit().putBoolean(USE_BUILTIN_FILE_MANAGER_KEY, enabled).apply()
         _useBuiltinFileManager.value = enabled
+    }
+
+    fun setAutoDeleteSourceAfterImport(enabled: Boolean) {
+        prefs.edit().putBoolean(AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY, enabled).apply()
+        _autoDeleteSourceAfterImport.value = enabled
     }
 
     fun renameCategory(oldName: String, newName: String) {

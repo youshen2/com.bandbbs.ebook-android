@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +47,7 @@ class ImportHandler(
     private val importReportState: MutableStateFlow<ImportReportState?>,
     private val overwriteConfirmState: MutableStateFlow<OverwriteConfirmState?>,
     private val largeChapterWarningState: MutableStateFlow<LargeChapterWarningState?>,
+    private val autoDeleteSourceAfterImport: StateFlow<Boolean>,
     private val onBooksChanged: () -> Unit,
 ) {
 
@@ -424,6 +426,10 @@ class ImportHandler(
                 )
             }
 
+            if (autoDeleteSourceAfterImport.value) {
+                deleteSourceFileIfNeeded(context, uri)
+            }
+
             withContext(Dispatchers.Main) {
                 importingState.value = null
                 onBooksChanged()
@@ -487,6 +493,23 @@ class ImportHandler(
         }
 
         return Pair(reIndexedChapters, mergedTitles)
+    }
+
+    private fun deleteSourceFileIfNeeded(context: Context, uri: Uri) {
+        try {
+            when (uri.scheme) {
+                "file" -> {
+                    uri.path?.let { path ->
+                        File(path).takeIf { it.exists() }?.delete()
+                    }
+                }
+
+                "content" -> {
+                    context.contentResolver.delete(uri, null, null)
+                }
+            }
+        } catch (_: Exception) {
+        }
     }
 
     private fun isDocFile(context: Context, uri: Uri): Boolean {

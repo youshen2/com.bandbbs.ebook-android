@@ -64,6 +64,7 @@ fun SettingsScreen(
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
     val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
     val useBuiltinFileManager by viewModel.useBuiltinFileManager.collectAsState()
+    val autoDeleteSourceAfterImport by viewModel.autoDeleteSourceAfterImport.collectAsState()
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
@@ -150,6 +151,15 @@ fun SettingsScreen(
                             Switch(
                                 checked = useBuiltinFileManager,
                                 onCheckedChange = { viewModel.setUseBuiltinFileManager(it) })
+                        }
+                    )
+                    BasicComponent(
+                        title = "导入后自动删除源文件",
+                        summary = "导入成功后自动删除来源文件",
+                        endActions = {
+                            Switch(
+                                checked = autoDeleteSourceAfterImport,
+                                onCheckedChange = { viewModel.setAutoDeleteSourceAfterImport(it) })
                         }
                     )
                     BasicComponent(

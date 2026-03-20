@@ -682,7 +682,7 @@ class MainActivity : ComponentActivity() {
                         if (showTutorialState.value) {
                             SuperDialog(
                                 title = "首次使用提示",
-                                summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。",
+                                summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。\n澎湃OS3.0.300及以上用户请保证此应用的通知设置中已开启“实时通知”。",
                                 show = showTutorialState,
                                 onDismissRequest = {
                                     markTutorialShown()
