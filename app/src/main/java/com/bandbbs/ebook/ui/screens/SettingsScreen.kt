@@ -2,6 +2,7 @@ package com.bandbbs.ebook.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -70,6 +71,7 @@ fun SettingsScreen(
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
     val showGetLatestVersionDialog = remember { mutableStateOf(false) }
     val showCleanDirtyDataDialog = remember { mutableStateOf(false) }
+    val showDonateDialog = remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
@@ -349,6 +351,11 @@ fun SettingsScreen(
                     insideMargin = PaddingValues(0.dp)
                 ) {
                     SuperArrow(
+                        title = "捐赠",
+                        summary = "支持开发者",
+                        onClick = { showDonateDialog.value = true }
+                    )
+                    SuperArrow(
                         title = "关于",
                         summary = "版本信息与开发者",
                         onClick = { showAboutSheet.value = true }
@@ -439,6 +446,36 @@ fun SettingsScreen(
                     } catch (e: Exception) {
                     }
                     showGetLatestVersionDialog.value = false
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColorsPrimary()
+            )
+        }
+    }
+
+    SuperDialog(
+        title = "支持开发者",
+        summary = "弦电子书完全免费，如果你觉得好用，可以考虑请开发者喝杯奶茶或咖啡。",
+        show = showDonateDialog,
+        onDismissRequest = { showDonateDialog.value = false }
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(
+                text = "暂不",
+                onClick = { showDonateDialog.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(20.dp))
+            TextButton(
+                text = "前往官网捐赠",
+                onClick = {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://vs.lucky-e.top"))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()
+                    }
+                    showDonateDialog.value = false
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.textButtonColorsPrimary()
