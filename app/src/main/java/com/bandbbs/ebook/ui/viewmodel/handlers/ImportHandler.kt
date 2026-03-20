@@ -1098,8 +1098,6 @@ class ImportHandler(
             importingState.update { it?.copy(statusText = "正在保存章节...", progress = 1.0f) }
             db.chapterDao().insertAll(cleanedChapters)
 
-            sourceFile.delete()
-
             if (mergedTitles.isNotEmpty()) {
                 val reportMessage =
                     "有 ${mergedTitles.size} 个章节因内容为空，其标题已被合并到上一章节末尾或被跳过:\n\n" +
@@ -1506,8 +1504,6 @@ class ImportHandler(
         wordsPerChapter: Int,
         customRegex: String
     ): String? {
-        if (noSplit) return null
-
         for (file in state.files) {
             if (file.fileFormat !in listOf("txt", "docx", "mobi")) continue
 
@@ -1515,6 +1511,7 @@ class ImportHandler(
                 uri = file.uri,
                 fileFormat = file.fileFormat,
                 splitMethod = splitMethod,
+                noSplit = noSplit,
                 wordsPerChapter = wordsPerChapter,
                 customRegex = customRegex
             ) ?: continue
@@ -1534,6 +1531,7 @@ class ImportHandler(
         uri: Uri,
         fileFormat: String,
         splitMethod: String,
+        noSplit: Boolean,
         wordsPerChapter: Int,
         customRegex: String
     ): Int? {
@@ -1563,6 +1561,10 @@ class ImportHandler(
         }
 
         val content = textContent as String
+        if (noSplit) {
+            return content.trim().toByteArray().size
+        }
+
         return ChapterSplitter.estimateMaxChapterBytesFromText(
             content = content,
             method = splitMethod,
