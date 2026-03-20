@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,18 +25,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.viewmodel.ImportState
+import com.bandbbs.ebook.ui.viewmodel.RegexTemplate
 import com.bandbbs.ebook.utils.ChapterSplitter
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.extra.CheckboxLocation
 import top.yukonga.miuix.kmp.extra.SuperArrow
+import top.yukonga.miuix.kmp.extra.SuperCheckbox
+import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.extra.SuperSwitch
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.pressable
@@ -51,7 +62,7 @@ fun ImportBookBottomSheet(
     categories: List<String>,
     existingBookNames: List<String>,
     onCancel: () -> Unit,
-    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String, customRegex: String) -> Unit,
+    onConfirm: (bookName: String, splitMethod: String, noSplit: Boolean, wordsPerChapter: Int, selectedCategory: String?, enableChapterMerge: Boolean, mergeMinWords: Int, enableChapterRename: Boolean, renamePattern: String, customRegex: String, selectedCustomRegexTemplateName: String?, customRegexTemplates: List<RegexTemplate>) -> Unit,
     onShowCategorySelector: () -> Unit
 ) {
     var bookName by remember { mutableStateOf(state.bookName) }
@@ -64,6 +75,11 @@ fun ImportBookBottomSheet(
     var enableChapterRename by remember { mutableStateOf(state.enableChapterRename) }
     var renamePattern by remember { mutableStateOf(state.renamePattern) }
     var customRegex by remember { mutableStateOf(state.customRegex) }
+    var customRegexTemplates by remember { mutableStateOf(state.customRegexTemplates) }
+    var selectedCustomRegexTemplateName by remember { mutableStateOf(state.selectedCustomRegexTemplateName) }
+    val showRegexTemplateDialog = remember { mutableStateOf(false) }
+    val showQuickSaveTemplateDialog = remember { mutableStateOf(false) }
+    var quickSaveTemplateName by remember { mutableStateOf("") }
 
     val isMultipleFiles = state.isMultipleFiles
     val hasEpubOrNvb =
@@ -103,6 +119,10 @@ fun ImportBookBottomSheet(
     LaunchedEffect(state.customRegex) {
         if (splitMethod == ChapterSplitter.METHOD_CUSTOM && state.customRegex.isNotBlank()) customRegex =
             state.customRegex
+    }
+    LaunchedEffect(state.customRegexTemplates) { customRegexTemplates = state.customRegexTemplates }
+    LaunchedEffect(state.selectedCustomRegexTemplateName) {
+        selectedCustomRegexTemplateName = state.selectedCustomRegexTemplateName
     }
 
     Column(
@@ -223,12 +243,41 @@ fun ImportBookBottomSheet(
                                     }
                                     TextField(
                                         value = customRegex,
-                                        onValueChange = { customRegex = it },
+                                        onValueChange = {
+                                            customRegex = it
+                                            val matchedTemplate = customRegexTemplates.firstOrNull { tpl -> tpl.regex == it }
+                                            selectedCustomRegexTemplateName = matchedTemplate?.name
+                                        },
                                         label = "正则表达式",
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                                            .padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
                                     )
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        TextButton(
+                                            text = selectedCustomRegexTemplateName?.let { "模板：$it" } ?: "选择模板",
+                                            onClick = { showRegexTemplateDialog.value = true },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        TextButton(
+                                            text = "保存为模板",
+                                            onClick = {
+                                                if (customRegex.isBlank()) return@TextButton
+                                                quickSaveTemplateName = selectedCustomRegexTemplateName.orEmpty()
+                                                showQuickSaveTemplateDialog.value = true
+                                            },
+                                            enabled = customRegex.isNotBlank(),
+                                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -339,7 +388,9 @@ fun ImportBookBottomSheet(
                         mergeMinWords,
                         enableChapterRename,
                         renamePattern,
-                        customRegex
+                        customRegex,
+                        selectedCustomRegexTemplateName,
+                        customRegexTemplates
                     )
                 },
                 modifier = Modifier
@@ -348,5 +399,254 @@ fun ImportBookBottomSheet(
             )
         }
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    }
+
+    RegexTemplateDialog(
+        show = showRegexTemplateDialog,
+        templates = customRegexTemplates,
+        selectedTemplateName = selectedCustomRegexTemplateName,
+        currentRegex = customRegex,
+        onTemplateSelected = { template ->
+            selectedCustomRegexTemplateName = template?.name
+            if (template != null) {
+                customRegex = template.regex
+            }
+        },
+        onTemplateDeleted = { name ->
+            customRegexTemplates = customRegexTemplates.filterNot { it.name == name }
+            if (selectedCustomRegexTemplateName == name) {
+                selectedCustomRegexTemplateName = null
+            }
+        },
+        onTemplateCreated = { name, regex ->
+            val exists = customRegexTemplates.any { it.name == name }
+            customRegexTemplates = if (exists) {
+                customRegexTemplates.map {
+                    if (it.name == name) it.copy(regex = regex) else it
+                }
+            } else {
+                customRegexTemplates + RegexTemplate(name = name, regex = regex)
+            }
+            selectedCustomRegexTemplateName = name
+            customRegex = regex
+        }
+    )
+
+    SuperDialog(
+        title = "保存正则模板",
+        show = showQuickSaveTemplateDialog,
+        onDismissRequest = {
+            showQuickSaveTemplateDialog.value = false
+            quickSaveTemplateName = ""
+        }
+    ) {
+        val targetName = quickSaveTemplateName.trim()
+        val isDuplicateName = targetName.isNotBlank() && customRegexTemplates.any { it.name == targetName }
+
+        TextField(
+            value = quickSaveTemplateName,
+            onValueChange = { quickSaveTemplateName = it },
+            label = "模板名称",
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        )
+
+        if (isDuplicateName) {
+            Text(
+                text = "已存在同名模板，保存后将覆盖原模板",
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.footnote1,
+                modifier = Modifier.padding(start = 24.dp, bottom = 12.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                text = "取消",
+                onClick = {
+                    showQuickSaveTemplateDialog.value = false
+                    quickSaveTemplateName = ""
+                },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            TextButton(
+                text = if (isDuplicateName) "覆盖保存" else "保存",
+                onClick = {
+                    val name = quickSaveTemplateName.trim()
+                    if (name.isNotBlank() && customRegex.isNotBlank()) {
+                        val exists = customRegexTemplates.any { it.name == name }
+                        customRegexTemplates = if (exists) {
+                            customRegexTemplates.map {
+                                if (it.name == name) it.copy(regex = customRegex) else it
+                            }
+                        } else {
+                            customRegexTemplates + RegexTemplate(name = name, regex = customRegex)
+                        }
+                        selectedCustomRegexTemplateName = name
+                        showQuickSaveTemplateDialog.value = false
+                        quickSaveTemplateName = ""
+                    }
+                },
+                enabled = quickSaveTemplateName.trim().isNotBlank() && customRegex.isNotBlank(),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RegexTemplateDialog(
+    show: MutableState<Boolean>,
+    templates: List<RegexTemplate>,
+    selectedTemplateName: String?,
+    currentRegex: String,
+    onTemplateSelected: (RegexTemplate?) -> Unit,
+    onTemplateDeleted: (String) -> Unit,
+    onTemplateCreated: (name: String, regex: String) -> Unit
+) {
+    var localSelectedTemplateName by remember(selectedTemplateName) {
+        mutableStateOf(selectedTemplateName)
+    }
+    val showCreateDialog = remember { mutableStateOf(false) }
+    var newTemplateName by remember { mutableStateOf("") }
+
+    SuperDialog(
+        title = "选择正则模板",
+        show = show,
+        onDismissRequest = { show.value = false }
+    ) {
+        Card(
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .height(300.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                SuperCheckbox(
+                    title = "不使用模板",
+                    checked = localSelectedTemplateName.isNullOrBlank(),
+                    onCheckedChange = {
+                        if (it) localSelectedTemplateName = null
+                    },
+                    checkboxLocation = CheckboxLocation.Start
+                )
+
+                templates.forEach { template ->
+                    SuperCheckbox(
+                        title = template.name,
+                        summary = template.regex,
+                        checked = localSelectedTemplateName == template.name,
+                        onCheckedChange = { if (it) localSelectedTemplateName = template.name },
+                        checkboxLocation = CheckboxLocation.Start,
+                        endActions = {
+                            IconButton(onClick = { onTemplateDeleted(template.name) }) {
+                                Icon(
+                                    imageVector = MiuixIcons.Delete,
+                                    contentDescription = "删除模板",
+                                    tint = MiuixTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    )
+                }
+
+                BasicComponent(
+                    title = "新建模板",
+                    titleColor = BasicComponentDefaults.titleColor(
+                        color = MiuixTheme.colorScheme.primary
+                    ),
+                    startAction = {
+                        Icon(
+                            imageVector = MiuixIcons.Add,
+                            contentDescription = "新建模板",
+                            tint = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    },
+                    onClick = { showCreateDialog.value = true }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                text = "取消",
+                onClick = { show.value = false },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(16.dp))
+            TextButton(
+                text = "确定",
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                onClick = {
+                    val template = templates.firstOrNull { it.name == localSelectedTemplateName }
+                    onTemplateSelected(template)
+                    show.value = false
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+
+    SuperDialog(
+        title = "新建正则模板",
+        show = showCreateDialog,
+        onDismissRequest = {
+            showCreateDialog.value = false
+            newTemplateName = ""
+        }
+    ) {
+        TextField(
+            value = newTemplateName,
+            onValueChange = { newTemplateName = it },
+            label = "模板名称",
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                text = "取消",
+                onClick = {
+                    showCreateDialog.value = false
+                    newTemplateName = ""
+                },
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            TextButton(
+                text = "创建",
+                onClick = {
+                    val name = newTemplateName.trim()
+                    if (name.isNotBlank() && currentRegex.isNotBlank()) {
+                        onTemplateCreated(name, currentRegex)
+                        localSelectedTemplateName = name
+                        newTemplateName = ""
+                        showCreateDialog.value = false
+                    }
+                },
+                enabled = newTemplateName.trim().isNotBlank() && currentRegex.isNotBlank(),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }

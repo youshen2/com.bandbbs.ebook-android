@@ -12,6 +12,7 @@ import com.bandbbs.ebook.ui.viewmodel.ImportReportState
 import com.bandbbs.ebook.ui.viewmodel.ImportState
 import com.bandbbs.ebook.ui.viewmodel.ImportingState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
+import com.bandbbs.ebook.ui.viewmodel.RegexTemplate
 import com.bandbbs.ebook.utils.BookInfoParser
 import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ChapterSplitter
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 
 class ImportHandler(
@@ -47,6 +50,8 @@ class ImportHandler(
     private val prefs = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
     private val LAST_CUSTOM_REGEX_KEY = "last_custom_regex"
+    private val CUSTOM_REGEX_TEMPLATES_KEY = "custom_regex_templates"
+    private val LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY = "last_custom_regex_template_name"
 
     fun startImport(uri: Uri) {
         startImportBatch(listOf(uri))
@@ -113,13 +118,19 @@ class ImportHandler(
                 prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
                     ?: ChapterSplitter.METHOD_DEFAULT
             val savedCustomRegex = prefs.getString(LAST_CUSTOM_REGEX_KEY, "") ?: ""
+            val templates = loadCustomRegexTemplates()
+            val lastTemplateName = prefs.getString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, null)
+            val selectedTemplateName =
+                lastTemplateName?.takeIf { name -> templates.any { it.name == name } }
 
             withContext(Dispatchers.Main) {
                 importState.value = ImportState(
                     uris = validFiles.map { it.uri },
                     files = validFiles,
                     splitMethod = defaultSplitMethod,
-                    customRegex = savedCustomRegex
+                    customRegex = savedCustomRegex,
+                    customRegexTemplates = templates,
+                    selectedCustomRegexTemplateName = selectedTemplateName
                 )
             }
         }
@@ -139,7 +150,9 @@ class ImportHandler(
         mergeMinWords: Int = 500,
         enableChapterRename: Boolean = false,
         renamePattern: String = "",
-        customRegex: String = ""
+        customRegex: String = "",
+        selectedCustomRegexTemplateName: String? = null,
+        customRegexTemplates: List<RegexTemplate> = emptyList()
     ) {
         val state = importState.value ?: return
 
@@ -149,6 +162,8 @@ class ImportHandler(
         if (!noSplit && splitMethod == ChapterSplitter.METHOD_CUSTOM && customRegex.isNotBlank()) {
             prefs.edit().putString(LAST_CUSTOM_REGEX_KEY, customRegex).apply()
         }
+        saveCustomRegexTemplates(customRegexTemplates)
+        prefs.edit().putString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, selectedCustomRegexTemplateName).apply()
 
         scope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
@@ -1385,6 +1400,77 @@ class ImportHandler(
             throw IllegalArgumentException("无法读取文件")
         }
     }
+
+    private fun loadCustomRegexTemplates(): List<RegexTemplate> {
+        val savedTemplates = runCatching {
+            val raw = prefs.getString(CUSTOM_REGEX_TEMPLATES_KEY, null) ?: return@runCatching emptyList()
+            val array = JSONArray(raw)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val name = obj.optString("name").trim()
+                    val regex = obj.optString("regex")
+                    if (name.isNotBlank() && regex.isNotBlank()) {
+                        add(RegexTemplate(name = name, regex = regex))
+                    }
+                }
+            }
+        }.getOrElse {
+            emptyList()
+        }
+
+        val defaultTemplates = defaultRegexTemplates()
+
+        return (defaultTemplates + savedTemplates)
+            .groupBy { it.name }
+            .mapNotNull { (_, items) -> items.lastOrNull() }
+    }
+
+    private fun saveCustomRegexTemplates(templates: List<RegexTemplate>) {
+        val defaultNames = defaultRegexTemplates().map { it.name }.toSet()
+        val uniqueTemplates = templates
+            .mapNotNull {
+                val name = it.name.trim()
+                val regex = it.regex
+                if (name.isBlank() || regex.isBlank()) null else RegexTemplate(name, regex)
+            }
+            .distinctBy { it.name }
+            .filterNot { it.name in defaultNames }
+
+        val array = JSONArray()
+        uniqueTemplates.forEach { template ->
+            array.put(
+                JSONObject().apply {
+                    put("name", template.name)
+                    put("regex", template.regex)
+                }
+            )
+        }
+        prefs.edit().putString(CUSTOM_REGEX_TEMPLATES_KEY, array.toString()).apply()
+    }
+
+    private fun defaultRegexTemplates(): List<RegexTemplate> = listOf(
+        RegexTemplate(
+            name = "默认（严格）",
+            regex = "^(第(\\s{0,1}[一二三四五六七八九十百千万零〇\\d]+\\s{0,1})(章|卷|节|部|篇|回|本)|番外\\s{0,2}[一二三四五六七八九十百千万零〇\\d]*)(.{0,30})$"
+        ),
+        RegexTemplate(
+            name = "默认（宽松）",
+            regex = "^(\\s*[第]?(\\s*[一二三四五六七八九十百千万零〇\\d]+\\s*)(章|卷|节|部|篇|回|本)|番外\\s*[一二三四五六七八九十百千万零〇\\d]*)(.{0,30})$"
+        ),
+        RegexTemplate(
+            name = "英文 Chapter",
+            regex = "^\\s*(Chapter|CHAPTER)\\s+(\\d+)\\s*.*$"
+        ),
+        RegexTemplate(
+            name = "中文数字序号",
+            regex = "^\\s*([一二三四五六七八九十百千万零〇]+)[、.\\s]+(.*)$"
+        ),
+        RegexTemplate(
+            name = "阿拉伯数字序号",
+            regex = "^\\s*(\\d+)[、.\\s]+(.*)$"
+        )
+    )
 
     fun dismissImportReport() {
         importReportState.value = null

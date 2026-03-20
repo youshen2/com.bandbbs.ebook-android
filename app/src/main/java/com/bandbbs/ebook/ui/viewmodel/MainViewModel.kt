@@ -870,7 +870,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         mergeMinWords: Int = 500,
         enableChapterRename: Boolean = false,
         renamePattern: String = "",
-        customRegex: String = ""
+        customRegex: String = "",
+        selectedCustomRegexTemplateName: String? = null,
+        customRegexTemplates: List<RegexTemplate> = emptyList()
     ) = importHandler.confirmImport(
         bookName,
         splitMethod,
@@ -881,7 +883,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         mergeMinWords,
         enableChapterRename,
         renamePattern,
-        customRegex
+        customRegex,
+        selectedCustomRegexTemplateName,
+        customRegexTemplates
     )
 
     fun cancelOverwriteConfirm() = importHandler.cancelOverwriteConfirm()

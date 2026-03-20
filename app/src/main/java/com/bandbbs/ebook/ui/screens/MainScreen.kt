@@ -594,7 +594,7 @@ fun MainScreen(
                 categories = viewModel.getCategories(),
                 existingBookNames = books.map { it.name },
                 onCancel = { viewModel.cancelImport() },
-                onConfirm = { bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern, customRegex ->
+                onConfirm = { bookName, splitMethod, noSplit, wordsPerChapter, selectedCategory, enableChapterMerge, mergeMinWords, enableChapterRename, renamePattern, customRegex, selectedCustomRegexTemplateName, customRegexTemplates ->
                     viewModel.confirmImport(
                         bookName,
                         splitMethod,
@@ -605,7 +605,9 @@ fun MainScreen(
                         mergeMinWords,
                         enableChapterRename,
                         renamePattern,
-                        customRegex
+                        customRegex,
+                        selectedCustomRegexTemplateName,
+                        customRegexTemplates
                     )
                 },
                 onShowCategorySelector = { viewModel.showCategorySelector() }

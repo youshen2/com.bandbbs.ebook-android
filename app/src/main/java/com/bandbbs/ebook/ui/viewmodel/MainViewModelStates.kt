@@ -51,6 +51,11 @@ data class ImportFileInfo(
     val fileFormat: String
 )
 
+data class RegexTemplate(
+    val name: String,
+    val regex: String
+)
+
 data class ImportState(
     val uris: List<Uri>,
     val files: List<ImportFileInfo>,
@@ -62,7 +67,9 @@ data class ImportState(
     val mergeMinWords: Int = 500,
     val enableChapterRename: Boolean = false,
     val renamePattern: String = "",
-    val customRegex: String = ""
+    val customRegex: String = "",
+    val customRegexTemplates: List<RegexTemplate> = emptyList(),
+    val selectedCustomRegexTemplateName: String? = null
 ) {
 
     val uri: Uri get() = uris.first()
