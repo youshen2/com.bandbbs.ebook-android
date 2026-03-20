@@ -79,6 +79,47 @@ class ConnectionHandler(
         return interHandshake?.connectedBandVersion
     }
 
+    fun markConnectionFailed(description: String = "连接超时") {
+        connectionState.update {
+            it.copy(
+                statusText = "连接失败",
+                descriptionText = description,
+                isConnected = false,
+                deviceName = null
+            )
+        }
+        if (showConnectionError.value) {
+            connectionErrorState.value = ConnectionErrorState(
+                deviceName = null,
+                isUnsupportedDevice = false
+            )
+        }
+    }
+
+    fun markPreparingStorage() {
+        val deviceName = connectionState.value.deviceName
+        connectionState.update {
+            it.copy(
+                statusText = "连接中",
+                descriptionText = if (deviceName.isNullOrBlank()) "正在获取手环存储信息..." else "$deviceName 连接中（正在获取存储信息）",
+                isConnected = false,
+                deviceName = deviceName
+            )
+        }
+    }
+
+    fun markConnectedReady() {
+        val deviceName = connectionState.value.deviceName
+        connectionState.update {
+            it.copy(
+                statusText = "连接成功",
+                descriptionText = if (deviceName.isNullOrBlank()) "手环已连接" else "$deviceName 已连接",
+                isConnected = true,
+                deviceName = deviceName
+            )
+        }
+    }
+
     fun reconnect() {
         if (!bandTransferEnabled.value) {
             connectionState.update {

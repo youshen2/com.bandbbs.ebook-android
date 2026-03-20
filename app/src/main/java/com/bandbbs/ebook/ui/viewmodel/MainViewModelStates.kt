@@ -17,6 +17,12 @@ data class ConnectionErrorState(
     val isUnsupportedDevice: Boolean = false
 )
 
+data class ConnectionRequiredDialogState(
+    val title: String = "请先连接手环",
+    val message: String = "当前操作需要先连接手环后才能继续。",
+    val showRetry: Boolean = false
+)
+
 data class PushState(
     val book: Book? = null,
     val progress: Double = 0.0,
@@ -166,7 +172,8 @@ data class BandStorageInfo(
     val actualAvailable: Long = 0,
     val isLoading: Boolean = false
 ) {
-    val showWarning: Boolean get() = StorageUtils.isStorageLow(actualAvailable) && !isLoading
+    val hasValidData: Boolean get() = totalStorage > 0
+    val showWarning: Boolean get() = hasValidData && StorageUtils.isStorageLow(actualAvailable) && !isLoading
 }
 
 data class BackupRestoreResult(

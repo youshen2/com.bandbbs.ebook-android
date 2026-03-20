@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -165,6 +166,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _connectionErrorState = MutableStateFlow<ConnectionErrorState?>(null)
     val connectionErrorState = _connectionErrorState.asStateFlow()
+
+    private val _connectionRequiredDialogState = MutableStateFlow<ConnectionRequiredDialogState?>(null)
+    val connectionRequiredDialogState = _connectionRequiredDialogState.asStateFlow()
 
     private val _categoryState = MutableStateFlow<CategoryState?>(null)
     val categoryState = _categoryState.asStateFlow()
@@ -767,12 +771,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshBandStorageInfo() {
         if (!connectionHandler.isConnected()) {
-            _bandStorageInfo.value = _bandStorageInfo.value.copy(isLoading = false)
+            _bandStorageInfo.value = BandStorageInfo(isLoading = false)
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                _bandStorageInfo.value = _bandStorageInfo.value.copy(isLoading = true)
+                _bandStorageInfo.value = BandStorageInfo(isLoading = true)
+                connectionHandler.markPreparingStorage()
                 val fileConnection = connectionHandler.getFileConnection()
                 fileConnection.onStorageInfo = { storageInfo ->
                     _bandStorageInfo.value = BandStorageInfo(
@@ -784,15 +789,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         actualAvailable = storageInfo.actualAvailable,
                         isLoading = false
                     )
+                    connectionHandler.markConnectedReady()
                 }
-                fileConnection.getStorageInfo()
+                withTimeout(8000L) {
+                    fileConnection.getStorageInfo()
+                }
+            } catch (_: TimeoutCancellationException) {
+                _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+                connectionHandler.markConnectionFailed("获取手环存储信息超时")
+                _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                    title = "连接失败",
+                    message = "获取手环存储信息超时，请重试连接。",
+                    showRetry = true
+                )
             } catch (e: Exception) {
                 _bandStorageInfo.value = BandStorageInfo(isLoading = false)
+                connectionHandler.markConnectionFailed("获取手环存储信息失败")
+                _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                    title = "连接失败",
+                    message = "获取手环存储信息失败，请重试连接。",
+                    showRetry = true
+                )
             }
         }
     }
 
     fun dismissConnectionError() = connectionHandler.dismissConnectionError()
+
+    private fun requireBandReadyOrShowDialog(): Boolean {
+        if (!connectionHandler.isConnected()) {
+            _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                title = "请先连接手环",
+                message = "当前操作需要先连接手环后才能继续。"
+            )
+            return false
+        }
+
+        if (_bandStorageInfo.value.isLoading || !_bandStorageInfo.value.hasValidData) {
+            _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                title = "手环准备中",
+                message = "正在获取手环存储信息，请稍后重试。",
+                showRetry = true
+            )
+            return false
+        }
+
+        return true
+    }
+
+    fun retryConnectionOrStoragePreparation() {
+        _connectionRequiredDialogState.value = null
+        if (!connectionHandler.isConnected()) {
+            reconnect()
+        } else {
+            refreshBandStorageInfo()
+        }
+    }
+
+    fun dismissConnectionRequiredDialog() {
+        _connectionRequiredDialogState.value = null
+    }
 
     fun startImport(uri: Uri) = importHandler.startImport(uri)
 
@@ -841,6 +897,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelDeleteBook() = libraryHandler.cancelDeleteBook()
 
     fun deleteBandBook(book: Book) {
+        if (!requireBandReadyOrShowDialog()) return
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
             Log.e("MainViewModel", "Cannot get file connection")
             return
@@ -875,6 +933,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!_bandTransferEnabled.value) {
             return
         }
+        if (!requireBandReadyOrShowDialog()) return
+
         if (!_hasClickedTransferButton.value) {
             prefs.edit().putBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, true).apply()
             _hasClickedTransferButton.value = true
@@ -882,10 +942,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pushHandler.startPush(book)
     }
 
-    fun syncCoverOnly(book: Book) = pushHandler.syncCoverOnly(book)
+    fun syncCoverOnly(book: Book) {
+        if (!requireBandReadyOrShowDialog()) return
+        pushHandler.syncCoverOnly(book)
+    }
 
-    fun confirmPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean = false) =
+    fun confirmPush(book: Book, selectedChapterIndices: Set<Int>, syncCover: Boolean = false) {
+        if (!requireBandReadyOrShowDialog()) return
         pushHandler.confirmPush(book, selectedChapterIndices, syncCover)
+    }
 
     fun confirmFirstSync() = pushHandler.confirmFirstSync()
 
@@ -896,6 +961,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resetPushState() = pushHandler.resetPushState()
 
     fun deleteBandChapters(book: Book, chapterIndices: Set<Int>) {
+        if (!requireBandReadyOrShowDialog()) return
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
             Log.e("MainViewModel", "Cannot get file connection")
             return
@@ -1277,13 +1344,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             return
         }
-        if (!connectionHandler.isConnected()) {
+        if (!requireBandReadyOrShowDialog()) {
             Log.w("MainViewModel", "Cannot sync: band not connected")
-            _syncReadingDataState.value = SyncReadingDataState(
-                isSyncing = false,
-                statusText = "手环未连接",
-                progress = 0f
-            )
             return
         }
 
@@ -2207,6 +2269,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadBandSettings() {
+        if (!requireBandReadyOrShowDialog()) return
+
         _globalLoadingState.value =
             GlobalLoadingState(isLoading = true, message = "正在加载手环设置...")
         viewModelScope.launch(Dispatchers.IO) {
@@ -2326,6 +2390,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateBandSetting(key: String, value: String) {
+        if (!requireBandReadyOrShowDialog()) return
+
         _bandSettingsState.value?.let { current ->
             _bandSettingsState.value = when (key) {
                 "EBOOK_FONT" -> current.copy(fontSize = value.toInt())
@@ -2404,6 +2470,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAutoReadSetting(enabled: Boolean, speed: Int) {
+        if (!requireBandReadyOrShowDialog()) return
+
         _bandSettingsState.value?.let { current ->
             _bandSettingsState.value =
                 current.copy(autoReadEnabled = enabled, autoReadSpeed = speed)

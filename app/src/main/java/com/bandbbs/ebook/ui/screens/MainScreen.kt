@@ -147,6 +147,7 @@ fun MainScreen(
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
     val connectionErrorState by viewModel.connectionErrorState.collectAsState()
+    val connectionRequiredDialogState by viewModel.connectionRequiredDialogState.collectAsState()
     val categoryState by viewModel.categoryState.collectAsState()
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
@@ -399,6 +400,40 @@ fun MainScreen(
     }
 
     val showStorageHelpDialog = remember { mutableStateOf(false) }
+    val showConnectionRequiredDialog = remember { mutableStateOf(false) }
+    LaunchedEffect(connectionRequiredDialogState) {
+        showConnectionRequiredDialog.value = connectionRequiredDialogState != null
+    }
+    SuperDialog(
+        title = connectionRequiredDialogState?.title ?: "请先连接手环",
+        summary = connectionRequiredDialogState?.message ?: "当前操作需要先连接手环后才能继续。",
+        show = showConnectionRequiredDialog,
+        onDismissRequest = { viewModel.dismissConnectionRequiredDialog() }
+    ) {
+        if (connectionRequiredDialogState?.showRetry == true) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    text = "取消",
+                    onClick = { viewModel.dismissConnectionRequiredDialog() },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(20.dp))
+                TextButton(
+                    text = "重试",
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                    onClick = { viewModel.retryConnectionOrStoragePreparation() },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            TextButton(
+                text = "知道了",
+                onClick = { viewModel.dismissConnectionRequiredDialog() },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
     SuperDialog(
         title = "预留空间说明",
         summary = "预留空间是为了系统更新而保留的存储空间。\n\n当前设备预留空间：${
@@ -479,7 +514,7 @@ fun MainScreen(
                     showMenuSheet.value = false
                     viewModel.syncAllReadingData()
                 },
-                enabled = connectionState.isConnected && !syncReadingDataState.isSyncing
+                enabled = !syncReadingDataState.isSyncing
             )
             BasicComponent(
                 title = "重新连接手环",
@@ -891,7 +926,7 @@ fun MainScreen(
                                 }
                             }
 
-                            if (bandTransferEnabled && connectionState.isConnected && !bandStorageInfo.isLoading) {
+                            if (bandTransferEnabled && connectionState.isConnected && bandStorageInfo.hasValidData && !bandStorageInfo.isLoading) {
                                 Card(
                                     modifier = Modifier
                                         .weight(1f)
@@ -1250,7 +1285,7 @@ fun MainScreen(
                                                 onImportCoverClick()
                                             },
                                             onEditInfoClick = { viewModel.showEditBookInfo(book) },
-                                            isSyncEnabled = connectionState.isConnected,
+                                            isSyncEnabled = true,
                                             lastChapterName = lastChapterNames[book.path],
                                             showSyncButton = bandTransferEnabled
                                         )
