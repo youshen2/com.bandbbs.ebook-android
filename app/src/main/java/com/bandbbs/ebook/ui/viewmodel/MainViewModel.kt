@@ -1319,13 +1319,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncReadingDataJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
+                    val statusText = when {
+                        progressMode == SyncMode.BAND_ONLY && readingTimeMode == SyncMode.BAND_ONLY && bookmarkMode == SyncMode.BAND_ONLY -> "正在将手环数据同步到手机..."
+                        progressMode == SyncMode.PHONE_ONLY && readingTimeMode == SyncMode.PHONE_ONLY && bookmarkMode == SyncMode.PHONE_ONLY -> "正在将手机数据推送到手环..."
+                        else -> "正在同步手机与手环数据..."
+                    }
                     _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         showModeDialog = false,
                         isSyncing = true,
-                        statusText = "正在将手机数据推送到手环...",
+                        statusText = statusText,
                         progress = 0f,
                         totalBooks = _books.value.size,
-                        syncedBooks = 0
+                        syncedBooks = 0,
+                        progressSyncMode = progressMode,
+                        readingTimeSyncMode = readingTimeMode,
+                        bookmarkSyncMode = bookmarkMode
                     )
                 }
 
@@ -1347,12 +1355,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                if (progressMode == SyncMode.AUTO || readingTimeMode == SyncMode.AUTO || bookmarkMode == SyncMode.AUTO) {
+                val needBandSourceData =
+                    progressMode != SyncMode.PHONE_ONLY ||
+                            readingTimeMode != SyncMode.PHONE_ONLY ||
+                            bookmarkMode != SyncMode.PHONE_ONLY
+
+                if (needBandSourceData) {
                     autoMergeLatch = CompletableDeferred()
                     val requestSuccess = fileConn.requestAllReadingData()
                     if (!requestSuccess) {
-                        Log.w("MainViewModel", "Failed to request band reading data for auto merge")
-                        failedBooks["全部书籍"] = "无法获取手环数据，已使用手机端数据"
+                        Log.w("MainViewModel", "Failed to request band reading data")
+                        if (progressMode == SyncMode.BAND_ONLY || readingTimeMode == SyncMode.BAND_ONLY || bookmarkMode == SyncMode.BAND_ONLY) {
+                            failedBooks["全部书籍"] = "无法获取手环数据，无法执行手环端同步"
+                        } else {
+                            failedBooks["全部书籍"] = "无法获取手环数据，已使用手机端数据"
+                        }
                         autoMergeLatch = null
                     } else {
                         try {
@@ -1360,8 +1377,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 autoMergeLatch?.await()
                             }
                         } catch (e: Exception) {
-                            Log.w("MainViewModel", "Auto merge wait timeout")
-                            failedBooks["全部书籍"] = "等待手环数据超时，已使用手机端数据"
+                            Log.w("MainViewModel", "Wait band data timeout")
+                            if (progressMode == SyncMode.BAND_ONLY || readingTimeMode == SyncMode.BAND_ONLY || bookmarkMode == SyncMode.BAND_ONLY) {
+                                failedBooks["全部书籍"] = "等待手环数据超时，无法执行手环端同步"
+                            } else {
+                                failedBooks["全部书籍"] = "等待手环数据超时，已使用手机端数据"
+                            }
                             autoMergeLatch = null
                         }
                     }
@@ -1381,8 +1402,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val phoneProgress = getPhoneReadingProgress(book)
                         val phoneReadingTime = getPhoneReadingTime(book.name)
 
+                        val shouldPushProgress = progressMode != SyncMode.BAND_ONLY
+                        val shouldPushReadingTime = readingTimeMode != SyncMode.BAND_ONLY
+                        val shouldPushBookmarks = bookmarkMode != SyncMode.BAND_ONLY
+
                         val progressJson =
-                            if (progressMode == SyncMode.BAND_ONLY) null else phoneProgress?.let { fp ->
+                            if (!shouldPushProgress) null else phoneProgress?.let { fp ->
                                 val normalized = HashMap<String, Any?>()
                                 normalized.putAll(fp)
                                 val rawOffsetAny = fp["offsetInChapter"]
@@ -1401,11 +1426,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
 
                         val readingTimeJson =
-                            if (readingTimeMode == SyncMode.BAND_ONLY) null else phoneReadingTime?.let {
+                            if (!shouldPushReadingTime) null else phoneReadingTime?.let {
                                 JSONObject(it).toString()
                             }
 
-                        if (progressJson != null || readingTimeJson != null) {
+                        val shouldSendReadingData = progressJson != null || readingTimeJson != null
+                        if (shouldSendReadingData) {
                             val success =
                                 fileConn.setReadingData(book.name, progressJson, readingTimeJson)
                             if (!success) {
@@ -1418,7 +1444,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
 
-                        if (bookmarkMode != SyncMode.BAND_ONLY) {
+                        if (shouldPushBookmarks) {
                             val phoneBookmarks =
                                 BookmarkManager.getBookmarksForSync(getApplication(), book.id)
                             if (phoneBookmarks.isNotEmpty()) {
