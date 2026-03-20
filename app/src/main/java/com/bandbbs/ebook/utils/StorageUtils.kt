@@ -10,6 +10,7 @@ object StorageUtils {
             product == "Xiaomi Smart Band 9 Pro" -> 64 * 1024 * 1024
             product == "Xiaomi Smart Band 8 Pro" -> 84 * 1024 * 1024
             product == "o65m" -> 1024 * 1024 * 1024
+            product.contains("XiaomiWatchS") -> 1024 * 1024 * 1024
             product.contains("Xiaomi Smart Band 10") -> 90 * 1024 * 1024
             else -> 0
         }
@@ -42,7 +43,8 @@ object StorageUtils {
             product == "REDMI Watch 5" -> "120MB"
             product == "Xiaomi Smart Band 9 Pro" -> "64MB"
             product == "Xiaomi Smart Band 8 Pro" -> "84MB"
-            product != null && product.contains("Xiaomi Smart Band 10") -> "90MB"
+            product.contains("XiaomiWatchS") -> "1GB"
+            product.contains("Xiaomi Smart Band 10") -> "90MB"
             else -> "未知"
         }
     }
