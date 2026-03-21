@@ -191,18 +191,22 @@ class MainActivity : ComponentActivity() {
 
     private fun getRequiredStoragePermission(): String? {
         return when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> null
-            Build.VERSION.SDK_INT <= Build.VERSION_CODES.P -> Manifest.permission.READ_EXTERNAL_STORAGE
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 -> Manifest.permission.READ_EXTERNAL_STORAGE
             else -> null
         }
     }
 
     private fun hasStoragePermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            val permission = getRequiredStoragePermission() ?: return true
+        val permission = getRequiredStoragePermission()
+        val hasReadPermission = permission != null &&
             ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                Environment.isExternalStorageManager() || hasReadPermission
+            }
+
+            else -> hasReadPermission
         }
     }
 
@@ -227,19 +231,11 @@ class MainActivity : ComponentActivity() {
             if (hasStoragePermission()) {
                 openBuiltinFileManagerAction?.invoke()
             } else {
-                when {
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                        requestAllFilesAccessPermission()
-                    }
-
-                    else -> {
-                        val permission = getRequiredStoragePermission()
-                        if (permission != null) {
-                            storagePermissionLauncher.launch(permission)
-                        } else {
-                            openBuiltinFileManagerAction?.invoke()
-                        }
-                    }
+                val permission = getRequiredStoragePermission()
+                if (permission != null) {
+                    storagePermissionLauncher.launch(permission)
+                } else {
+                    requestAllFilesAccessPermission()
                 }
             }
         } else {

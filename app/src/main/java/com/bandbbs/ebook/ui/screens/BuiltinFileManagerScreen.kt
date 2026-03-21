@@ -1,6 +1,8 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.R
 import android.text.format.Formatter
+import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -221,6 +223,7 @@ private fun FileManagerPage(
 ) {
     val context = LocalContext.current
     var searchQuery by remember(dir) { mutableStateOf("") }
+    var pathInput by remember(dir) { mutableStateOf("") }
     var fileItems by remember(dir) { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember(dir) { mutableStateOf(false) }
 
@@ -312,6 +315,56 @@ private fun FileManagerPage(
                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
             )
         ) {
+            if (dir == null) {
+                item {
+                    TextField(
+                        value = pathInput,
+                        onValueChange = { pathInput = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        label = "输入路径并打开",
+                        leadingIcon = {
+                            Icon(
+                                MiuixIcons.Folder,
+                                contentDescription = "路径",
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (pathInput.isNotBlank()) {
+                                    IconButton(onClick = { pathInput = "" }, modifier = Modifier.padding(end = 6.dp)) {
+                                        Icon(MiuixIcons.Close, contentDescription = "清除")
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val input = pathInput.trim()
+                                        if (input.isEmpty()) {
+                                            Toast.makeText(context, "请输入路径", Toast.LENGTH_SHORT).show()
+                                            return@IconButton
+                                        }
+                                        val target = File(input)
+                                        when {
+                                            !target.exists() -> Toast.makeText(context, "路径不存在", Toast.LENGTH_SHORT).show()
+                                            !target.isDirectory -> Toast.makeText(context, "该路径不是文件夹", Toast.LENGTH_SHORT).show()
+                                            !target.canRead() -> Toast.makeText(context, "无法读取该路径", Toast.LENGTH_SHORT).show()
+                                            else -> {
+                                                onOpenDir(target)
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(MiuixIcons.Send, contentDescription = "打开路径")
+                                }
+                            }
+                        },
+                        singleLine = true
+                    )
+                }
+            }
+
             item {
                 TextField(
                     value = searchQuery,
@@ -426,9 +479,9 @@ private fun FileManagerPage(
 
                                 val isSelected = selectedFiles.contains(item.file)
 
-                                Surface(
+                                Card(
                                     modifier = Modifier.clip(shape),
-                                    color = MiuixTheme.colorScheme.surface,
+                                    cornerRadius = 0.dp,
                                     onClick = {
                                         if (item.isDirectory) onOpenDir(item.file)
                                         else {
