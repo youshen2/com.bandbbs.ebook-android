@@ -1,9 +1,19 @@
 package com.bandbbs.ebook.ui.screens
 
+import android.Manifest
 import android.R
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -48,8 +58,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.bandbbs.ebook.utils.BuiltinFileManagerPaths
 import com.bandbbs.ebook.utils.ImportPathPreset
+import com.bandbbs.ebook.utils.UritoFile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -94,13 +106,76 @@ private fun isSupportedImportFile(file: File): Boolean {
     return extension in SUPPORTED_IMPORT_EXTENSIONS
 }
 
+private fun hasFileManagerAccess(): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Environment.isExternalStorageManager()
+    } else {
+        true
+    }
+}
+
 @Composable
 fun BuiltinFileManagerScreen(
     onBackClick: () -> Unit,
     onSelectFiles: (List<File>) -> Unit
 ) {
     val context = LocalContext.current
-    val availablePresets = remember { BuiltinFileManagerPaths.resolvedDefaults(context) }
+    val activity = context as? Activity
+
+    var hasFileAccess by remember { mutableStateOf(hasFileManagerAccess()) }
+    val availablePresets = remember(hasFileAccess) {
+        if (hasFileAccess) BuiltinFileManagerPaths.resolvedDefaults(context) else emptyList()
+    }
+
+    val readExternalStoragePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Toast.makeText(context, "未授予存储权限，无法访问内置文件管理器", Toast.LENGTH_SHORT).show()
+        }
+        hasFileAccess = hasFileManagerAccess()
+    }
+
+    val allFilesAccessSettingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        hasFileAccess = hasFileManagerAccess()
+        if (!hasFileAccess) {
+            Toast.makeText(context, "未授予所有文件访问权限", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasFileAccess && Build.VERSION.SDK_INT < Build.VERSION_CODES.R && activity != null) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            hasFileAccess = hasFileManagerAccess()
+        }
+    }
+
+    val systemFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        val importedFile = UritoFile(uri, context)
+        if (importedFile == null || !importedFile.exists()) {
+            Toast.makeText(context, "文件读取失败", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+
+        if (!isSupportedImportFile(importedFile) || importedFile.isDirectory) {
+            Toast.makeText(context, "不支持该文件格式", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+
+        onSelectFiles(listOf(importedFile))
+    }
 
     var currentDir by remember { mutableStateOf<File?>(null) }
     var isPush by remember { mutableStateOf(true) }
@@ -150,6 +225,34 @@ fun BuiltinFileManagerScreen(
                 .fillMaxSize(),
 
         ) {
+            if (!hasFileAccess) {
+                FileManagerPermissionPage(
+                    onRequestPermission = {
+                        when {
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && activity != null -> {
+                                val packageUri = Uri.parse("package:${activity.packageName}")
+                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, packageUri)
+                                runCatching {
+                                    allFilesAccessSettingsLauncher.launch(intent)
+                                }.onFailure {
+                                    allFilesAccessSettingsLauncher.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                }
+                            }
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.R -> {
+                                readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                            }
+                            else -> {
+                                Toast.makeText(context, "无法申请权限", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onUseSystemPicker = {
+                        systemFilePickerLauncher.launch(arrayOf("*/*"))
+                    }
+                )
+                return@Box
+            }
+
             if (isBackSwiping) {
                 FileManagerPage(
                     dir = parentDir,
@@ -159,6 +262,7 @@ fun BuiltinFileManagerScreen(
                     onOpenDir = {},
                     onBack = {},
                     onConfirm = {},
+                    onOpenSystemPicker = {},
                     modifier = Modifier.graphicsLayer {
                         val scale = 0.95f + (animatedBackProgress * 0.05f)
                         scaleX = scale
@@ -199,12 +303,84 @@ fun BuiltinFileManagerScreen(
                         onSelectFiles(selectedFiles.toList())
                         selectedFiles = emptySet()
                     },
+                    onOpenSystemPicker = {
+                        systemFilePickerLauncher.launch(arrayOf("*/*"))
+                    },
                     modifier = Modifier.graphicsLayer {
                         if (isBackSwiping && targetDir == currentDir) {
                             translationX = animatedBackProgress * size.width
                         }
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileManagerPermissionPage(
+    onRequestPermission: () -> Unit,
+    onUseSystemPicker: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = "内置文件管理器",
+                largeTitle = "内置文件管理器"
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "需要存储权限才能浏览内部存储目录",
+                style = MiuixTheme.textStyles.body1,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "你仍然可以使用系统文件选择器导入单个文件",
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MiuixTheme.colorScheme.primary,
+                shape = RoundedCornerShape(14.dp),
+                onClick = onRequestPermission
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "授予存储权限", color = MiuixTheme.colorScheme.onPrimary)
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MiuixTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(14.dp),
+                onClick = onUseSystemPicker
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "使用系统文件选择器")
+                }
             }
         }
     }
@@ -219,6 +395,7 @@ private fun FileManagerPage(
     onOpenDir: (File) -> Unit,
     onBack: () -> Unit,
     onConfirm: () -> Unit,
+    onOpenSystemPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -401,7 +578,14 @@ private fun FileManagerPage(
                         insideMargin = PaddingValues(0.dp)
                     ) {
                         if (filteredPresets.isEmpty()) {
-                            BasicComponent(title = if (availablePresets.isEmpty()) "暂无可用路径" else "未找到匹配路径")
+                            if (availablePresets.isEmpty()) {
+                                BasicComponent(
+                                    title = "未获取到存储权限",
+                                    summary = "当前无法读取快捷路径，你可以使用下方的系统文件选择器导入文件"
+                                )
+                            } else {
+                                BasicComponent(title = "未找到匹配路径")
+                            }
                         } else {
                             filteredPresets.forEach { (preset, file) ->
                                 SuperArrow(
@@ -419,6 +603,20 @@ private fun FileManagerPage(
                                 )
                             }
                         }
+
+                        SuperArrow(
+                            title = "系统文件选择器",
+                            summary = "调用系统文件选择器导入单个文件",
+                            startAction = {
+                                Icon(
+                                    imageVector = MiuixIcons.File,
+                                    contentDescription = "SystemFilePicker",
+                                    tint = MiuixTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(end = 16.dp)
+                                )
+                            },
+                            onClick = onOpenSystemPicker
+                        )
                     }
                 }
             } else {
