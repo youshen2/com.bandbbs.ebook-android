@@ -21,6 +21,14 @@ object BuiltinFileManagerPaths {
             }
         ),
         ImportPathPreset(
+            id = "wx_download",
+            label = "微信下载目录",
+            resolver = {
+                val root = Environment.getExternalStorageDirectory()
+                File(root, "Download/WeiXin")
+            }
+        ),
+        ImportPathPreset(
             id = "quark_cloud_drive_download_1",
             label = "夸克网盘下载目录",
             resolver = {
