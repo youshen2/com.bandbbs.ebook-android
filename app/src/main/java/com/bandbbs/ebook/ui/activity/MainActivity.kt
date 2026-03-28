@@ -17,6 +17,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -37,11 +41,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -70,6 +77,8 @@ import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.FabPosition
@@ -94,6 +103,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Calendar
 
 sealed interface Screen : NavKey {
     data object HomePager : Screen
@@ -106,6 +116,14 @@ sealed interface Screen : NavKey {
 }
 
 class MainActivity : ComponentActivity() {
+
+    private val TEST_APRIL_FOOLS = false
+
+    private fun isAprilFools(): Boolean {
+        if (TEST_APRIL_FOOLS) return true
+        val calendar = Calendar.getInstance()
+        return calendar.get(Calendar.MONTH) == Calendar.APRIL && calendar.get(Calendar.DAY_OF_MONTH) == 1
+    }
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -130,10 +148,12 @@ class MainActivity : ComponentActivity() {
                     setHideBottomControls(false)
                     setFreeStyleCropEnabled(true)
                 }
+
                 val uCrop = UCrop.of(selectedUri, destUri)
                     .withAspectRatio(3f, 4f)
                     .withMaxResultSize(1200, 1600)
                     .withOptions(options)
+
                 cropCoverLauncher.launch(uCrop.getIntent(this))
             }
         }
@@ -279,7 +299,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
-
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
@@ -288,6 +307,8 @@ class MainActivity : ComponentActivity() {
             }
 
             EbookTheme(darkTheme = darkTheme) {
+                var showAprilFools by remember { mutableStateOf(isAprilFools()) }
+
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
@@ -302,6 +323,7 @@ class MainActivity : ComponentActivity() {
                 val backStack = remember { mutableStateListOf<NavKey>(Screen.HomePager) }
                 val currentScreen = backStack.lastOrNull() ?: Screen.HomePager
                 val statisticsScrollState = rememberScrollState()
+
                 val pagerState = rememberPagerState(pageCount = { 3 })
 
                 val navigateTo = { screen: Screen ->
@@ -309,11 +331,13 @@ class MainActivity : ComponentActivity() {
                         backStack.add(screen)
                     }
                 }
+
                 val navigateBack = {
                     if (backStack.size > 1) {
                         backStack.removeAt(backStack.size - 1)
                     }
                 }
+
                 val navigateToHome = {
                     backStack.clear()
                     backStack.add(Screen.HomePager)
@@ -322,12 +346,15 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(syncOptionsState) {
                     if (syncOptionsState != null) navigateTo(Screen.SyncOptions)
                 }
+
                 LaunchedEffect(selectedBookForChapters) {
                     if (selectedBookForChapters != null) navigateTo(Screen.ChapterList)
                 }
+
                 LaunchedEffect(pushState.book) {
                     if (pushState.book != null) navigateTo(Screen.Push)
                 }
+
                 LaunchedEffect(chapterToPreview) {
                     if (chapterToPreview != null) navigateTo(Screen.Reader)
                 }
@@ -338,433 +365,501 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val showBottomBar = currentScreen is Screen.HomePager
-                Scaffold(
-                    bottomBar = {
-                        if (showBottomBar) {
-                            if (useFloatingNavigationBar) {
-                                FloatingNavigationBar {
-                                    FloatingNavigationBarItem(
-                                        selected = pagerState.currentPage == 0,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                                        icon = MiuixIcons.VerticalSplit,
-                                        label = "主页"
-                                    )
-                                    FloatingNavigationBarItem(
-                                        selected = pagerState.currentPage == 1,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                                        icon = MiuixIcons.Sort,
-                                        label = "统计"
-                                    )
-                                    FloatingNavigationBarItem(
-                                        selected = pagerState.currentPage == 2,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
-                                        icon = MiuixIcons.Settings,
-                                        label = "设置"
-                                    )
-                                }
-                            } else {
-                                NavigationBar {
-                                    NavigationBarItem(
-                                        selected = pagerState.currentPage == 0,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                                        icon = MiuixIcons.VerticalSplit,
-                                        label = "主页"
-                                    )
-                                    NavigationBarItem(
-                                        selected = pagerState.currentPage == 1,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                                        icon = MiuixIcons.Sort,
-                                        label = "统计"
-                                    )
-                                    NavigationBarItem(
-                                        selected = pagerState.currentPage == 2,
-                                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
-                                        icon = MiuixIcons.Settings,
-                                        label = "设置"
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    floatingActionButton = {
-                        if (currentScreen is Screen.HomePager && pagerState.currentPage == 0) {
-                            FloatingActionButton(
-                                modifier = Modifier
-                                    .pressable(
-                                        interactionSource = null,
-                                        indication = SinkFeedback()
-                                    ),
-                                onClick = {
-                                    openImportPicker { navigateTo(Screen.BuiltinFileManager) }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Add,
-                                    tint = MiuixTheme.colorScheme.onPrimary,
-                                    contentDescription = "导入书籍"
-                                )
-                            }
-                        }
-                    },
-                    floatingActionButtonPosition = FabPosition.End
-                ) { paddingValues ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                bottom = if (showBottomBar && !useFloatingNavigationBar) {
-                                    paddingValues.calculateBottomPadding()
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Scaffold(
+                        bottomBar = {
+                            if (showBottomBar) {
+                                if (useFloatingNavigationBar) {
+                                    FloatingNavigationBar {
+                                        FloatingNavigationBarItem(
+                                            selected = pagerState.currentPage == 0,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                            icon = MiuixIcons.VerticalSplit,
+                                            label = "主页"
+                                        )
+                                        FloatingNavigationBarItem(
+                                            selected = pagerState.currentPage == 1,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                            icon = MiuixIcons.Sort,
+                                            label = "统计"
+                                        )
+                                        FloatingNavigationBarItem(
+                                            selected = pagerState.currentPage == 2,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                            icon = MiuixIcons.Settings,
+                                            label = "设置"
+                                        )
+                                    }
                                 } else {
-                                    0.dp
+                                    NavigationBar {
+                                        NavigationBarItem(
+                                            selected = pagerState.currentPage == 0,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                            icon = MiuixIcons.VerticalSplit,
+                                            label = "主页"
+                                        )
+                                        NavigationBarItem(
+                                            selected = pagerState.currentPage == 1,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                            icon = MiuixIcons.Sort,
+                                            label = "统计"
+                                        )
+                                        NavigationBarItem(
+                                            selected = pagerState.currentPage == 2,
+                                            onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                            icon = MiuixIcons.Settings,
+                                            label = "设置"
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        floatingActionButton = {
+                            if (currentScreen is Screen.HomePager && pagerState.currentPage == 0) {
+                                FloatingActionButton(
+                                    modifier = Modifier
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        ),
+                                    onClick = {
+                                        openImportPicker { navigateTo(Screen.BuiltinFileManager) }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = MiuixIcons.Add,
+                                        tint = MiuixTheme.colorScheme.onPrimary,
+                                        contentDescription = "导入书籍"
+                                    )
+                                }
+                            }
+                        },
+                        floatingActionButtonPosition = FabPosition.End
+                    ) { paddingValues ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    bottom = if (showBottomBar && !useFloatingNavigationBar) {
+                                        paddingValues.calculateBottomPadding()
+                                    } else {
+                                        0.dp
+                                    }
+                                )
+                        ) {
+                            val entryProvider = remember(backStack) {
+                                entryProvider<NavKey> {
+                                    entry<Screen.HomePager> {
+                                        HorizontalPager(
+                                            state = pagerState,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) { page ->
+                                            when (page) {
+                                                0 -> MainScreen(
+                                                    viewModel = viewModel,
+                                                    onImportCoverClick = {
+                                                        coverPickerLauncher.launch(
+                                                            arrayOf("image/*")
+                                                        )
+                                                    },
+                                                    onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
+                                                )
+
+                                                1 -> StatisticsScreen(
+                                                    onBackClick = {
+                                                        scope.launch {
+                                                            pagerState.animateScrollToPage(
+                                                                0
+                                                            )
+                                                        }
+                                                    },
+                                                    onBookStatClick = { bookName ->
+                                                        BookStatisticsActivity.start(
+                                                            this@MainActivity,
+                                                            bookName
+                                                        )
+                                                    },
+                                                    scrollState = statisticsScrollState
+                                                )
+
+                                                2 -> SettingsScreen(
+                                                    viewModel = viewModel,
+                                                    onBackClick = {
+                                                        scope.launch {
+                                                            pagerState.animateScrollToPage(
+                                                                0
+                                                            )
+                                                        }
+                                                    },
+                                                    onBackupClick = {
+                                                        val dateStr = SimpleDateFormat(
+                                                            "yyyyMMdd_HHmmss",
+                                                            Locale.getDefault()
+                                                        ).format(Date())
+                                                        createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
+                                                    },
+                                                    onRestoreClick = {
+                                                        openDocumentLauncher.launch(
+                                                            arrayOf("application/json")
+                                                        )
+                                                    },
+                                                    onBandSettingsClick = {
+                                                        if (viewModel.connectionState.value.isConnected) {
+                                                            viewModel.loadBandSettings()
+                                                            navigateTo(Screen.BandSettings)
+                                                        } else {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "请先连接手环",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    entry<Screen.BandSettings> {
+                                        BandSettingsScreen(
+                                            viewModel = viewModel,
+                                            onBackClick = navigateBack
+                                        )
+                                    }
+                                    entry<Screen.SyncOptions> {
+                                        syncOptionsState?.let { state ->
+                                            SyncOptionsScreen(
+                                                state = state,
+                                                onBackClick = {
+                                                    viewModel.cancelPush()
+                                                    navigateBack()
+                                                },
+                                                onConfirm = { selectedChapters, syncCover ->
+                                                    viewModel.confirmPush(
+                                                        state.book,
+                                                        selectedChapters,
+                                                        syncCover
+                                                    )
+                                                },
+                                                onResyncCoverOnly = {
+                                                    viewModel.cancelPush()
+                                                    viewModel.syncCoverOnly(state.book)
+                                                },
+                                                onDeleteChapters = { chapterIndices ->
+                                                    viewModel.deleteBandChapters(
+                                                        state.book,
+                                                        chapterIndices
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                    entry<Screen.Push> {
+                                        PushScreen(
+                                            pushState = pushState,
+                                            onBackClick = {
+                                                viewModel.cancelPush()
+                                                navigateToHome()
+                                            },
+                                            onCancelOrDone = {
+                                                viewModel.cancelPush()
+                                                navigateToHome()
+                                            }
+                                        )
+                                    }
+                                    entry<Screen.ChapterList> {
+                                        selectedBookForChapters?.let { book ->
+                                            ChapterListScreen(
+                                                book = book,
+                                                chapters = chaptersForSelectedBook,
+                                                readOnly = chapterToPreview != null,
+                                                onBackClick = {
+                                                    viewModel.closeChapterList()
+                                                    navigateBack()
+                                                },
+                                                onPreviewChapter = { chapterId ->
+                                                    scope.launch {
+                                                        viewModel.showChapterPreview(chapterId)
+                                                    }
+                                                },
+                                                onEditContent = { chapterId ->
+                                                    viewModel.openChapterEditor(
+                                                        chapterId
+                                                    )
+                                                },
+                                                onSaveChapterContent = { chapterId, title, content ->
+                                                    viewModel.saveChapterContent(
+                                                        chapterId,
+                                                        title,
+                                                        content
+                                                    )
+                                                },
+                                                onRenameChapter = { chapterId, title ->
+                                                    viewModel.renameChapter(
+                                                        chapterId,
+                                                        title
+                                                    )
+                                                },
+                                                onAddChapter = { index, title, content ->
+                                                    viewModel.addChapter(
+                                                        index,
+                                                        title,
+                                                        content
+                                                    )
+                                                },
+                                                onMergeChapters = { ids, title, insertBlank ->
+                                                    viewModel.mergeChapters(
+                                                        ids,
+                                                        title,
+                                                        insertBlank
+                                                    )
+                                                },
+                                                onBatchRename = { ids, prefix, suffix, startNumber, padding ->
+                                                    viewModel.batchRenameChapters(
+                                                        ids,
+                                                        prefix,
+                                                        suffix,
+                                                        startNumber,
+                                                        padding
+                                                    )
+                                                },
+                                                loadChapterContent = { chapterId ->
+                                                    viewModel.loadChapterContent(
+                                                        chapterId
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                    entry<Screen.Reader> {
+                                        ReaderScreen(
+                                            viewModel = viewModel,
+                                            onClose = {
+                                                viewModel.closeChapterPreview()
+                                                navigateBack()
+                                            },
+                                            onChapterChange = { chapterId ->
+                                                viewModel.showChapterPreview(
+                                                    chapterId
+                                                )
+                                            },
+                                            onTableOfContents = {
+                                                viewModel.chapterToPreview.value?.let {
+                                                    val bookId =
+                                                        viewModel.chaptersForPreview.value.firstOrNull()?.bookId
+                                                    val currentBook =
+                                                        viewModel.books.value.find { it.id == bookId }
+                                                    currentBook?.let { viewModel.showChapterList(it) }
+                                                }
+                                            },
+                                            loadChapterContent = viewModel::loadChapterContent
+                                        )
+                                    }
+                                    entry<Screen.BuiltinFileManager> {
+                                        BuiltinFileManagerScreen(
+                                            onBackClick = navigateBack,
+                                            onSelectFiles = { files ->
+                                                if (files.size == 1) {
+                                                    viewModel.startImport(Uri.fromFile(files.first()))
+                                                } else {
+                                                    viewModel.startImportBatch(files.map { Uri.fromFile(it) })
+                                                }
+                                                navigateBack()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            NavDisplay(
+                                backStack = backStack,
+                                entryProvider = entryProvider,
+                                onBack = {
+                                    if (backStack.size > 1) {
+                                        navigateBack()
+                                    } else {
+                                        finish()
+                                    }
                                 }
                             )
-                    ) {
-                        val entryProvider = remember(backStack) {
-                            entryProvider<NavKey> {
-                                entry<Screen.HomePager> {
-                                    HorizontalPager(
-                                        state = pagerState,
-                                        modifier = Modifier.fillMaxSize()
-                                    ) { page ->
-                                        when (page) {
-                                            0 -> MainScreen(
-                                                viewModel = viewModel,
-                                                onImportCoverClick = {
-                                                    coverPickerLauncher.launch(
-                                                        arrayOf("image/*")
-                                                    )
-                                                },
-                                                onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
-                                            )
-                                            1 -> StatisticsScreen(
-                                                onBackClick = {
-                                                    scope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            0
-                                                        )
-                                                    }
-                                                },
-                                                onBookStatClick = { bookName ->
-                                                    BookStatisticsActivity.start(
-                                                        this@MainActivity,
-                                                        bookName
-                                                    )
-                                                },
-                                                scrollState = statisticsScrollState
-                                            )
-                                            2 -> SettingsScreen(
-                                                viewModel = viewModel,
-                                                onBackClick = {
-                                                    scope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            0
-                                                        )
-                                                    }
-                                                },
-                                                onBackupClick = {
-                                                    val dateStr = SimpleDateFormat(
-                                                        "yyyyMMdd_HHmmss",
-                                                        Locale.getDefault()
-                                                    ).format(Date())
-                                                    createDocumentLauncher.launch("SineEbook_Backup_$dateStr.json")
-                                                },
-                                                onRestoreClick = {
-                                                    openDocumentLauncher.launch(
-                                                        arrayOf("application/json")
-                                                    )
-                                                },
-                                                onBandSettingsClick = {
-                                                    if (viewModel.connectionState.value.isConnected) {
-                                                        viewModel.loadBandSettings()
-                                                        navigateTo(Screen.BandSettings)
-                                                    } else {
-                                                        Toast.makeText(
-                                                            context,
-                                                            "请先连接手环",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                                entry<Screen.BandSettings> {
-                                    BandSettingsScreen(
-                                        viewModel = viewModel,
-                                        onBackClick = navigateBack
-                                    )
-                                }
-                                entry<Screen.SyncOptions> {
-                                    syncOptionsState?.let { state ->
-                                        SyncOptionsScreen(
-                                            state = state,
-                                            onBackClick = {
-                                                viewModel.cancelPush()
-                                                navigateBack()
-                                            },
-                                            onConfirm = { selectedChapters, syncCover ->
-                                                viewModel.confirmPush(
-                                                    state.book,
-                                                    selectedChapters,
-                                                    syncCover
-                                                )
-                                            },
-                                            onResyncCoverOnly = {
-                                                viewModel.cancelPush()
-                                                viewModel.syncCoverOnly(state.book)
-                                            },
-                                            onDeleteChapters = { chapterIndices ->
-                                                viewModel.deleteBandChapters(
-                                                    state.book,
-                                                    chapterIndices
-                                                )
-                                            }
-                                        )
-                                    }
-                                }
-                                entry<Screen.Push> {
-                                    PushScreen(
-                                        pushState = pushState,
-                                        onBackClick = {
-                                            viewModel.cancelPush()
-                                            navigateToHome()
-                                        },
-                                        onCancelOrDone = {
-                                            viewModel.cancelPush()
-                                            navigateToHome()
-                                        }
-                                    )
-                                }
-                                entry<Screen.ChapterList> {
-                                    selectedBookForChapters?.let { book ->
-                                        ChapterListScreen(
-                                            book = book,
-                                            chapters = chaptersForSelectedBook,
-                                            readOnly = chapterToPreview != null,
-                                            onBackClick = {
-                                                viewModel.closeChapterList()
-                                                navigateBack()
-                                            },
-                                            onPreviewChapter = { chapterId ->
-                                                scope.launch {
-                                                    viewModel.showChapterPreview(chapterId)
-                                                }
-                                            },
-                                            onEditContent = { chapterId ->
-                                                viewModel.openChapterEditor(
-                                                    chapterId
-                                                )
-                                            },
-                                            onSaveChapterContent = { chapterId, title, content ->
-                                                viewModel.saveChapterContent(
-                                                    chapterId,
-                                                    title,
-                                                    content
-                                                )
-                                            },
-                                            onRenameChapter = { chapterId, title ->
-                                                viewModel.renameChapter(
-                                                    chapterId,
-                                                    title
-                                                )
-                                            },
-                                            onAddChapter = { index, title, content ->
-                                                viewModel.addChapter(
-                                                    index,
-                                                    title,
-                                                    content
-                                                )
-                                            },
-                                            onMergeChapters = { ids, title, insertBlank ->
-                                                viewModel.mergeChapters(
-                                                    ids,
-                                                    title,
-                                                    insertBlank
-                                                )
-                                            },
-                                            onBatchRename = { ids, prefix, suffix, startNumber, padding ->
-                                                viewModel.batchRenameChapters(
-                                                    ids,
-                                                    prefix,
-                                                    suffix,
-                                                    startNumber,
-                                                    padding
-                                                )
-                                            },
-                                            loadChapterContent = { chapterId ->
-                                                viewModel.loadChapterContent(
-                                                    chapterId
-                                                )
-                                            }
-                                        )
-                                    }
-                                }
-                                entry<Screen.Reader> {
-                                    ReaderScreen(
-                                        viewModel = viewModel,
-                                        onClose = {
-                                            viewModel.closeChapterPreview()
-                                            navigateBack()
-                                        },
-                                        onChapterChange = { chapterId ->
-                                            viewModel.showChapterPreview(
-                                                chapterId
-                                            )
-                                        },
-                                        onTableOfContents = {
-                                            viewModel.chapterToPreview.value?.let {
-                                                val bookId =
-                                                    viewModel.chaptersForPreview.value.firstOrNull()?.bookId
-                                                val currentBook =
-                                                    viewModel.books.value.find { it.id == bookId }
-                                                currentBook?.let { viewModel.showChapterList(it) }
-                                            }
-                                        },
-                                        loadChapterContent = viewModel::loadChapterContent
-                                    )
-                                }
-                                entry<Screen.BuiltinFileManager> {
-                                    BuiltinFileManagerScreen(
-                                        onBackClick = navigateBack,
-                                        onSelectFiles = { files ->
-                                            if (files.size == 1) {
-                                                viewModel.startImport(Uri.fromFile(files.first()))
-                                            } else {
-                                                viewModel.startImportBatch(files.map { Uri.fromFile(it) })
-                                            }
-                                            navigateBack()
-                                        }
-                                    )
-                                }
-                            }
-                        }
 
-                        NavDisplay(
-                            backStack = backStack,
-                            entryProvider = entryProvider,
-                            onBack = {
-                                if (backStack.size > 1) {
-                                    navigateBack()
-                                } else {
-                                    finish()
-                                }
-                            }
-                        )
-
-                        val showTutorialState = remember { mutableStateOf(firstLaunchTutorial) }
-                        if (showTutorialState.value) {
-                            SuperDialog(
-                                title = "首次使用提示",
-                                summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。\n澎湃OS3.0.300及以上用户请保证此应用的通知设置中已开启“实时通知”。",
-                                show = showTutorialState,
-                                onDismissRequest = {
-                                    markTutorialShown()
-                                    showTutorialState.value = false
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                            val showTutorialState = remember { mutableStateOf(firstLaunchTutorial) }
+                            if (showTutorialState.value) {
+                                SuperDialog(
+                                    title = "首次使用提示",
+                                    summary = "请将手机端同步器的电源选项设置为无限制，以保证传输不中断。\n\nColorOS16及以上用户：前往应用的通知管理，开启“流体云显示实时通知”以启用流体云显示。\n澎湃OS3.0.300及以上用户请保证此应用的通知设置中已开启“实时通知”。",
+                                    show = showTutorialState,
+                                    onDismissRequest = {
+                                        markTutorialShown()
+                                        showTutorialState.value = false
+                                    }
                                 ) {
-                                    TextButton(
-                                        text = "关闭",
-                                        onClick = {
-                                            markTutorialShown()
-                                            showTutorialState.value = false
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Spacer(modifier = Modifier.width(20.dp))
-                                    TextButton(
-                                        text = "我知道了",
-                                        onClick = {
-                                            markTutorialShown()
-                                            showTutorialState.value = false
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.textButtonColorsPrimary()
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        TextButton(
+                                            text = "关闭",
+                                            onClick = {
+                                                markTutorialShown()
+                                                showTutorialState.value = false
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(modifier = Modifier.width(20.dp))
+                                        TextButton(
+                                            text = "我知道了",
+                                            onClick = {
+                                                markTutorialShown()
+                                                showTutorialState.value = false
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.textButtonColorsPrimary()
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        val showIpSheetState = remember { mutableStateOf(false) }
-                        LaunchedEffect(ipCollectionPermissionState.showSheet) {
-                            showIpSheetState.value = ipCollectionPermissionState.showSheet
-                        }
-                        LaunchedEffect(showIpSheetState.value) {
-                            if (!showIpSheetState.value && ipCollectionPermissionState.showSheet) {
-                                viewModel.dismissIpCollectionPermissionSheet()
+                            val showIpSheetState = remember { mutableStateOf(false) }
+                            LaunchedEffect(ipCollectionPermissionState.showSheet) {
+                                showIpSheetState.value = ipCollectionPermissionState.showSheet
                             }
-                        }
-                        IpCollectionPermissionDialog(
-                            show = showIpSheetState,
-                            isFirstTime = ipCollectionPermissionState.isFirstTime,
-                            onAllow = {
-                                scope.launch {
-                                    showIpSheetState.value = false
-                                    viewModel.onIpCollectionPermissionResult(true)
-                                }
-                            },
-                            onDeny = {
-                                scope.launch {
-                                    showIpSheetState.value = false
-                                    viewModel.onIpCollectionPermissionResult(false)
-                                }
-                            }
-                        )
 
-                        val showUpdateDialogState = remember { mutableStateOf(false) }
-                        LaunchedEffect(updateCheckState.showSheet) {
-                            showUpdateDialogState.value = updateCheckState.showSheet
+                            LaunchedEffect(showIpSheetState.value) {
+                                if (!showIpSheetState.value && ipCollectionPermissionState.showSheet) {
+                                    viewModel.dismissIpCollectionPermissionSheet()
+                                }
+                            }
+
+                            IpCollectionPermissionDialog(
+                                show = showIpSheetState,
+                                isFirstTime = ipCollectionPermissionState.isFirstTime,
+                                onAllow = {
+                                    scope.launch {
+                                        showIpSheetState.value = false
+                                        viewModel.onIpCollectionPermissionResult(true)
+                                    }
+                                },
+                                onDeny = {
+                                    scope.launch {
+                                        showIpSheetState.value = false
+                                        viewModel.onIpCollectionPermissionResult(false)
+                                    }
+                                }
+                            )
+
+                            val showUpdateDialogState = remember { mutableStateOf(false) }
+                            LaunchedEffect(updateCheckState.showSheet) {
+                                showUpdateDialogState.value = updateCheckState.showSheet
+                            }
+
+                            UpdateCheckDialog(
+                                showDialog = showUpdateDialogState,
+                                isChecking = updateCheckState.isChecking,
+                                updateInfo = updateCheckState.updateInfo,
+                                updateInfoList = updateCheckState.updateInfoList,
+                                errorMessage = updateCheckState.errorMessage,
+                                deviceName = updateCheckState.deviceName,
+                                onDismiss = {
+                                    viewModel.dismissUpdateCheck()
+                                },
+                                onOpenWebsite = {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://vs.lucky-e.top/")
+                                    )
+                                    context.startActivity(intent)
+                                }
+                            )
+
+                            val showLoadingState = remember { mutableStateOf(false) }
+                            LaunchedEffect(globalLoadingState.isLoading) {
+                                showLoadingState.value = globalLoadingState.isLoading
+                            }
+                            if (showLoadingState.value) {
+                                SuperDialog(
+                                    title = "处理中",
+                                    summary = globalLoadingState.message,
+                                    show = showLoadingState,
+                                    onDismissRequest = {}
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+
+                            FirstSyncConfirmDialog(
+                                show = showFirstSyncConfirmDialog,
+                                onConfirm = { viewModel.confirmFirstSync() },
+                                onCancel = { viewModel.cancelFirstSyncConfirm() }
+                            )
                         }
-                        UpdateCheckDialog(
-                            showDialog = showUpdateDialogState,
-                            isChecking = updateCheckState.isChecking,
-                            updateInfo = updateCheckState.updateInfo,
-                            updateInfoList = updateCheckState.updateInfoList,
-                            errorMessage = updateCheckState.errorMessage,
-                            deviceName = updateCheckState.deviceName,
-                            onDismiss = {
-                                viewModel.dismissUpdateCheck()
-                            },
-                            onOpenWebsite = {
-                                val intent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://vs.lucky-e.top/")
+                    }
+
+                    if (showAprilFools) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MiuixTheme.colorScheme.background)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {},
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "欢迎打开原神启动器",
+                                    style = MiuixTheme.textStyles.title1.copy(fontSize = 36.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MiuixTheme.colorScheme.onBackground
                                 )
-                                context.startActivity(intent)
-                            }
-                        )
-
-                        val showLoadingState = remember { mutableStateOf(false) }
-                        LaunchedEffect(globalLoadingState.isLoading) {
-                            showLoadingState.value = globalLoadingState.isLoading
-                        }
-                        if (showLoadingState.value) {
-                            SuperDialog(
-                                title = "处理中",
-                                summary = globalLoadingState.message,
-                                show = showLoadingState,
-                                onDismissRequest = {}
-                            ) {
-                                Box(
+                                Spacer(modifier = Modifier.height(48.dp))
+                                Button(
+                                    onClick = {
+                                        val packageNames = listOf(
+                                            "com.miHoYo.GenshinImpact",
+                                            "com.miHoYo.Yuanshen",
+                                            "com.miHoYo.Ys.bilibili"
+                                        )
+                                        var launched = false
+                                        for (pkg in packageNames) {
+                                            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+                                            if (launchIntent != null) {
+                                                context.startActivity(launchIntent)
+                                                launched = true
+                                                break
+                                            }
+                                        }
+                                        if (!launched) {
+                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
+                                            context.startActivity(webIntent)
+                                        }
+                                        showAprilFools = false
+                                    },
+                                    colors = ButtonDefaults.buttonColorsPrimary(),
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth(0.6f)
+                                        .pressable(interactionSource = null, indication = SinkFeedback())
                                 ) {
-                                    CircularProgressIndicator()
+                                    Text("原神，启动！", color = MiuixTheme.colorScheme.onPrimary)
                                 }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                TextButton(
+                                    text = "不玩原神，我是来用电子书的",
+                                    onClick = { showAprilFools = false },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.6f)
+                                        .pressable(interactionSource = null, indication = SinkFeedback())
+                                )
                             }
                         }
-
-                        FirstSyncConfirmDialog(
-                            show = showFirstSyncConfirmDialog,
-                            onConfirm = { viewModel.confirmFirstSync() },
-                            onCancel = { viewModel.cancelFirstSyncConfirm() }
-                        )
                     }
                 }
             }
@@ -781,16 +876,19 @@ class MainActivity : ComponentActivity() {
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
+
                     if (pushState.isTransferring) {
                         val progressPercent =
                             if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
                         val title = if (progressPercent != null) "$progressPercent%" else "传输中"
+
                         ForegroundTransferService.startService(
                             applicationContext,
                             title,
                             pushState.preview,
                             progressPercent
                         )
+
                         if (!wasTransferring) {
                             if (viewModel.autoMinimizeOnTransfer.value && !pushState.isFinished) {
                                 moveTaskToBack(true)
@@ -804,6 +902,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.syncReadingDataState.collect { syncState ->
@@ -822,6 +921,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.backupRestoreState.collect { state ->
