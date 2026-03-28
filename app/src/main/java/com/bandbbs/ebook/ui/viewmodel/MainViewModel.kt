@@ -99,6 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
     private val readerPrefs: SharedPreferences =
         application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
+
     private val FIRST_SYNC_CONFIRMED_KEY = "first_sync_confirmed"
     private val FIRST_SYNC_READING_DATA_CONFIRMED_KEY = "first_sync_reading_data_confirmed"
 
@@ -113,7 +114,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _recentUpdatedBook = MutableStateFlow<Book?>(null)
     val recentUpdatedBook = _recentUpdatedBook.asStateFlow()
-
 
     private val _expandedBookPath = MutableStateFlow<String?>(null)
     val expandedBookPath = _expandedBookPath.asStateFlow()
@@ -214,6 +214,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val IP_COLLECTION_PERMISSION_KEY = "ip_collection_permission"
     private val IP_COLLECTION_PERMISSION_ASKED_KEY = "ip_collection_permission_asked"
+
     private val SHOW_RECENT_IMPORT_KEY = "show_recent_import"
     private val SHOW_RECENT_UPDATE_KEY = "show_recent_update"
     private val AUTO_CHECK_UPDATES_KEY = "auto_check_updates"
@@ -232,7 +233,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY = "auto_delete_source_after_import"
 
     private var FIRST_AUTO_CHECK = true
-
 
     private val _showRecentImport = MutableStateFlow(prefs.getBoolean(SHOW_RECENT_IMPORT_KEY, true))
     val showRecentImport = _showRecentImport.asStateFlow()
@@ -421,6 +421,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 savePhoneReadingProgress(book, finalProgress)
                 savePhoneReadingTime(book.name, finalReadingTime)
+
                 loadBooks()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to handle sync reading data for $filename", e)
@@ -483,8 +484,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         savePhoneReadingProgress(book, finalProgress)
                         savePhoneReadingTime(book.name, finalReadingTime)
-
                         syncedCount++
+
                         withContext(Dispatchers.Main) {
                             _syncReadingDataState.value = _syncReadingDataState.value.copy(
                                 syncedBooks = syncedCount
@@ -503,6 +504,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         "同步完成，成功 $syncedCount 本，失败 ${failedBooks.size} 本"
                     }
+
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
                         statusText = statusText,
@@ -511,6 +513,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         syncedBooks = syncedCount,
                         failedBooks = failedBooks
                     )
+
                     if (changedBooks.isNotEmpty()) {
                         _syncResultState.value = SyncResultState(
                             changedBooks = changedBooks,
@@ -518,7 +521,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-
                 latch?.complete(Unit)
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to handle batch sync reading data", e)
@@ -545,6 +547,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val phoneBookmarks = BookmarkManager.getBookmarksForSync(getApplication(), book.id)
                 val mergedBookmarks = mutableListOf<BookmarkEntity>()
+
                 val bandBookmarkMap =
                     bandBookmarks.associateBy { "${it.chapterIndex}_${it.offsetInChapter}" }
 
@@ -591,6 +594,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (keys.hasNext()) {
                 val key = keys.next()
                 val value = progressMap.get(key)
+
                 if (key == "chapterIndex") {
                     when {
                         value == JSONObject.NULL -> continue
@@ -686,7 +690,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     fun setExpandedBook(path: String?) {
         _expandedBookPath.value = path
     }
@@ -701,9 +704,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getCategories(): List<String> = categoryHandler.getCategories()
-
     fun showCategorySelector(book: Book? = null) = categoryHandler.showCategorySelector(book)
-
     fun showCategorySelectorForEditBookInfo(
         selectedCategory: String?,
         onCategorySelected: (String?) -> Unit
@@ -712,11 +713,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createCategory(categoryName: String) = categoryHandler.createCategory(categoryName)
-
     fun deleteCategory(categoryName: String) = categoryHandler.deleteCategory(categoryName)
-
     fun selectCategory(category: String?) = categoryHandler.selectCategory(category)
-
     fun dismissCategorySelector() = categoryHandler.dismissCategorySelector()
 
     fun enterMultiSelectMode() {
@@ -768,6 +766,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     db.bookDao().delete(bookEntity)
                 }
             }
+
             withContext(Dispatchers.Main) {
                 _booksToDelete.value = emptyList()
                 loadBooks()
@@ -777,7 +776,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setConnection(connection: InterHandshake) = connectionHandler.setConnection(connection)
-
     fun reconnect() = connectionHandler.reconnect()
 
     fun refreshBandStorageInfo() {
@@ -785,11 +783,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _bandStorageInfo.value = BandStorageInfo(isLoading = false)
             return
         }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _bandStorageInfo.value = BandStorageInfo(isLoading = true)
                 connectionHandler.markPreparingStorage()
                 val fileConnection = connectionHandler.getFileConnection()
+
                 fileConnection.onStorageInfo = { storageInfo ->
                     _bandStorageInfo.value = BandStorageInfo(
                         product = storageInfo.product,
@@ -802,6 +802,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     connectionHandler.markConnectedReady()
                 }
+
                 withTimeout(8000L) {
                     fileConnection.getStorageInfo()
                 }
@@ -835,7 +836,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             return false
         }
-
         if (_bandStorageInfo.value.isLoading || !_bandStorageInfo.value.hasValidData) {
             _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
                 title = "手环准备中",
@@ -844,7 +844,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             return false
         }
-
         return true
     }
 
@@ -862,11 +861,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startImport(uri: Uri) = importHandler.startImport(uri)
-
     fun startImportBatch(uris: List<Uri>) = importHandler.startImportBatch(uris)
-
     fun cancelImport() = importHandler.cancelImport()
-
     fun dismissImportProgress() {
         _importingState.value = null
     }
@@ -900,20 +896,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     fun cancelOverwriteConfirm() = importHandler.cancelOverwriteConfirm()
-
     fun confirmOverwrite() = importHandler.confirmOverwrite()
-
     fun dismissImportReport() = importHandler.dismissImportReport()
-
     fun dismissLargeChapterWarning() = importHandler.dismissLargeChapterWarning()
 
     fun requestDeleteBook(book: Book) = libraryHandler.requestDeleteBook(book)
-
     fun createBook(bookName: String, selectedCategory: String?) =
         libraryHandler.createBook(bookName, selectedCategory)
 
     fun confirmDeleteBook() = libraryHandler.confirmDeleteBook()
-
     fun cancelDeleteBook() = libraryHandler.cancelDeleteBook()
 
     fun deleteBandBook(book: Book) {
@@ -945,7 +936,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("MainViewModel", "Failed to delete band book", e)
             }
         }
-
         libraryHandler.cancelDeleteBook()
     }
 
@@ -973,11 +963,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun confirmFirstSync() = pushHandler.confirmFirstSync()
-
     fun cancelFirstSyncConfirm() = pushHandler.cancelFirstSyncConfirm()
-
     fun cancelPush() = pushHandler.cancelPush()
-
     fun resetPushState() = pushHandler.resetPushState()
 
     fun deleteBandChapters(book: Book, chapterIndices: Set<Int>) {
@@ -1077,13 +1064,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun showChapterList(book: Book) = libraryHandler.showChapterList(book)
-
     fun closeChapterList() = libraryHandler.closeChapterList()
-
     fun showChapterPreview(chapterId: Int) = libraryHandler.showChapterPreview(chapterId)
-
     fun continueReading(book: Book) = libraryHandler.continueReading(book)
-
     fun closeChapterPreview() {
         libraryHandler.closeChapterPreview()
         loadBooks()
@@ -1099,9 +1082,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         libraryHandler.reorderChapter(chapterId, targetIndex)
 
     fun openChapterEditor(chapterId: Int) = libraryHandler.openChapterEditor(chapterId)
-
     fun closeChapterEditor() = libraryHandler.closeChapterEditor()
-
     fun saveChapterContent(chapterId: Int, title: String, content: String) =
         libraryHandler.saveChapterContent(chapterId, title, content)
 
@@ -1134,11 +1115,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         libraryHandler.splitChapter(chapterId, segments)
 
     fun requestImportCover(book: Book) = libraryHandler.requestImportCover(book)
-
     fun cancelImportCover() = libraryHandler.cancelImportCover()
-
     fun importCoverForBook(uri: Uri) = libraryHandler.importCoverForBook(uri)
-
     fun exportBookToUri(book: Book, uri: Uri) = libraryHandler.exportBookToUri(book, uri)
 
     fun showEditBookInfo(book: Book) {
@@ -1169,7 +1147,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             db.bookDao().update(bookEntity)
             loadBooks()
         }
-
         withContext(Dispatchers.Main) {
             _editBookInfoState.value?.let { currentState ->
                 _editBookInfoState.value = currentState.copy(book = bookEntity)
@@ -1197,8 +1174,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         "epub" -> {
                             EpubParser.parse(context, fileUri)
-
-
                         }
                     }
                     loadBooks()
@@ -1212,8 +1187,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resyncBookInfo(book: Book) {
         _globalLoadingState.value =
             GlobalLoadingState(isLoading = true, message = "正在同步书籍信息...")
-        viewModelScope.launch(Dispatchers.IO) {
 
+        viewModelScope.launch(Dispatchers.IO) {
             _editBookInfoState.value?.let { currentState ->
                 _editBookInfoState.value = currentState.copy(isResyncing = true)
             }
@@ -1246,7 +1221,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         "txt" -> {
-
                             val chapters = db.chapterDao().getChapterInfoForBook(bookEntity.id)
                             if (chapters.isNotEmpty() &&
                                 (chapters[0].name == "简介" || chapters[0].name == "介绍")
@@ -1295,7 +1269,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-
                     if (updatedEntity != null) {
                         if (connectionHandler.isConnected()) {
                             try {
@@ -1317,13 +1290,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
 
-
                         withContext(Dispatchers.Main) {
                             _editBookInfoState.value =
                                 EditBookInfoState(updatedEntity, isResyncing = false)
                         }
                     } else {
-
                         withContext(Dispatchers.Main) {
                             _editBookInfoState.value?.let { currentState ->
                                 _editBookInfoState.value = currentState.copy(isResyncing = false)
@@ -1334,7 +1305,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     loadBooks()
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "Failed to resync book info", e)
-
                     withContext(Dispatchers.Main) {
                         _editBookInfoState.value?.let { currentState ->
                             _editBookInfoState.value = currentState.copy(isResyncing = false)
@@ -1342,13 +1312,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             } else {
-
                 withContext(Dispatchers.Main) {
                     _editBookInfoState.value?.let { currentState ->
                         _editBookInfoState.value = currentState.copy(isResyncing = false)
                     }
                 }
             }
+
             withContext(Dispatchers.Main) {
                 _globalLoadingState.value = GlobalLoadingState(isLoading = false)
             }
@@ -1366,12 +1336,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             return
         }
+
         if (!requireBandReadyOrShowDialog()) {
             Log.w("MainViewModel", "Cannot sync: band not connected")
             return
         }
 
         val hasConfirmedFirstSync = prefs.getBoolean(FIRST_SYNC_READING_DATA_CONFIRMED_KEY, false)
+
         if (!hasConfirmedFirstSync) {
             Log.d("MainViewModel", "Showing confirm dialog for first time")
             _syncReadingDataState.value = _syncReadingDataState.value.copy(showConfirmDialog = true)
@@ -1413,6 +1385,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         progressMode == SyncMode.PHONE_ONLY && readingTimeMode == SyncMode.PHONE_ONLY && bookmarkMode == SyncMode.PHONE_ONLY -> "正在将手机数据推送到手环..."
                         else -> "正在同步手机与手环数据..."
                     }
+
                     _syncReadingDataState.value = _syncReadingDataState.value.copy(
                         showModeDialog = false,
                         isSyncing = true,
@@ -1499,18 +1472,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             if (!shouldPushProgress) null else phoneProgress?.let { fp ->
                                 val normalized = HashMap<String, Any?>()
                                 normalized.putAll(fp)
+
                                 val rawOffsetAny = fp["offsetInChapter"]
                                 val rawOffset = when (rawOffsetAny) {
                                     is Number -> rawOffsetAny.toInt()
                                     is String -> rawOffsetAny.toIntOrNull() ?: 0
                                     else -> 0
                                 }
+
                                 var normalizedOffset = if (rawOffset < 0) 0 else rawOffset
                                 if (normalizedOffset % 2 == 1) normalizedOffset =
                                     Math.max(0, normalizedOffset - 1)
+
                                 if (fp.containsKey("offsetInChapter")) {
                                     normalized["offsetInChapter"] = normalizedOffset
                                 }
+
                                 JSONObject(normalized).toString()
                             }
 
@@ -1520,6 +1497,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
 
                         val shouldSendReadingData = progressJson != null || readingTimeJson != null
+
                         if (shouldSendReadingData) {
                             val success =
                                 fileConn.setReadingData(book.name, progressJson, readingTimeJson)
@@ -1552,6 +1530,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         syncedCount++
+
                         withContext(Dispatchers.Main) {
                             _syncReadingDataState.value = _syncReadingDataState.value.copy(
                                 syncedBooks = syncedCount
@@ -1568,6 +1547,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         "推送完成，成功 $syncedCount 本，失败 ${failedBooks.size} 本"
                     }
+
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
                         statusText = statusText,
@@ -1577,6 +1557,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         failedBooks = failedBooks
                     )
                 }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     _syncReadingDataState.value = SyncReadingDataState(
@@ -1674,6 +1655,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val validBooks = db.bookDao().getAllBooks()
                 val validBookIds = validBooks.map { it.id }.toSet()
                 val validBookNames = validBooks.map { it.name }.toSet()
+
                 val validChapterIds = mutableSetOf<Int>()
                 validBooks.forEach { book ->
                     try {
@@ -1722,6 +1704,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 readerEditor.apply()
+
                 Log.d("MainViewModel", "Cleaned dirty data")
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to clean dirty data", e)
@@ -1730,12 +1713,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkForUpdates(isAutoCheck: Boolean = false) {
-
         val ipCollectionAllowed = prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false)
         val hasAskedBefore = prefs.getBoolean(IP_COLLECTION_PERMISSION_ASKED_KEY, false)
 
         if (!hasAskedBefore) {
-
             _ipCollectionPermissionState.value = IpCollectionPermissionState(
                 showSheet = true,
                 isFirstTime = true
@@ -1744,7 +1725,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (!ipCollectionAllowed) {
-
             if (!isAutoCheck) {
                 _ipCollectionPermissionState.value = IpCollectionPermissionState(
                     showSheet = true,
@@ -1754,17 +1734,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-
         performUpdateCheck(isAutoCheck)
     }
-
 
     fun autoCheckUpdates() {
         val ipCollectionAllowed = prefs.getBoolean(IP_COLLECTION_PERMISSION_KEY, false)
         if (!ipCollectionAllowed) {
             return
         }
-
         checkForUpdates(isAutoCheck = true)
         FIRST_AUTO_CHECK = false
     }
@@ -1776,7 +1753,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         editor.apply()
 
         _ipCollectionAllowed.value = allowed
-
         _ipCollectionPermissionState.value = IpCollectionPermissionState(showSheet = false)
 
         if (allowed) {
@@ -1805,7 +1781,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _syncReadingDataState.value = SyncReadingDataState()
         }
     }
-
 
     fun setShowRecentImport(show: Boolean) {
         prefs.edit().putBoolean(SHOW_RECENT_IMPORT_KEY, show).apply()
@@ -1884,7 +1859,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun performUpdateCheck(isAutoCheck: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val deviceName = connectionHandler.getDeviceName()
-
             if (!isAutoCheck) {
                 _updateCheckState.value = UpdateCheckState(
                     isChecking = true,
@@ -1897,15 +1871,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val context = getApplication<Application>().applicationContext
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-
                 @Suppress("DEPRECATION")
                 val currentVersionCode = packageInfo.versionCode
-
 
                 val androidResult = VersionChecker.checkUpdate(currentVersionCode)
                 val updateInfoList = mutableListOf<VersionChecker.UpdateInfo>()
                 var errorMsg: String? = null
-
 
                 androidResult.fold(
                     onSuccess = { androidUpdateInfo ->
@@ -1947,6 +1918,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissUpdateCheck() {
         _updateCheckState.value = UpdateCheckState()
+    }
+
+    fun showUpdateDialog() {
+        _updateCheckState.value = _updateCheckState.value.copy(showSheet = true)
     }
 
     private fun checkBandUpdateOnly(bandVersion: Int) {
@@ -1996,12 +1971,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (lastReadChapterId == -1) return null
 
         db.chapterDao().getChapterById(lastReadChapterId) ?: return null
+
         val allChapters = db.chapterDao().getChapterInfoForBook(book.id)
         val chapterIndex = allChapters.indexOfFirst { it.id == lastReadChapterId }
         if (chapterIndex == -1) return null
 
         readerPrefs.getInt("reading_position_index_$lastReadChapterId", 0)
         val offset = readerPrefs.getInt("reading_position_offset_$lastReadChapterId", 0)
+
         val lastReadTimestamp = readerPrefs.getLong("last_read_timestamp_${book.id}", 0L)
 
         return mapOf(
@@ -2011,7 +1988,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             "lastReadTimestamp" to (if (lastReadTimestamp > 0L) lastReadTimestamp else System.currentTimeMillis())
         )
     }
-
 
     private fun mergeProgress(
         phoneProgress: Map<String, Any>?,
@@ -2027,19 +2003,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return if (phoneTimestamp >= bandTimestamp) phoneProgress else bandProgress
     }
 
-
     private suspend fun savePhoneReadingProgress(book: Book, progress: Map<String, Any>?) {
         if (progress == null) return
 
         val chapterIndex = (progress["chapterIndex"] as? Number)?.toInt()
+
         if (chapterIndex != null && chapterIndex >= 0) {
             val allChapters = db.chapterDao().getChapterInfoForBook(book.id)
             if (chapterIndex < allChapters.size && allChapters.isNotEmpty()) {
                 val chapterId = allChapters[chapterIndex].id
                 val offset = (progress["offsetInChapter"] as? Number)?.toInt() ?: 0
                 val timestamp = (progress["lastReadTimestamp"] as? Number)?.toLong() ?: 0L
-
-
 
                 if (timestamp > 0L || chapterIndex > 0 || offset > 0) {
                     readerPrefs.edit()
@@ -2078,6 +2052,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
         Log.d("MainViewModel", "getPhoneReadingTime($bookName): totalSeconds=$totalSeconds")
+
         if (totalSeconds == 0L) {
             Log.d("MainViewModel", "No reading time data found for $bookName")
             return null
@@ -2129,6 +2104,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             "reading_time_prefs",
             Context.MODE_PRIVATE
         )
+
         val totalSeconds = (readingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
         val lastReadDate = readingTime["lastReadDate"] as? String ?: ""
         val firstReadDate = readingTime["firstReadDate"] as? String ?: ""
@@ -2140,6 +2116,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val editor = readingTimePrefs.edit()
         editor.putLong("${bookName}_total_seconds", totalSeconds)
+
         if (lastReadDate.isNotEmpty()) {
             editor.putString("${bookName}_last_read_date", lastReadDate)
         }
@@ -2194,15 +2171,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return if (phoneTotalSeconds >= bandTotalSeconds) phoneReadingTime else bandReadingTime
     }
 
-
     private fun loadBooks() {
         viewModelScope.launch(Dispatchers.IO) {
             val bookEntities = db.bookDao().getAllBooks()
-
             val bookUiModels = bookEntities.map { entity ->
                 val chapterCount = db.chapterDao().getChapterCountForBook(entity.id)
                 val wordCount = db.chapterDao().getTotalWordCountForBook(entity.id) ?: 0
-
                 val lastReadChapterId = readerPrefs.getInt("last_read_chapter_${entity.id}", -1)
                 var lastReadInfo: String? = null
                 var chapterIndex: Int? = null
@@ -2254,7 +2228,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             withContext(Dispatchers.Main) {
                 _books.value = bookUiModels.sortedByDescending { it.name }
-
                 _recentBook.value = bookUiModels.maxByOrNull { it.id }
                 _recentUpdatedBook.value = recentUpdatedBook
             }
@@ -2300,6 +2273,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         _globalLoadingState.value =
             GlobalLoadingState(isLoading = true, message = "正在加载手环设置...")
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val conn = connectionHandler.getFileConnection()
@@ -2405,6 +2379,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             ?: "topBottomClick",
                         teacherScreenEnabled = settings["EBOOK_TEACHER_SCREEN_ENABLED"]?.takeIf { it.isNotEmpty() } == "true"
                     )
+
                     _globalLoadingState.value = GlobalLoadingState(isLoading = false)
                 }
             } catch (e: Exception) {

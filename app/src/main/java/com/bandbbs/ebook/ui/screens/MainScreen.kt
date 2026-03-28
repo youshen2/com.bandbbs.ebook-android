@@ -77,6 +77,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -102,6 +103,7 @@ import top.yukonga.miuix.kmp.icon.extended.Help
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Notes
+import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.Recent
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.icon.extended.Search
@@ -143,7 +145,6 @@ fun MainScreen(
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
     val importReportState by viewModel.importReportState.collectAsState()
-
     val bookToDelete by viewModel.bookToDelete.collectAsState()
     val booksToDelete by viewModel.booksToDelete.collectAsState()
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
@@ -158,18 +159,17 @@ fun MainScreen(
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
-
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
+    val updateCheckState by viewModel.updateCheckState.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
-
     val scrollState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
     var pendingExportBook by remember { mutableStateOf<com.bandbbs.ebook.ui.model.Book?>(null) }
-
     val exportBookLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
@@ -282,8 +282,8 @@ fun MainScreen(
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
         var selectedBookmarkMode by remember { mutableStateOf(syncReadingDataState.bookmarkSyncMode) }
-
         val dialogScrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -414,6 +414,7 @@ fun MainScreen(
     }
 
     val showStorageHelpDialog = remember { mutableStateOf(false) }
+
     val showConnectionRequiredDialog = remember { mutableStateOf(false) }
     LaunchedEffect(connectionRequiredDialogState) {
         showConnectionRequiredDialog.value = connectionRequiredDialogState != null
@@ -468,10 +469,12 @@ fun MainScreen(
     var categoryToRename by remember { mutableStateOf<String?>(null) }
     var newCategoryName by remember { mutableStateOf("") }
     val showRenameDialog = remember { mutableStateOf(false) }
+
     LaunchedEffect(categoryToRename) {
         showRenameDialog.value = categoryToRename != null
         if (categoryToRename != null) newCategoryName = categoryToRename!!
     }
+
     SuperDialog(
         title = "重命名分类",
         show = showRenameDialog,
@@ -509,6 +512,7 @@ fun MainScreen(
     val showCreateBookDialog = remember { mutableStateOf(false) }
     var createBookName by remember { mutableStateOf("") }
     var createBookCategory by remember { mutableStateOf("") }
+
     SuperDialog(
         title = "创建书籍",
         show = showCreateBookDialog,
@@ -556,6 +560,7 @@ fun MainScreen(
                         Toast.makeText(context, "已存在同名书籍", Toast.LENGTH_SHORT).show()
                         return@TextButton
                     }
+
                     viewModel.createBook(finalName, createBookCategory.trim().ifBlank { null })
                     showCreateBookDialog.value = false
                     createBookName = ""
@@ -631,6 +636,7 @@ fun MainScreen(
                 syncReadingDataState.statusText.isNotEmpty() ||
                 syncResultState != null
     }
+
     SyncReadingDataDialog(
         show = showSyncReadingDataSheet,
         state = syncReadingDataState,
@@ -657,7 +663,7 @@ fun MainScreen(
             onOpenWebsite = {
                 val intent = Intent(
                     Intent.ACTION_VIEW,
-                    Uri.parse("https://vs.lucky-e.top")
+                    Uri.parse("https://vs.lucky-e.top/")
                 )
                 context.startActivity(intent)
             }
@@ -712,6 +718,7 @@ fun MainScreen(
             viewModel.dismissCategorySelector()
         }
     }
+
     categoryState?.let { state ->
         CategoryDialog(
             show = showCategoryDialog,
@@ -735,7 +742,6 @@ fun MainScreen(
         )
     }
 
-
     val showImportReportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importReportState) { showImportReportSheet.value = importReportState != null }
     importReportState?.let { state ->
@@ -747,11 +753,9 @@ fun MainScreen(
     }
 
     val showOverwriteConfirmDialog = remember { mutableStateOf(false) }
-
     LaunchedEffect(overwriteConfirmState) {
         showOverwriteConfirmDialog.value = overwriteConfirmState != null
     }
-
     overwriteConfirmState?.let { state ->
         OverwriteConfirmDialog(
             show = showOverwriteConfirmDialog,
@@ -770,7 +774,6 @@ fun MainScreen(
     LaunchedEffect(largeChapterWarningState) {
         showLargeChapterWarningDialog.value = largeChapterWarningState != null
     }
-
     largeChapterWarningState?.let { state ->
         SuperDialog(
             title = "存在过大章节",
@@ -967,200 +970,210 @@ fun MainScreen(
                     bottom = 120.dp
                 ),
             ) {
-                if (bandTransferEnabled) {
+                val updatesToShow = if (updateCheckState.updateInfoList.isNotEmpty()) updateCheckState.updateInfoList else listOfNotNull(updateCheckState.updateInfo)
+                val hasUpdate = updatesToShow.any { it.hasUpdate }
+
+                if (hasUpdate) {
                     item {
-                        Row(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(IntrinsicSize.Max)
                                 .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            onClick = { viewModel.showUpdateDialog() },
+                            colors = CardDefaults.defaultColors(
+                                color = MiuixTheme.colorScheme.errorContainer
+                            ),
+                            showIndication = true,
+                            pressFeedbackType = PressFeedbackType.Tilt
                         ) {
-                            Card(
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                colors = CardDefaults.defaultColors(
-                                    color = if (connectionState.isConnected) MiuixTheme.colorScheme.surfaceContainer else MiuixTheme.colorScheme.errorContainer
-                                ),
-                                onClick = {
-                                    if (!connectionState.isConnected) {
-                                        viewModel.reconnect()
-                                    } else if (bandTransferEnabled && !isMultiSelectMode) {
-                                        showMenuSheet.value = true
-                                    }
-                                },
-                                pressFeedbackType = PressFeedbackType.Sink,
-                                showIndication = true
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = connectionState.statusText,
-                                            style = MiuixTheme.textStyles.title3,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = connectionState.descriptionText,
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.onErrorContainer.copy(
-                                                alpha = 0.8f
-                                            )
-                                        )
-                                    }
-
-                                    AnimatedVisibility(
-                                        visible = scrollBehavior.state.collapsedFraction < 0.5f && !isMultiSelectMode && bandTransferEnabled,
-                                        enter = fadeIn(),
-                                        exit = fadeOut(),
-                                        modifier = Modifier
-                                            .align(Alignment.End)
-                                            .padding(top = 8.dp)
-                                    ) {
-                                        IconButton(onClick = { showMenuSheet.value = true }) {
-                                            Icon(
-                                                imageVector = MiuixIcons.More,
-                                                contentDescription = "更多选项",
-                                                tint = if (connectionState.isConnected) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onErrorContainer
-                                            )
-                                        }
-                                    }
+                                Icon(
+                                    imageVector = MiuixIcons.Update,
+                                    contentDescription = null,
+                                    tint = MiuixTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = "发现新版本可用",
+                                        color = MiuixTheme.colorScheme.onErrorContainer,
+                                        style = MiuixTheme.textStyles.body1,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "点击查看更新日志并下载",
+                                        color = MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                                        style = MiuixTheme.textStyles.body2
+                                    )
                                 }
                             }
+                        }
+                    }
+                }
 
-                            if (bandTransferEnabled && connectionState.isConnected && bandStorageInfo.hasValidData && !bandStorageInfo.isLoading) {
+                if (bandTransferEnabled) {
+                    item {
+                        if (connectionState.isConnected) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Max)
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Card(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(),
-                                    colors = CardDefaults.defaultColors(
-                                        color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
-                                    ),
-                                    onClick = { showStorageHelpDialog.value = true },
-                                    pressFeedbackType = PressFeedbackType.Sink,
-                                    showIndication = true
+                                    onClick = {
+                                        if (!isMultiSelectMode) {
+                                            showMenuSheet.value = true
+                                        }
+                                    },
+                                    showIndication = true,
+                                    pressFeedbackType = PressFeedbackType.Tilt
                                 ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(16.dp),
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .offset(38.dp, 45.dp),
+                                            contentAlignment = Alignment.BottomEnd
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    if (bandStorageInfo.showWarning) {
-                                                        Icon(
-                                                            imageVector = MiuixIcons.Info,
-                                                            contentDescription = null,
-                                                            tint = MiuixTheme.colorScheme.onErrorContainer,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = "手环存储",
-                                                        style = MiuixTheme.textStyles.title3,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
-                                                    )
-                                                }
-                                                if (bandStorageInfo.product != null) {
-                                                    Spacer(modifier = Modifier.height(4.dp))
-                                                    Text(
-                                                        text = bandStorageInfo.product!!,
-                                                        style = MiuixTheme.textStyles.footnote1,
-                                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                                    )
-                                                }
-                                            }
-                                            IconButton(
-                                                onClick = { showStorageHelpDialog.value = true },
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = MiuixIcons.Help,
-                                                    contentDescription = "帮助",
-                                                    modifier = Modifier.size(20.dp),
-                                                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "实际可用",
-                                                style = MiuixTheme.textStyles.body2,
-                                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                            )
-                                            Text(
-                                                text = bytesToReadable(bandStorageInfo.actualAvailable),
-                                                style = MiuixTheme.textStyles.body2,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
+                                            Icon(
+                                                modifier = Modifier.size(170.dp),
+                                                imageVector = MiuixIcons.Ok,
+                                                tint = MiuixTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                contentDescription = null
                                             )
                                         }
-                                        if (bandStorageInfo.totalStorage > 0) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            val usableSpace =
-                                                bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
-                                            val progress = if (usableSpace > 0) {
-                                                (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(
-                                                    0f,
-                                                    1f
-                                                )
-                                            } else 0f
-                                            LinearProgressIndicator(
-                                                progress = progress,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(6.dp),
-                                                colors = ProgressIndicatorDefaults.progressIndicatorColors(
-                                                    foregroundColor = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
-                                                    backgroundColor = MiuixTheme.colorScheme.surfaceContainerHighest
-                                                )
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(16.dp)
+                                        ) {
                                             Text(
-                                                text = "${bytesToReadable(bandStorageInfo.usedStorage)} / ${
-                                                    bytesToReadable(
-                                                        usableSpace
-                                                    )
-                                                }",
-                                                style = MiuixTheme.textStyles.footnote1,
-                                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                                 modifier = Modifier.fillMaxWidth(),
-                                                textAlign = TextAlign.Center
+                                                text = connectionState.statusText,
+                                                style = MiuixTheme.textStyles.title3,
+                                                fontWeight = FontWeight.SemiBold,
                                             )
-                                        }
-                                        if (bandStorageInfo.showWarning) {
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Spacer(Modifier.height(4.dp))
                                             Text(
-                                                text = "存储空间不足，可能影响功能使用",
-                                                style = MiuixTheme.textStyles.footnote1,
-                                                color = MiuixTheme.colorScheme.onErrorContainer
+                                                modifier = Modifier.fillMaxWidth(),
+                                                text = connectionState.descriptionText,
+                                                style = MiuixTheme.textStyles.body2,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                                             )
                                         }
                                     }
                                 }
+
+                                if (bandStorageInfo.hasValidData && !bandStorageInfo.isLoading) {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            insideMargin = PaddingValues(16.dp),
+                                            onClick = { showStorageHelpDialog.value = true },
+                                            showIndication = true,
+                                            pressFeedbackType = PressFeedbackType.Tilt,
+                                            colors = CardDefaults.defaultColors(
+                                                color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
+                                            )
+                                        ) {
+                                            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    text = "实际可用",
+                                                    fontWeight = FontWeight.Medium,
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                )
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    text = bytesToReadable(bandStorageInfo.actualAvailable),
+                                                    style = MiuixTheme.textStyles.title2,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface,
+                                                )
+                                            }
+                                        }
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            insideMargin = PaddingValues(16.dp),
+                                            onClick = { showStorageHelpDialog.value = true },
+                                            showIndication = true,
+                                            pressFeedbackType = PressFeedbackType.Tilt,
+                                            colors = CardDefaults.defaultColors(
+                                                color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
+                                            )
+                                        ) {
+                                            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    text = "已用空间",
+                                                    fontWeight = FontWeight.Medium,
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                )
+                                                val usableSpace = bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
+                                                val progress = if (usableSpace > 0) {
+                                                    (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(0f, 1f)
+                                                } else 0f
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    text = "${(progress * 100).toInt()}%",
+                                                    style = MiuixTheme.textStyles.title2,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                onClick = {
+                                    viewModel.reconnect()
+                                },
+                                showIndication = true,
+                                pressFeedbackType = PressFeedbackType.Sink,
+                                colors = CardDefaults.defaultColors(
+                                    color = MiuixTheme.colorScheme.errorContainer
+                                )
+                            ) {
+                                BasicComponent(
+                                    title = connectionState.statusText,
+                                    titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.onErrorContainer),
+                                    summary = connectionState.descriptionText,
+                                    summaryColor = BasicComponentDefaults.summaryColor(color = MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)),
+                                    startAction = {
+                                        Icon(
+                                            imageVector = MiuixIcons.Info,
+                                            contentDescription = null,
+                                            modifier = Modifier.padding(end = 16.dp),
+                                            tint = MiuixTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                )
                             }
                         }
                     }
@@ -1317,7 +1330,6 @@ fun MainScreen(
                             ItemType.BOOK -> prevItem.category != null && expandedCategories.contains(
                                 prevItem.category
                             )
-
                             null -> false
                             else -> true
                         }
@@ -1421,6 +1433,7 @@ fun MainScreen(
                                 val book = item.book!!
                                 val category = item.category!!
                                 val isCategoryExpanded = expandedCategories.contains(category)
+
                                 var swipeOffsetX by remember(book.path) { mutableStateOf(0f) }
                                 val animatedSwipeOffsetX by animateFloatAsState(
                                     targetValue = swipeOffsetX,
