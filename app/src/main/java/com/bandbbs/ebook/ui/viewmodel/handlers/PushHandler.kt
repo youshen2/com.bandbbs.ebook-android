@@ -30,7 +30,6 @@ class PushHandler(
     private val appContext: Context,
     private val autoRetryOnTransferError: StateFlow<Boolean>
 ) {
-
     private var pendingPushBook: Book? = null
     private var pendingPushChapters: Set<Int>? = null
     private var pendingSyncCover: Boolean = false
@@ -55,6 +54,7 @@ class PushHandler(
             syncOptionsState.value = null
             return
         }
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         if (fileConn.busy || syncOptionsState.value != null) return
 
@@ -65,6 +65,7 @@ class PushHandler(
                 val bookStatus = withContext(Dispatchers.IO) {
                     fileConn.getBookStatus(book.name)
                 }
+
                 val (totalChapters, chapters, hasCover) = withContext(Dispatchers.IO) {
                     val bookEntity = db.bookDao().getBookByPath(book.path)
                     if (bookEntity != null) {
@@ -76,6 +77,7 @@ class PushHandler(
                         Triple(0, emptyList(), false)
                     }
                 }
+
                 syncOptionsState.value = SyncOptionsState(
                     book = book,
                     totalChapters = totalChapters,
@@ -118,6 +120,7 @@ class PushHandler(
                         Triple(0, emptyList(), false)
                     }
                 }
+
                 syncOptionsState.value?.let { currentState ->
                     syncOptionsState.value = currentState.copy(
                         syncedChapterIndices = bookStatus.syncedChapters.toSet(),
@@ -152,6 +155,7 @@ class PushHandler(
             syncOptionsState.value = null
             return
         }
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         if (fileConn.busy || book.coverImagePath == null) return
 
@@ -218,6 +222,7 @@ class PushHandler(
             syncOptionsState.value = null
             return
         }
+
         if (selectedChapterIndices.isEmpty()) {
             return
         }
@@ -233,7 +238,6 @@ class PushHandler(
 
         scope.launch {
             delay(500L)
-
             val isCoverAlreadySynced = syncOptionsState.value?.isCoverSynced ?: false
             syncOptionsState.value = null
             performPush(book, selectedChapterIndices, syncCover, isCoverAlreadySynced)
@@ -263,8 +267,10 @@ class PushHandler(
                 syncOptionsState.value = null
                 return
             }
+
             prefs.edit().putBoolean(firstSyncConfirmedKey, true).apply()
             firstSyncConfirmState.value = null
+
             scope.launch {
                 val isCoverAlreadySynced = syncOptionsState.value?.isCoverSynced ?: false
                 syncOptionsState.value = null
@@ -303,17 +309,19 @@ class PushHandler(
             resetTransferState()
             return
         }
-        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
 
+        val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse { return }
         val initialMessage =
             if (syncCover && !isCoverAlreadySynced) "准备传输封面..." else "准备开始传输..."
         val initialLog = listOf(initialMessage)
+
         pushState.value = PushState(
             book = book,
             preview = initialMessage,
             transferLog = initialLog,
             isTransferring = true
         )
+
         ForegroundTransferService.startService(
             appContext,
             "传输中",
@@ -324,8 +332,8 @@ class PushHandler(
 
         scope.launch(Dispatchers.IO) {
             val bookEntity = db.bookDao().getBookByPath(book.path) ?: return@launch
-
             val sortedIndices = selectedChapterIndices.sorted()
+
             if (sortedIndices.isEmpty()) {
                 withContext(Dispatchers.Main) {
                     addTransferLog("[完成] 没有需要同步的章节")
@@ -351,8 +359,8 @@ class PushHandler(
             val transferChapters = chapterInfoList
                 .filter { sortedIndices.contains(it.index) }
                 .sortedBy { it.index }
-            val firstChapterName = transferChapters.firstOrNull()?.name ?: ""
 
+            val firstChapterName = transferChapters.firstOrNull()?.name ?: ""
             val startFromIndex = sortedIndices.first()
             val totalChaptersInBook = db.chapterDao().getChapterCountForBook(bookEntity.id)
 
@@ -370,6 +378,7 @@ class PushHandler(
                         }
                     )
                 }
+
                 addTransferLog("开始传输，共 ${sortedIndices.size} 章")
                 if (coverImagePath != null) {
                     addTransferLog("包含封面图片")
@@ -446,6 +455,7 @@ class PushHandler(
                             "[$progressPercent%] 传输中"
                         }
                         addTransferLog(logMessage)
+
                         pushState.update {
                             it.copy(
                                 progress = p,
@@ -458,6 +468,7 @@ class PushHandler(
                                 } ?: it.currentChapterIndex
                             )
                         }
+
                         val title = "$progressPercent%"
                         ForegroundTransferService.startService(
                             appContext,
@@ -503,6 +514,7 @@ class PushHandler(
     private suspend fun retryTransfer(failedChapterIndex: Int) {
         val maxRetryCount = 10
         var retryCount = 0
+
         while (isRetrying && currentTransferBook != null && currentTransferChapters != null && retryCount < maxRetryCount) {
             retryCount++
             withContext(Dispatchers.Main) {
@@ -518,6 +530,7 @@ class PushHandler(
                     null
                 )
             }
+
             delay(5000)
 
             if (!isRetrying) break
@@ -532,9 +545,9 @@ class PushHandler(
                     )
                     LiveNotificationManager.showTransferNotification("重试中", "正在重连...", null)
                 }
+
                 connectionHandler.reconnect()
                 delay(500)
-
                 val conn = connectionHandler.getHandshake()
                 conn.init()
                 delay(500)
@@ -547,6 +560,7 @@ class PushHandler(
                 val isCoverAlreadySynced = currentTransferIsCoverAlreadySynced
 
                 val bookEntity = db.bookDao().getBookByPath(book.path)
+
                 if (bookEntity == null) {
                     withContext(Dispatchers.Main) {
                         addTransferLog("[错误] 无法找到书籍信息")
@@ -712,6 +726,7 @@ class PushHandler(
                                 "[$progressPercent%] 传输中"
                             }
                             addTransferLog(logMessage)
+
                             pushState.update {
                                 it.copy(
                                     progress = p,
@@ -724,6 +739,7 @@ class PushHandler(
                                     } ?: it.currentChapterIndex
                                 )
                             }
+
                             val title = "$progressPercent%"
                             ForegroundTransferService.startService(
                                 appContext,
@@ -766,6 +782,7 @@ class PushHandler(
 
                 isRetrying = false
                 return
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     if (retryCount < maxRetryCount) {
@@ -854,7 +871,6 @@ class PushHandler(
         if (fileConn.busy) {
             fileConn.cancel()
         }
-        runCatching { connectionHandler.getHandshake() }.getOrNull()?.setOnDisconnected { }
         syncOptionsState.value = null
         isRetrying = false
         resetTransferState()

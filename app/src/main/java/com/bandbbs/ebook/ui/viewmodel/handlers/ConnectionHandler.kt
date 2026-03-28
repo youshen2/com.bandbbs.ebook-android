@@ -22,15 +22,16 @@ class ConnectionHandler(
     private val versionIncompatibleState: MutableStateFlow<com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState?>,
     private val bandTransferEnabled: StateFlow<Boolean>,
 ) {
-
     private var interHandshake: InterHandshake? = null
     private var fileConnection: InterconnetFile? = null
+
     var onBandConnected: ((String) -> Unit)? = null
     var onBandVersionReceived: ((Int) -> Unit)? = null
 
     fun setConnection(connection: InterHandshake) {
         interHandshake = connection
         fileConnection = InterconnetFile(connection)
+
         connection.setOnVersionIncompatible { currentVersion, requiredVersion ->
             versionIncompatibleState.value =
                 com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState(
@@ -41,6 +42,10 @@ class ConnectionHandler(
         connection.setOnBandVersionReceived { version ->
             onBandVersionReceived?.invoke(version)
         }
+        connection.addOnDisconnectedListener {
+            markConnectionFailed("连接已断开")
+        }
+
         if (bandTransferEnabled.value) {
             reconnect()
         } else {
@@ -132,6 +137,7 @@ class ConnectionHandler(
             }
             return
         }
+
         val connection = interHandshake ?: return
         scope.launch {
             connectionState.update {
@@ -170,6 +176,7 @@ class ConnectionHandler(
                     }
 
                     connection.auth().await()
+
                     try {
                         if (!connection.getAppState().await()) {
                             connectionState.update {
@@ -205,8 +212,10 @@ class ConnectionHandler(
                         )
                         return@withTimeout
                     }
+
                     connection.openApp().await()
                     connection.registerListener().await()
+
                     connectionState.update {
                         it.copy(
                             statusText = "连接成功",
@@ -215,7 +224,6 @@ class ConnectionHandler(
                             deviceName = deviceName
                         )
                     }
-
                     onBandConnected?.invoke(deviceName)
                 }
             } catch (_: TimeoutCancellationException) {

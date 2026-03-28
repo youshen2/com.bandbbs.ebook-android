@@ -38,12 +38,24 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         }
     }
 
+    private val onDisconnectedListeners = mutableListOf<() -> Unit>()
+
+    fun addOnDisconnectedListener(callback: () -> Unit) {
+        if (!onDisconnectedListeners.contains(callback)) {
+            onDisconnectedListeners.add(callback)
+        }
+    }
+
+    fun removeOnDisconnectedListener(callback: () -> Unit) {
+        onDisconnectedListeners.remove(callback)
+    }
+
     private fun resetTimeout() {
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         timeoutRunnable = Runnable {
             Log.w("Handshake", "Connection timeout, resetting state")
             cleanup()
-            onDisconnected.invoke()
+            onDisconnectedListeners.forEach { it.invoke() }
         }
         handler.postDelayed(timeoutRunnable!!, TIMEOUT)
     }
@@ -64,7 +76,6 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 val bandVersion = data.version
 
                 connectedBandVersion = bandVersion
-
                 if (bandVersion != null) {
                     onBandVersionReceived.invoke(bandVersion)
                     if (bandVersion < MIN_BAND_VERSION_CODE) {
@@ -93,6 +104,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 Log.e("Handshake", "Error handling handshake payload", e)
             }
         }
+
         scope.launch {
             try {
                 super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
@@ -157,14 +169,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         onConnected = callback
     }
 
-    private var onDisconnected = {}
-    fun setOnDisconnected(callback: () -> Unit) {
-        onDisconnected = callback
-    }
-
     private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit =
         { _, _ -> }
-
     fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
         onVersionIncompatible = callback
     }
