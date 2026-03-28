@@ -145,7 +145,7 @@ class ConnectionHandler(
             try {
                 withTimeout(3000L) {
                     connection.destroy().await()
-                    val deviceName = connection.connect().await().replace(" ", "")
+                    val deviceName = connection.connect().await()
 
                     val unsupportedDevices = listOf("小米手环8")
                     val isUnsupported = unsupportedDevices.any { deviceName == it }

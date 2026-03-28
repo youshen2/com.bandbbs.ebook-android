@@ -113,6 +113,7 @@ import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 
 private enum class ItemType {
     RECENT_HEADER, RECENT_BOOK, RECENT_UPDATE_HEADER, RECENT_UPDATE_BOOK, CATEGORY_HEADER, BOOK
@@ -142,6 +143,7 @@ fun MainScreen(
     val hasClickedTransferButton by viewModel.hasClickedTransferButton.collectAsState()
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsState()
     val selectedBooks by viewModel.selectedBooks.collectAsState()
+
     val importState by viewModel.importState.collectAsState()
     val importingState by viewModel.importingState.collectAsState()
     val importReportState by viewModel.importReportState.collectAsState()
@@ -157,6 +159,7 @@ fun MainScreen(
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
     val syncResultState by viewModel.syncResultState.collectAsState()
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
+
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
@@ -167,8 +170,8 @@ fun MainScreen(
     val scrollState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
     val lastChapterNames = remember { mutableStateMapOf<String, String>() }
+
     var pendingExportBook by remember { mutableStateOf<com.bandbbs.ebook.ui.model.Book?>(null) }
     val exportBookLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -274,8 +277,9 @@ fun MainScreen(
     LaunchedEffect(syncReadingDataState.showModeDialog) {
         showSyncModeDialog.value = syncReadingDataState.showModeDialog
     }
+
     SuperDialog(
-        title = "选择同步方式",
+        title = "同步设置",
         show = showSyncModeDialog,
         onDismissRequest = { viewModel.dismissSyncModeDialog() }
     ) {
@@ -287,10 +291,40 @@ fun MainScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 400.dp)
+                .heightIn(max = 450.dp)
                 .verticalScroll(dialogScrollState)
         ) {
-            Text("请选择阅读数据的同步方式：", style = MiuixTheme.textStyles.body1)
+            SmallTitle(text = "选择要同步的书籍", insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp))
+            Card {
+                val allSelected = syncReadingDataState.selectedBooksForSync.size == books.size && books.isNotEmpty()
+                BasicComponent(
+                    title = "全选",
+                    endActions = {
+                        Checkbox(
+                            checked = allSelected,
+                            onCheckedChange = { viewModel.selectAllBooksForSync(it) }
+                        )
+                    },
+                    onClick = { viewModel.selectAllBooksForSync(!allSelected) }
+                )
+                if (books.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+                books.forEach { book ->
+                    val isSelected = syncReadingDataState.selectedBooksForSync.contains(book.name)
+                    BasicComponent(
+                        title = book.name,
+                        endActions = {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { viewModel.toggleBookForSync(book.name) }
+                            )
+                        },
+                        onClick = { viewModel.toggleBookForSync(book.name) }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             SmallTitle(text = "阅读进度", insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp))
@@ -401,6 +435,7 @@ fun MainScreen(
             TextButton(
                 text = "确定",
                 colors = ButtonDefaults.textButtonColorsPrimary(),
+                enabled = syncReadingDataState.selectedBooksForSync.isNotEmpty(),
                 onClick = {
                     viewModel.setSyncModesAndStart(
                         selectedProgressMode,
@@ -414,11 +449,11 @@ fun MainScreen(
     }
 
     val showStorageHelpDialog = remember { mutableStateOf(false) }
-
     val showConnectionRequiredDialog = remember { mutableStateOf(false) }
     LaunchedEffect(connectionRequiredDialogState) {
         showConnectionRequiredDialog.value = connectionRequiredDialogState != null
     }
+
     SuperDialog(
         title = connectionRequiredDialogState?.title ?: "请先连接手环",
         summary = connectionRequiredDialogState?.message ?: "当前操作需要先连接手环后才能继续。",
@@ -469,7 +504,6 @@ fun MainScreen(
     var categoryToRename by remember { mutableStateOf<String?>(null) }
     var newCategoryName by remember { mutableStateOf("") }
     val showRenameDialog = remember { mutableStateOf(false) }
-
     LaunchedEffect(categoryToRename) {
         showRenameDialog.value = categoryToRename != null
         if (categoryToRename != null) newCategoryName = categoryToRename!!
@@ -560,7 +594,6 @@ fun MainScreen(
                         Toast.makeText(context, "已存在同名书籍", Toast.LENGTH_SHORT).show()
                         return@TextButton
                     }
-
                     viewModel.createBook(finalName, createBookCategory.trim().ifBlank { null })
                     showCreateBookDialog.value = false
                     createBookName = ""
@@ -653,7 +686,6 @@ fun MainScreen(
     LaunchedEffect(versionIncompatibleState) {
         showVersionIncompatibleDialog.value = versionIncompatibleState != null
     }
-
     versionIncompatibleState?.let { state ->
         VersionIncompatibleDialog(
             show = showVersionIncompatibleDialog,
@@ -663,7 +695,7 @@ fun MainScreen(
             onOpenWebsite = {
                 val intent = Intent(
                     Intent.ACTION_VIEW,
-                    Uri.parse("https://vs.lucky-e.top/")
+                    Uri.parse("https://vs.lucky-e.top")
                 )
                 context.startActivity(intent)
             }
@@ -718,7 +750,6 @@ fun MainScreen(
             viewModel.dismissCategorySelector()
         }
     }
-
     categoryState?.let { state ->
         CategoryDialog(
             show = showCategoryDialog,
@@ -826,6 +857,7 @@ fun MainScreen(
                     state.book.localCategory ?: ""
                 )
             }
+
             LaunchedEffect(state.book.localCategory) {
                 editLocalCategory = state.book.localCategory ?: ""
             }
@@ -1112,6 +1144,7 @@ fun MainScreen(
                                                 )
                                             }
                                         }
+
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -1330,6 +1363,7 @@ fun MainScreen(
                             ItemType.BOOK -> prevItem.category != null && expandedCategories.contains(
                                 prevItem.category
                             )
+
                             null -> false
                             else -> true
                         }
@@ -1471,7 +1505,6 @@ fun MainScreen(
                                                 }
                                             )
                                         }
-
                                     if (quickEditCategoryEnabled) {
                                         boxModifier = boxModifier.pointerInput(book.path) {
                                             detectDragGestures(
@@ -1540,7 +1573,6 @@ fun MainScreen(
                                                 }
                                             }
                                         }
-
                                         BookItem(
                                             book = book,
                                             modifier = Modifier.offset {
@@ -1643,3 +1675,4 @@ fun MainScreen(
         }
     }
 }
+

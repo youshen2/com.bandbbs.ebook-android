@@ -35,12 +35,7 @@ data class PushState(
     val isSendingCover: Boolean = false,
     val coverProgress: String = "",
     val isTransferring: Boolean = false,
-    /**
-     * 本次传输的章节列表（只包含被选中传输的章节，按 index 升序）。
-     * 用于 Push 详情页面展示“总列表”。
-     */
     val transferChapters: List<ChapterInfo> = emptyList(),
-    /** 当前正在传输的章节 index（ChapterInfo.index），用于高亮与“当前章节”展示。 */
     val currentChapterIndex: Int? = null
 )
 
@@ -71,12 +66,10 @@ data class ImportState(
     val customRegexTemplates: List<RegexTemplate> = emptyList(),
     val selectedCustomRegexTemplateName: String? = null
 ) {
-
     val uri: Uri get() = uris.first()
     val bookName: String get() = files.first().bookName
     val fileSize: Long get() = files.first().fileSize
     val fileFormat: String get() = files.first().fileFormat
-
     val isMultipleFiles: Boolean get() = uris.size > 1
 }
 
@@ -99,7 +92,6 @@ data class SyncOptionsState(
     val hasCover: Boolean = false,
     val isCoverSynced: Boolean = false
 ) {
-
     val syncedChapters: Int get() = syncedChapterIndices.size
 }
 
@@ -146,7 +138,8 @@ data class SyncReadingDataState(
     val showModeDialog: Boolean = false,
     val progressSyncMode: SyncMode = SyncMode.AUTO,
     val readingTimeSyncMode: SyncMode = SyncMode.AUTO,
-    val bookmarkSyncMode: SyncMode = SyncMode.AUTO
+    val bookmarkSyncMode: SyncMode = SyncMode.AUTO,
+    val selectedBooksForSync: Set<String> = emptySet()
 )
 
 data class SyncResultState(
@@ -191,3 +184,4 @@ data class BackupRestoreResult(
     val success: Boolean,
     val message: String
 )
+
