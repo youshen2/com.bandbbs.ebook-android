@@ -16,8 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.extra.DialogDefaults
 import top.yukonga.miuix.kmp.extra.SuperDialog
-import top.yukonga.miuix.kmp.extra.SuperDialogDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.pressable
@@ -40,7 +40,7 @@ fun IpCollectionPermissionDialog(
     val title = if (isSecondConfirmation) "确认禁用更新检测？" else "允许收集IP地址"
 
     val summary = if (isSecondConfirmation) {
-        "如果您选择不允许，我们将无法为您提供版本更新检测功能。您需要自行前往米坛社区寻找更新。\n\n您确定要禁用此功能吗？"
+        "如果您选择不允许，我们将无法为您提供版本更新检测功能。您需要自行前往米坛社区寻找更新，且可能错过Bug修复。\n\n您确定要禁用此功能吗？"
     } else {
         if (isFirstTime) {
             "为了提供版本更新检测功能，我们需要收集您的IP地址用于统计。\n\n是否允许收集IP地址？"
@@ -53,7 +53,7 @@ fun IpCollectionPermissionDialog(
         show = show,
         title = title,
         summary = summary,
-        titleColor = if (isSecondConfirmation) MiuixTheme.colorScheme.error else SuperDialogDefaults.titleColor(),
+        titleColor = if (isSecondConfirmation) MiuixTheme.colorScheme.error else DialogDefaults.titleColor(),
         onDismissRequest = {
             show.value = false
         }

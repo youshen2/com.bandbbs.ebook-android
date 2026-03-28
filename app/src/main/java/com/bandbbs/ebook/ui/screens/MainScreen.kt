@@ -49,13 +49,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.bandbbs.ebook.R
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.ui.components.CategoryDialog
 import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
@@ -1080,7 +1083,7 @@ fun MainScreen(
                                         ) {
                                             Icon(
                                                 modifier = Modifier.size(170.dp),
-                                                imageVector = MiuixIcons.Ok,
+                                                imageVector = ImageVector.vectorResource(R.drawable.check_circle_outline),
                                                 tint = MiuixTheme.colorScheme.primary.copy(alpha = 0.8f),
                                                 contentDescription = null
                                             )
