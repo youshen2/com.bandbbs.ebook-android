@@ -79,9 +79,19 @@ open class Interconn(context: Context) {
 
     fun registerListener(): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
-            messageApi.addListener(currentNode!!.id, onMessageListener).addOnSuccessListener {
-                complete(Unit)
-            }.addOnFailureListener { completeExceptionally(it) }
+            messageApi.addListener(currentNode!!.id, onMessageListener)
+                .addOnSuccessListener {
+                    complete(Unit)
+                }
+                .addOnFailureListener { error ->
+                    val msg = error.message.orEmpty()
+                    if (msg.contains("You have registered", ignoreCase = true)) {
+                        Log.w("RegisterListener", "Listener already registered, continue")
+                        complete(Unit)
+                    } else {
+                        completeExceptionally(error)
+                    }
+                }
         }
     }
 
