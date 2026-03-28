@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,6 +104,7 @@ fun ChapterListScreen(
 
     var sortType by remember { mutableStateOf(SortType.INDEX_ASC) }
     val showSortMenu = remember { mutableStateOf(false) }
+
     val orderedChapters = remember { mutableStateListOf<ChapterInfo>() }
     val listState = rememberLazyListState()
     var hasInitialScroll by remember { mutableStateOf(false) }
@@ -151,10 +151,10 @@ fun ChapterListScreen(
 
         val ids = orderedChapters.map { it.id }.toSet()
         selected = selected.filter { ids.contains(it) }.toSet()
+
         if (selected.isEmpty()) {
             showBatchRenameDialog.value = false
         }
-
         if (wasOrderChanged && orderedChapters.isNotEmpty()) {
             listState.animateScrollToItem(0)
         }
@@ -185,10 +185,6 @@ fun ChapterListScreen(
     val selectedDetails = orderedChapters.filter { selected.contains(it.id) }
     val isAllSelected = selected.size == orderedChapters.size && orderedChapters.isNotEmpty()
 
-    BackHandler {
-        onBackClick()
-    }
-
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
@@ -213,7 +209,6 @@ fun ChapterListScreen(
 
                             val sortOptions = SortType.values()
                             val selectedIndex = sortOptions.indexOf(sortType)
-
                             SuperListPopup(
                                 show = showSortMenu,
                                 alignment = PopupPositionProvider.Align.BottomEnd,
@@ -235,6 +230,7 @@ fun ChapterListScreen(
                                 }
                             }
                         }
+
                         IconButton(
                             onClick = { isEditMode = true },
                             modifier = Modifier.padding(end = 6.dp)
@@ -325,7 +321,6 @@ fun ChapterListScreen(
                         )
                     }
                 }
-
                 item {
                     HorizontalDivider(
                         modifier = Modifier.padding(
@@ -338,7 +333,6 @@ fun ChapterListScreen(
 
                 itemsIndexed(orderedChapters, key = { _, chapter -> chapter.id }) { _, chapter ->
                     val isCurrentChapter = chapter.index == book.chapterIndex
-
                     if (isEditMode) {
                         EditableChapterCard(
                             isPdf = isPdf,
@@ -457,7 +451,6 @@ private fun EditableChapterCard(
     onRename: () -> Unit
 ) {
     val showActionDialog = remember { mutableStateOf(false) }
-
     BasicComponent(
         modifier = modifier,
         title = chapter.name,
@@ -506,9 +499,7 @@ private fun EditableChapterCard(
                     }
                 )
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             TextButton(
                 text = "取消",
                 onClick = { showActionDialog.value = false },
@@ -526,11 +517,9 @@ private fun RenameChapterDialog(
 ) {
     var text by remember { mutableStateOf(chapter.name) }
     val showDialog = remember { mutableStateOf(true) }
-
     LaunchedEffect(showDialog.value) {
         if (!showDialog.value) onDismiss()
     }
-
     SuperDialog(
         title = "编辑章节标题",
         show = showDialog,
@@ -694,6 +683,7 @@ private fun BatchRenameDialog(
                     modifier = Modifier.weight(1f)
                 )
             }
+
             if (previewTitles.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("预览：", style = MiuixTheme.textStyles.body2)
@@ -708,6 +698,7 @@ private fun BatchRenameDialog(
                     }
                 }
             }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -744,6 +735,7 @@ private fun MergeChaptersDialog(
     val sorted = remember(selectedChapters) { selectedChapters.sortedBy { it.index } }
     var title by remember { mutableStateOf(sorted.firstOrNull()?.name ?: "合并章节") }
     var insertBlank by remember { mutableStateOf(true) }
+
     val canMerge = sorted.size >= 2
 
     SuperDialog(
@@ -759,17 +751,20 @@ private fun MergeChaptersDialog(
             if (sorted.size > 3) {
                 Text("... 等 ${sorted.size} 项", style = MiuixTheme.textStyles.body2)
             }
+
             TextField(
                 value = title,
                 onValueChange = { title = it },
                 label = "合并后标题",
                 singleLine = true
             )
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = insertBlank, onCheckedChange = { insertBlank = it })
                 Spacer(Modifier.width(8.dp))
                 Text("章节之间插入空行", style = MiuixTheme.textStyles.body2)
             }
+
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier

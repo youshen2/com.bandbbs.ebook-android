@@ -12,7 +12,6 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,7 +48,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
 import com.bandbbs.ebook.App
 import com.bandbbs.ebook.logic.InterHandshake
@@ -188,7 +186,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-
     private fun getRequiredStoragePermission(): String? {
         return when {
             Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 -> Manifest.permission.READ_EXTERNAL_STORAGE
@@ -199,13 +196,11 @@ class MainActivity : ComponentActivity() {
     private fun hasStoragePermission(): Boolean {
         val permission = getRequiredStoragePermission()
         val hasReadPermission = permission != null &&
-            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-
+                ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 Environment.isExternalStorageManager() || hasReadPermission
             }
-
             else -> hasReadPermission
         }
     }
@@ -307,7 +302,6 @@ class MainActivity : ComponentActivity() {
                 val backStack = remember { mutableStateListOf<NavKey>(Screen.HomePager) }
                 val currentScreen = backStack.lastOrNull() ?: Screen.HomePager
                 val statisticsScrollState = rememberScrollState()
-
                 val pagerState = rememberPagerState(pageCount = { 3 })
 
                 val navigateTo = { screen: Screen ->
@@ -323,14 +317,6 @@ class MainActivity : ComponentActivity() {
                 val navigateToHome = {
                     backStack.clear()
                     backStack.add(Screen.HomePager)
-                }
-
-                PredictiveBackHandler(enabled = backStack.size > 1) { progress ->
-                    try {
-                        progress.collect { }
-                        navigateBack()
-                    } catch (_: CancellationException) {
-                    }
                 }
 
                 LaunchedEffect(syncOptionsState) {
@@ -352,7 +338,6 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val showBottomBar = currentScreen is Screen.HomePager
-
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
@@ -434,7 +419,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                     ) {
-
                         val entryProvider = remember(backStack) {
                             entryProvider<NavKey> {
                                 entry<Screen.HomePager> {
@@ -452,7 +436,6 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
                                             )
-
                                             1 -> StatisticsScreen(
                                                 onBackClick = {
                                                     scope.launch {
@@ -469,7 +452,6 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 scrollState = statisticsScrollState
                                             )
-
                                             2 -> SettingsScreen(
                                                 viewModel = viewModel,
                                                 onBackClick = {
@@ -658,13 +640,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        val entries = rememberDecoratedNavEntries(
-                            backStack = backStack,
-                            entryProvider = entryProvider
-                        )
-
                         NavDisplay(
-                            entries = entries,
+                            backStack = backStack,
+                            entryProvider = entryProvider,
                             onBack = {
                                 if (backStack.size > 1) {
                                     navigateBack()
@@ -754,7 +732,7 @@ class MainActivity : ComponentActivity() {
                             onOpenWebsite = {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    Uri.parse("https://vs.lucky-e.top")
+                                    Uri.parse("https://vs.lucky-e.top/")
                                 )
                                 context.startActivity(intent)
                             }
@@ -795,7 +773,6 @@ class MainActivity : ComponentActivity() {
 
     private fun observeViewModelStates() {
         var wasTransferring = false
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.pushState.collect { pushState ->
@@ -804,7 +781,6 @@ class MainActivity : ComponentActivity() {
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
-
                     if (pushState.isTransferring) {
                         val progressPercent =
                             if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
@@ -815,7 +791,6 @@ class MainActivity : ComponentActivity() {
                             pushState.preview,
                             progressPercent
                         )
-
                         if (!wasTransferring) {
                             if (viewModel.autoMinimizeOnTransfer.value && !pushState.isFinished) {
                                 moveTaskToBack(true)
@@ -829,7 +804,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.syncReadingDataState.collect { syncState ->
@@ -848,7 +822,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.backupRestoreState.collect { state ->

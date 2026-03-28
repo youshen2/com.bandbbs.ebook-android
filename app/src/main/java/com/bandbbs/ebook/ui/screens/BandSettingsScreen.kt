@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,10 +47,6 @@ fun BandSettingsScreen(
 ) {
     val bandSettingsState by viewModel.bandSettingsState.collectAsState()
     val isLoading by viewModel.globalLoadingState.collectAsState()
-
-    BackHandler {
-        onBackClick()
-    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -363,6 +358,7 @@ fun BandSettingsScreen(
                                 )
                             }
                         )
+
                         SettingSwitch(
                             title = "显示章节编号",
                             summary = "每章开头显示编号",
@@ -374,6 +370,7 @@ fun BandSettingsScreen(
                                 )
                             }
                         )
+
                         SettingSwitch(
                             title = "显示章节名称",
                             summary = "每章开头显示名称",
@@ -385,6 +382,7 @@ fun BandSettingsScreen(
                                 )
                             }
                         )
+
                         SettingSwitch(
                             title = "显示章节字数",
                             summary = "每章开头显示字数",
@@ -802,7 +800,6 @@ private fun SettingDropdown(
 ) {
     val labels = options.map { it.second }
     val selectedIndex = options.indexOfFirst { it.first == selectedKey }.coerceAtLeast(0)
-
     SuperDropdown(
         title = title,
         summary = summary,

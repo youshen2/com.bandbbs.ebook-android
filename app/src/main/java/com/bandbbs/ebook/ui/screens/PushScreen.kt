@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,13 +55,10 @@ fun PushScreen(
     onBackClick: () -> Unit,
     onCancelOrDone: () -> Unit
 ) {
-    BackHandler { onBackClick() }
-
     val animatedProgress by animateFloatAsState(
         targetValue = pushState.progress.toFloat(),
         label = "PushProgressAnimation"
     )
-
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -273,6 +269,7 @@ private fun PushTransferSummary(
             }
 
             val listState = rememberLazyListState()
+
             LaunchedEffect(currentIndex, chapters.size) {
                 val idx = currentIndex?.let { target ->
                     chapters.indexOfFirst { it.index == target }

@@ -1,6 +1,5 @@
 package com.bandbbs.ebook.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,10 +87,9 @@ fun SyncOptionsScreen(
     var syncCover by remember { mutableStateOf(true) }
     var quickSelectText by remember { mutableStateOf("") }
     var sortIndex by remember { mutableStateOf(0) }
-
     val showChapterDialog = remember { mutableStateOf(false) }
-
     val focusManager = LocalFocusManager.current
+
     val sortType = ChapterSortType.values()[sortIndex]
 
     val applyQuickSelectRange = {
@@ -123,16 +121,11 @@ fun SyncOptionsScreen(
                 .filter { it.index !in state.syncedChapterIndices }
                 .map { it.index }
                 .toSet()
-
             selectedChapters = unsyncedChapterIndices
         }
     }
 
     val selectedCount by remember { derivedStateOf { selectedChapters.size } }
-
-    BackHandler {
-        onBackClick()
-    }
 
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
@@ -246,9 +239,7 @@ fun SyncOptionsScreen(
                                         }
                                     )
                                 )
-
                                 Spacer(modifier = Modifier.width(8.dp))
-
                                 TextButton(
                                     text = "确认",
                                     onClick = { applyQuickSelectRange() },
@@ -372,7 +363,6 @@ fun SyncOptionsScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
-
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -393,7 +383,6 @@ fun SyncOptionsScreen(
                             ) {
                                 Text("取消")
                             }
-
                             Button(
                                 onClick = {
                                     if (selectedChapters.isNotEmpty()) {
@@ -504,10 +493,9 @@ private fun BookInfoHeader(state: SyncOptionsState, selectedCount: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp), // 更宽敞的边距
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 封面
         if (state.book.coverImagePath != null && File(state.book.coverImagePath).exists()) {
             AsyncImage(
                 model = File(state.book.coverImagePath),
@@ -534,7 +522,6 @@ private fun BookInfoHeader(state: SyncOptionsState, selectedCount: Int) {
 
         Spacer(modifier = Modifier.width(20.dp))
 
-        // 信息文本
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = state.book.name,
@@ -571,11 +558,15 @@ private fun parseChapterRange(text: String, maxChapters: Int): Set<Int>? {
         if (text.contains("-")) {
             val parts = text.split("-")
             if (parts.size != 2) return null
+
             val start = parts[0].trim().toIntOrNull() ?: return null
             val end = parts[1].trim().toIntOrNull() ?: return null
+
             if (start < 1 || end < 1 || start > end) return null
+
             val adjustedStart = (start - 1).coerceIn(0, maxChapters - 1)
             val adjustedEnd = end.coerceAtMost(maxChapters)
+
             (adjustedStart until adjustedEnd).toSet()
         } else {
             val chapter = text.toIntOrNull() ?: return null

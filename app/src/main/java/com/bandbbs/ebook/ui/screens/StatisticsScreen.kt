@@ -1,7 +1,6 @@
 package com.bandbbs.ebook.ui.screens
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -116,6 +115,7 @@ fun StatisticsScreen(
     val stats = remember { mutableStateOf<ReadingTimeStats?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     LaunchedEffect(Unit) {
@@ -555,7 +555,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         val duration = session.optLong("duration", 0L)
                         if (duration > 0) {
                             var dateStr = session.optString("date", "")
-
                             if (dateStr.isEmpty()) {
                                 val startTime = session.optLong("startTime", 0L)
                                 if (startTime > 0) {
@@ -575,7 +574,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                                 if (bookLastDate == null || dateStr > bookLastDate!!) {
                                     bookLastDate = dateStr
                                 }
-
                                 if (firstReadDate == null || dateStr < firstReadDate!!) {
                                     firstReadDate = dateStr
                                 }
@@ -589,7 +587,6 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
                         }
                     }
                 } catch (e: Exception) {
-                    // Ignore
                 }
             }
 
@@ -652,6 +649,7 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     }
 
     val uniqueDays = allSessions.map { it.first }.distinct().size
+
     val averageDailySeconds = if (uniqueDays > 0) {
         totalSeconds / uniqueDays
     } else if (firstReadDate != null && lastReadDate != null) {
@@ -693,6 +691,7 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
     val today = calendar.time
     calendar.add(Calendar.DAY_OF_YEAR, -6)
     val sevenDaysAgo = calendar.time
+
     val sevenDaysAgoStr = dateFormat.format(sevenDaysAgo)
     val todayStr = dateFormat.format(today)
 
@@ -752,8 +751,8 @@ suspend fun calculateReadingTimeStats(context: Context): ReadingTimeStats {
 
 suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): BookStat? {
     val readingTimePrefs = context.getSharedPreferences("reading_time_prefs", Context.MODE_PRIVATE)
-    val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
 
+    val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
     if (totalSeconds == 0L) {
         return null
     }
@@ -774,9 +773,9 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
             for (i in 0 until sessionsArray.length()) {
                 val session = sessionsArray.getJSONObject(i)
                 val duration = session.optLong("duration", 0L)
+
                 if (duration > 0) {
                     var dateStr = session.optString("date", "")
-
                     if (dateStr.isEmpty()) {
                         val startTime = session.optLong("startTime", 0L)
                         if (startTime > 0) {
@@ -803,7 +802,6 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
                 }
             }
         } catch (e: Exception) {
-            // Ignore
         }
     }
 
@@ -830,6 +828,7 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     val today = calendar.time
     calendar.add(Calendar.DAY_OF_YEAR, -6)
     val sevenDaysAgo = calendar.time
+
     val sevenDaysAgoStr = dateFormat.format(sevenDaysAgo)
     val todayStr = dateFormat.format(today)
 
@@ -862,6 +861,7 @@ suspend fun calculateBookReadingTimeStats(context: Context, bookName: String): B
     } else {
         0L
     }
+
     val averageDailySeconds = if (readingDays > 0) {
         totalSeconds / readingDays
     } else if (firstReadDate != null && lastReadDate != null) {
@@ -935,11 +935,8 @@ fun BookStatisticsScreen(
     val stats = remember(bookName) { mutableStateOf<BookStat?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
-    BackHandler(enabled = true) {
-        onBackClick()
-    }
+    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     LaunchedEffect(bookName) {
         scope.launch {

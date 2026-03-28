@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.view.WindowManager
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -42,6 +41,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,14 +138,12 @@ fun ReaderScreen(
     val bookId = remember(chapter, allChapters, books) {
         if (allChapters.isNotEmpty()) allChapters[0].bookId else null
     }
-
     val bookName = remember(chapter, allChapters, books) {
         if (allChapters.isNotEmpty()) {
             val id = allChapters[0].bookId
             books.find { it.id == id }?.name
         } else null
     }
-
     val currentBook = remember(bookId, books) {
         if (bookId != null) books.find { it.id == bookId } else null
     }
@@ -153,10 +151,8 @@ fun ReaderScreen(
     val isPdf = remember(currentBook) { currentBook?.format == "pdf" }
 
     var showControls by remember { mutableStateOf(true) }
-
     val showSettings = remember { mutableStateOf(false) }
     val showBookmarks = remember { mutableStateOf(false) }
-
     var bookmarks by remember { mutableStateOf<List<BookmarkEntity>>(emptyList()) }
     var readerSettings by remember { mutableStateOf(loadReaderSettings(context)) }
 
@@ -178,10 +174,15 @@ fun ReaderScreen(
     val density = LocalDensity.current
 
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
+
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
 
     var turnInProgress by remember { mutableStateOf(false) }
+
+    val currentFirstVisibleItemIndex by rememberUpdatedState(firstVisibleItemIndex)
+    val currentFirstVisibleItemScrollOffset by rememberUpdatedState(firstVisibleItemScrollOffset)
+    val currentChapter by rememberUpdatedState(chapter)
 
     fun changeChapterByDelta(delta: Int) {
         if (turnInProgress) return
@@ -205,13 +206,11 @@ fun ReaderScreen(
                 )
             }
         }
-
         if (bookName != null) {
             scope.launch(Dispatchers.IO) {
                 ReadingTimeStorage.recordReadingEnd(context, bookName)
             }
         }
-
         onChapterChange(allChapters[targetIndex].id)
     }
 
@@ -219,23 +218,6 @@ fun ReaderScreen(
         if (bookId != null) {
             bookmarks = BookmarkManager.getBookmarks(context, bookId)
         }
-    }
-
-    BackHandler(enabled = !showSettings.value && !showBookmarks.value) {
-        chapter?.let { ch ->
-            if (!isPdf) {
-                saveReadingPosition(
-                    context,
-                    ch.id,
-                    firstVisibleItemIndex,
-                    firstVisibleItemScrollOffset
-                )
-            }
-        }
-        if (bookName != null) {
-            ReadingTimeStorage.recordReadingEnd(context, bookName)
-        }
-        onClose()
     }
 
     LaunchedEffect(chapter, bookName) {
@@ -290,31 +272,41 @@ fun ReaderScreen(
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
-                    chapter?.let { ch ->
-                        saveReadingPosition(
-                            context,
-                            ch.id,
-                            firstVisibleItemIndex,
-                            firstVisibleItemScrollOffset
-                        )
+                    currentChapter?.let { ch ->
+                        if (!isPdf) {
+                            saveReadingPosition(
+                                context,
+                                ch.id,
+                                currentFirstVisibleItemIndex,
+                                currentFirstVisibleItemScrollOffset
+                            )
+                        }
                     }
                     if (bookName != null) {
                         ReadingTimeStorage.recordReadingEnd(context, bookName)
                     }
                 }
-
                 Lifecycle.Event.ON_RESUME -> {
                     if (bookName != null) {
                         ReadingTimeStorage.recordReadingStart(context, bookName)
                     }
                 }
-
                 else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            currentChapter?.let { ch ->
+                if (!isPdf) {
+                    saveReadingPosition(
+                        context,
+                        ch.id,
+                        currentFirstVisibleItemIndex,
+                        currentFirstVisibleItemScrollOffset
+                    )
+                }
+            }
             if (bookName != null) {
                 ReadingTimeStorage.recordReadingEnd(context, bookName)
             }
@@ -540,7 +532,6 @@ fun ReaderScreen(
                                 modifier = Modifier.padding(bottom = 24.dp)
                             )
                         }
-
                         items(paragraphs) { paragraph ->
                             Text(
                                 text = "        $paragraph",
@@ -551,7 +542,6 @@ fun ReaderScreen(
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
                         }
-
                         item {
                             Spacer(modifier = Modifier.height(32.dp))
                             Column(
@@ -574,7 +564,6 @@ fun ReaderScreen(
                         !isPdf && !listState.canScrollBackward && currentChapterIndex > 0 && !showControls && readerSettings.pageTurnMode == PageTurnMode.BUTTON
                     }
                 }
-
                 AnimatedVisibility(
                     visible = showTopFab,
                     enter = slideInVertically(initialOffsetY = { -it * 2 }),
@@ -602,7 +591,6 @@ fun ReaderScreen(
                         !isPdf && !listState.canScrollForward && currentChapterIndex < allChapters.size - 1 && !showControls && readerSettings.pageTurnMode == PageTurnMode.BUTTON
                     }
                 }
-
                 AnimatedVisibility(
                     visible = showBottomFab,
                     enter = slideInVertically(initialOffsetY = { it * 2 }),
@@ -643,7 +631,6 @@ fun ReaderScreen(
                         fontSize = 12.sp,
                         color = Color(readerSettings.textColor).copy(alpha = 0.5f)
                     )
-
                     val progress = if (isPdf) {
                         if (allChapters.isNotEmpty()) {
                             (((currentChapterIndex + 1).toFloat() / allChapters.size.toFloat()) * 100).toInt()
@@ -655,13 +642,11 @@ fun ReaderScreen(
                                 .coerceIn(0, 100)
                         } else 0
                     }
-
                     Text(
                         text = "$progress%",
                         fontSize = 12.sp,
                         color = Color(readerSettings.textColor).copy(alpha = 0.5f)
                     )
-
                     Text(
                         text = "$batteryLevel%",
                         fontSize = 12.sp,
@@ -681,20 +666,7 @@ fun ReaderScreen(
                     color = Color(readerSettings.backgroundColor).copy(alpha = 0.95f),
                     navigationIcon = {
                         IconButton(
-                            onClick = {
-                                chapter?.let {
-                                    saveReadingPosition(
-                                        context,
-                                        it.id,
-                                        firstVisibleItemIndex,
-                                        firstVisibleItemScrollOffset
-                                    )
-                                }
-                                if (bookName != null) {
-                                    ReadingTimeStorage.recordReadingEnd(context, bookName)
-                                }
-                                onClose()
-                            },
+                            onClick = onClose,
                             modifier = Modifier.padding(start = 6.dp)
                         ) {
                             Icon(
@@ -760,7 +732,6 @@ fun ReaderScreen(
                                 tint = if (currentChapterIndex > 0) Color(readerSettings.textColor) else Color.Gray
                             )
                         }
-
                         IconButton(onClick = onTableOfContents) {
                             Icon(
                                 imageVector = MiuixIcons.ListView,
@@ -768,7 +739,6 @@ fun ReaderScreen(
                                 tint = Color(readerSettings.textColor)
                             )
                         }
-
                         IconButton(onClick = {
                             if (bookId != null && chapter != null) {
                                 scope.launch {
@@ -793,7 +763,6 @@ fun ReaderScreen(
                                 tint = Color(readerSettings.textColor)
                             )
                         }
-
                         IconButton(
                             onClick = { changeChapterByDelta(1) },
                             enabled = currentChapterIndex < allChapters.size - 1
