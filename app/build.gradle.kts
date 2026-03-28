@@ -21,8 +21,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 126205
-        versionName = "V26.2.3-2"
+        versionCode = 126300
+        versionName = "V26.3.0"
 
         resConfigs("zh")
     }
@@ -107,8 +107,8 @@ dependencies {
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("androidx.navigation3:navigation3-runtime:1.0.1")
-    implementation("top.yukonga.miuix.kmp:miuix:0.8.7")
-    implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.7")
-    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.7")
+    implementation("top.yukonga.miuix.kmp:miuix:0.8.8")
+    implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.8")
+    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.8")
     implementation("top.yukonga.miuix.kmp:miuix-navigation3-adaptive:0.8.5")
 }
