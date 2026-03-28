@@ -15,6 +15,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     companion object {
         private const val TYPE = "__hs__"
         private const val TIMEOUT = 10000L
+        private const val PING_INTERVAL = 5000L
         private const val PHONE_VERSION_CODE = 126300
         private const val MIN_BAND_VERSION_CODE = 260328
     }
@@ -24,6 +25,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private var isHandshaking = false
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
+    private var pingRunnable: Runnable? = null
 
     var connectedBandVersion: Int? = null
         private set
@@ -53,6 +55,29 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
 
     private fun resetTimeout() {
         timeoutRunnable?.let { handler.removeCallbacks(it) }
+        timeoutRunnable = Runnable {
+            Log.w("Handshake", "Connection timeout, resetting state")
+            cleanup()
+            onDisconnectedListeners.forEach { it.invoke() }
+        }
+        handler.postDelayed(timeoutRunnable!!, TIMEOUT)
+    }
+
+    private fun startPing() {
+        pingRunnable?.let { handler.removeCallbacks(it) }
+        pingRunnable = Runnable {
+            if (connected) {
+                scope.launch {
+                    try {
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}").await()
+                    } catch (e: Exception) {
+                        Log.e("Handshake", "Ping failed", e)
+                    }
+                }
+                pingRunnable?.let { handler.postDelayed(it, PING_INTERVAL) }
+            }
+        }
+        handler.postDelayed(pingRunnable!!, PING_INTERVAL)
     }
 
     private fun cleanup() {
@@ -61,6 +86,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         connected = false
         isHandshaking = false
         timeoutRunnable?.let { handler.removeCallbacks(it) }
+        pingRunnable?.let { handler.removeCallbacks(it) }
+        pingRunnable = null
     }
 
     init {
@@ -82,8 +109,10 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                     connected = true
                     isHandshaking = false
                     promise?.complete(Unit)
+                    startPing()
                     onConnected.invoke()
                 }
+
                 if (currentCount < 3) {
                     scope.launch {
                         try {
