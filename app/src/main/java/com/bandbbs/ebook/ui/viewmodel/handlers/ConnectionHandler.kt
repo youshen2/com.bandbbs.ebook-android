@@ -22,6 +22,7 @@ class ConnectionHandler(
     private val versionIncompatibleState: MutableStateFlow<com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState?>,
     private val bandTransferEnabled: StateFlow<Boolean>,
 ) {
+
     private var interHandshake: InterHandshake? = null
     private var fileConnection: InterconnetFile? = null
 
@@ -32,16 +33,19 @@ class ConnectionHandler(
         interHandshake = connection
         fileConnection = InterconnetFile(connection)
 
-        connection.setOnVersionIncompatible { currentVersion, requiredVersion ->
+        connection.setOnVersionIncompatible { currentVersion, requiredVersion, requiredVersionName ->
             versionIncompatibleState.value =
                 com.bandbbs.ebook.ui.viewmodel.VersionIncompatibleState(
                     currentVersion = currentVersion,
-                    requiredVersion = requiredVersion
+                    requiredVersion = requiredVersion,
+                    requiredVersionName = requiredVersionName
                 )
         }
+
         connection.setOnBandVersionReceived { version ->
             onBandVersionReceived?.invoke(version)
         }
+
         connection.addOnDisconnectedListener {
             markConnectionFailed("连接已断开")
         }
@@ -139,6 +143,7 @@ class ConnectionHandler(
         }
 
         val connection = interHandshake ?: return
+
         scope.launch {
             connectionState.update {
                 it.copy(
@@ -148,6 +153,7 @@ class ConnectionHandler(
                     deviceName = null
                 )
             }
+
             try {
                 withTimeout(3000L) {
                     connection.destroy().await()
@@ -224,6 +230,7 @@ class ConnectionHandler(
                             deviceName = deviceName
                         )
                     }
+
                     onBandConnected?.invoke(deviceName)
                 }
             } catch (_: TimeoutCancellationException) {

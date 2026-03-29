@@ -101,7 +101,13 @@ data class OverwriteConfirmState(
     val newBookName: String,
     val splitMethod: String,
     val noSplit: Boolean,
-    val wordsPerChapter: Int
+    val wordsPerChapter: Int,
+    val selectedCategory: String? = null,
+    val enableChapterMerge: Boolean = false,
+    val mergeMinWords: Int = 500,
+    val enableChapterRename: Boolean = false,
+    val renamePattern: String = "",
+    val customRegex: String = ""
 )
 
 data class LargeChapterWarningState(
@@ -149,7 +155,8 @@ data class SyncResultState(
 
 data class VersionIncompatibleState(
     val currentVersion: Int,
-    val requiredVersion: Int
+    val requiredVersion: Int,
+    val requiredVersionName: String
 )
 
 data class UpdateCheckState(
@@ -184,4 +191,3 @@ data class BackupRestoreResult(
     val success: Boolean,
     val message: String
 )
-

@@ -16,13 +16,15 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         private const val TYPE = "__hs__"
         private const val TIMEOUT = 10000L
         private const val PING_INTERVAL = 5000L
-        private const val PHONE_VERSION_CODE = 126300
-        private const val MIN_BAND_VERSION_CODE = 260328
+        private const val PHONE_VERSION_CODE = 126310
+        private const val MIN_BAND_VERSION_CODE = 260329
+        const val MIN_BAND_VERSION = "V26.3.1"
     }
 
     private var promise: CompletableDeferred<Unit>? = null
     private var connected = false
     private var isHandshaking = false
+
     private val handler = Handler(Looper.getMainLooper())
     private var timeoutRunnable: Runnable? = null
     private var pingRunnable: Runnable? = null
@@ -98,10 +100,11 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 val bandVersion = data.version
 
                 connectedBandVersion = bandVersion
+
                 if (bandVersion != null) {
                     onBandVersionReceived.invoke(bandVersion)
                     if (bandVersion < MIN_BAND_VERSION_CODE) {
-                        onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE)
+                        onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE, MIN_BAND_VERSION)
                     }
                 }
 
@@ -127,6 +130,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 Log.e("Handshake", "Error handling handshake payload", e)
             }
         }
+
         scope.launch {
             try {
                 super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
@@ -139,6 +143,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
 
     override fun sendMessage(message: String): CompletableDeferred<Unit> {
         val result = CompletableDeferred<Unit>()
+
         scope.launch {
             try {
                 if (!connected) {
@@ -172,13 +177,16 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                         }
                     }
                 }
+
                 resetTimeout()
+
                 val sendResult = super.sendMessage(message).await()
                 result.complete(sendResult)
             } catch (e: Exception) {
                 result.completeExceptionally(e)
             }
         }
+
         return result
     }
 
@@ -186,14 +194,15 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     private data class HandshakePayload(val count: Int, val tag: String, val version: Int? = null)
 
     private var onConnected = {}
+
     fun setOnConnected(callback: () -> Unit) {
         onConnected = callback
     }
 
-    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int) -> Unit =
-        { _, _ -> }
+    private var onVersionIncompatible: (currentVersion: Int, requiredVersion: Int, requiredVersionName: String) -> Unit =
+        { _, _, _ -> }
 
-    fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int) -> Unit) {
+    fun setOnVersionIncompatible(callback: (currentVersion: Int, requiredVersion: Int, requiredVersionName: String) -> Unit) {
         onVersionIncompatible = callback
     }
 

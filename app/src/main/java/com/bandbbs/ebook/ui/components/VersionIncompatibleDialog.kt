@@ -33,6 +33,7 @@ fun VersionIncompatibleDialog(
     show: MutableState<Boolean>,
     currentVersion: Int,
     requiredVersion: Int,
+    requiredVersionName: String,
     onDismiss: () -> Unit = {},
     onOpenWebsite: () -> Unit
 ) {
@@ -104,7 +105,7 @@ fun VersionIncompatibleDialog(
                         color = MiuixTheme.colorScheme.onSurfaceVariantActions
                     )
                     Text(
-                        text = "所需最低版本号：$requiredVersion",
+                        text = "所需最低版本：$requiredVersionName (版本号: $requiredVersion)",
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                         fontWeight = FontWeight.SemiBold
@@ -125,6 +126,7 @@ fun VersionIncompatibleDialog(
                     .fillMaxWidth()
                     .pressable(interactionSource = null, indication = SinkFeedback())
             )
+
             TextButton(
                 text = "前往官网下载",
                 onClick = {

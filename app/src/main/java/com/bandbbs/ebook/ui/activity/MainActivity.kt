@@ -148,7 +148,6 @@ class MainActivity : ComponentActivity() {
                     setHideBottomControls(false)
                     setFreeStyleCropEnabled(true)
                 }
-
                 val uCrop = UCrop.of(selectedUri, destUri)
                     .withAspectRatio(3f, 4f)
                     .withMaxResultSize(1200, 1600)
@@ -217,6 +216,7 @@ class MainActivity : ComponentActivity() {
         val permission = getRequiredStoragePermission()
         val hasReadPermission = permission != null &&
                 ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 Environment.isExternalStorageManager() || hasReadPermission
@@ -241,6 +241,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openImportPicker(navigateToFileManager: () -> Unit) {
         val useBuiltin = viewModel.useBuiltinFileManager.value
+
         if (useBuiltin) {
             openBuiltinFileManagerAction = { openBuiltinFileManager(navigateToFileManager) }
             if (hasStoragePermission()) {
@@ -275,6 +276,7 @@ class MainActivity : ComponentActivity() {
 
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
+
         viewModel.setConnection(conn)
 
         val notifManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -300,6 +302,7 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             val themeMode by viewModel.themeMode.collectAsState()
+
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
                 MainViewModel.ThemeMode.DARK -> true
@@ -308,7 +311,6 @@ class MainActivity : ComponentActivity() {
 
             EbookTheme(darkTheme = darkTheme) {
                 var showAprilFools by remember { mutableStateOf(isAprilFools()) }
-
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
@@ -465,7 +467,6 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
                                                 )
-
                                                 1 -> StatisticsScreen(
                                                     onBackClick = {
                                                         scope.launch {
@@ -482,7 +483,6 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     scrollState = statisticsScrollState
                                                 )
-
                                                 2 -> SettingsScreen(
                                                     viewModel = viewModel,
                                                     onBackClick = {
@@ -766,7 +766,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenWebsite = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        Uri.parse("https://vs.lucky-e.top/")
+                                        Uri.parse("https://vs.lucky-e.top")
                                     )
                                     context.startActivity(intent)
                                 }
@@ -820,7 +820,9 @@ class MainActivity : ComponentActivity() {
                                     fontWeight = FontWeight.Bold,
                                     color = MiuixTheme.colorScheme.onBackground
                                 )
+
                                 Spacer(modifier = Modifier.height(48.dp))
+
                                 Button(
                                     onClick = {
                                         val packageNames = listOf(
@@ -828,6 +830,7 @@ class MainActivity : ComponentActivity() {
                                             "com.miHoYo.Yuanshen",
                                             "com.miHoYo.Ys.bilibili"
                                         )
+
                                         var launched = false
                                         for (pkg in packageNames) {
                                             val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
@@ -837,6 +840,7 @@ class MainActivity : ComponentActivity() {
                                                 break
                                             }
                                         }
+
                                         if (!launched) {
                                             val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
                                             context.startActivity(webIntent)
@@ -850,7 +854,9 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     Text("原神，启动！", color = MiuixTheme.colorScheme.onPrimary)
                                 }
+
                                 Spacer(modifier = Modifier.height(16.dp))
+
                                 TextButton(
                                     text = "不玩原神，我是来用电子书的",
                                     onClick = { showAprilFools = false },
@@ -868,6 +874,7 @@ class MainActivity : ComponentActivity() {
 
     private fun observeViewModelStates() {
         var wasTransferring = false
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.pushState.collect { pushState ->
@@ -881,14 +888,12 @@ class MainActivity : ComponentActivity() {
                         val progressPercent =
                             if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
                         val title = if (progressPercent != null) "$progressPercent%" else "传输中"
-
                         ForegroundTransferService.startService(
                             applicationContext,
                             title,
                             pushState.preview,
                             progressPercent
                         )
-
                         if (!wasTransferring) {
                             if (viewModel.autoMinimizeOnTransfer.value && !pushState.isFinished) {
                                 moveTaskToBack(true)
