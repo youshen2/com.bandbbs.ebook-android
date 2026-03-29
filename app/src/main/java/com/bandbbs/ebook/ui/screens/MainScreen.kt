@@ -138,12 +138,15 @@ fun MainScreen(
     val books by viewModel.books.collectAsState()
     val recentBook by viewModel.recentBook.collectAsState()
     val recentUpdatedBook by viewModel.recentUpdatedBook.collectAsState()
+
     val showRecentImport by viewModel.showRecentImport.collectAsState()
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
     val showSearchBar by viewModel.showSearchBar.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
     val quickRenameCategoryEnabled by viewModel.quickRenameCategoryEnabled.collectAsState()
+
     val hasClickedTransferButton by viewModel.hasClickedTransferButton.collectAsState()
+
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsState()
     val selectedBooks by viewModel.selectedBooks.collectAsState()
 
@@ -155,18 +158,25 @@ fun MainScreen(
     val syncOptionsState by viewModel.syncOptionsState.collectAsState()
     val overwriteConfirmState by viewModel.overwriteConfirmState.collectAsState()
     val largeChapterWarningState by viewModel.largeChapterWarningState.collectAsState()
+
     val connectionErrorState by viewModel.connectionErrorState.collectAsState()
     val connectionRequiredDialogState by viewModel.connectionRequiredDialogState.collectAsState()
+
     val categoryState by viewModel.categoryState.collectAsState()
+
     val editBookInfoState by viewModel.editBookInfoState.collectAsState()
+
     val syncReadingDataState by viewModel.syncReadingDataState.collectAsState()
     val syncResultState by viewModel.syncResultState.collectAsState()
+
     val versionIncompatibleState by viewModel.versionIncompatibleState.collectAsState()
 
     val bandStorageInfo by viewModel.bandStorageInfo.collectAsState()
     val bandTransferEnabled by viewModel.bandTransferEnabled.collectAsState()
+
     val expandedBookPath by viewModel.expandedBookPath.collectAsState()
     val expandedCategories by viewModel.expandedCategories.collectAsState()
+
     val updateCheckState by viewModel.updateCheckState.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -215,6 +225,7 @@ fun MainScreen(
 
     val showDeleteDialog = remember { mutableStateOf(false) }
     LaunchedEffect(bookToDelete) { showDeleteDialog.value = bookToDelete != null }
+
     SuperDialog(
         title = "删除书籍",
         summary = "请选择删除方式：\n· 删除手机书籍：删除本机文件和所有章节数据，不影响手环端。\n· 删除手环书籍：仅删除手环端书籍数据，不删除手机端文件。",
@@ -252,6 +263,7 @@ fun MainScreen(
 
     val showBatchDeleteDialog = remember { mutableStateOf(false) }
     LaunchedEffect(booksToDelete) { showBatchDeleteDialog.value = booksToDelete.isNotEmpty() }
+
     SuperDialog(
         title = "批量删除书籍",
         summary = "确定要删除以下 ${booksToDelete.size} 本书籍吗？此操作将同时删除文件和所有章节数据，且不可恢复。\n" +
@@ -289,6 +301,7 @@ fun MainScreen(
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
         var selectedBookmarkMode by remember { mutableStateOf(syncReadingDataState.bookmarkSyncMode) }
+
         val dialogScrollState = rememberScrollState()
 
         Column(
@@ -363,6 +376,7 @@ fun MainScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
             SmallTitle(text = "书签", insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp))
             Card {
                 BasicComponent(
@@ -395,6 +409,7 @@ fun MainScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
             SmallTitle(text = "阅读时长", insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp))
             Card {
                 BasicComponent(
@@ -428,6 +443,7 @@ fun MainScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -452,6 +468,7 @@ fun MainScreen(
     }
 
     val showStorageHelpDialog = remember { mutableStateOf(false) }
+
     val showConnectionRequiredDialog = remember { mutableStateOf(false) }
     LaunchedEffect(connectionRequiredDialogState) {
         showConnectionRequiredDialog.value = connectionRequiredDialogState != null
@@ -507,6 +524,7 @@ fun MainScreen(
     var categoryToRename by remember { mutableStateOf<String?>(null) }
     var newCategoryName by remember { mutableStateOf("") }
     val showRenameDialog = remember { mutableStateOf(false) }
+
     LaunchedEffect(categoryToRename) {
         showRenameDialog.value = categoryToRename != null
         if (categoryToRename != null) newCategoryName = categoryToRename!!
@@ -524,6 +542,7 @@ fun MainScreen(
             singleLine = true,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -573,6 +592,7 @@ fun MainScreen(
             singleLine = true,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -672,7 +692,6 @@ fun MainScreen(
                 syncReadingDataState.statusText.isNotEmpty() ||
                 syncResultState != null
     }
-
     SyncReadingDataDialog(
         show = showSyncReadingDataSheet,
         state = syncReadingDataState,
@@ -689,11 +708,13 @@ fun MainScreen(
     LaunchedEffect(versionIncompatibleState) {
         showVersionIncompatibleDialog.value = versionIncompatibleState != null
     }
+
     versionIncompatibleState?.let { state ->
         VersionIncompatibleDialog(
             show = showVersionIncompatibleDialog,
             currentVersion = state.currentVersion,
             requiredVersion = state.requiredVersion,
+            requiredVersionName = state.requiredVersionName,
             onDismiss = { viewModel.dismissVersionIncompatible() },
             onOpenWebsite = {
                 val intent = Intent(
@@ -713,6 +734,7 @@ fun MainScreen(
 
     val showImportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importState) { showImportSheet.value = importState != null }
+
     SuperBottomSheet(
         show = showImportSheet,
         onDismissRequest = { viewModel.cancelImport() }
@@ -748,11 +770,13 @@ fun MainScreen(
     LaunchedEffect(categoryState) {
         showCategoryDialog.value = categoryState != null
     }
+
     LaunchedEffect(showCategoryDialog.value) {
         if (!showCategoryDialog.value && categoryState != null) {
             viewModel.dismissCategorySelector()
         }
     }
+
     categoryState?.let { state ->
         CategoryDialog(
             show = showCategoryDialog,
@@ -768,6 +792,7 @@ fun MainScreen(
     LaunchedEffect(importingState) {
         showImportProgressDialog.value = importingState != null
     }
+
     importingState?.let { state ->
         ImportProgressDialog(
             show = showImportProgressDialog,
@@ -778,6 +803,7 @@ fun MainScreen(
 
     val showImportReportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importReportState) { showImportReportSheet.value = importReportState != null }
+
     importReportState?.let { state ->
         ImportReportBottomSheet(
             show = showImportReportSheet,
@@ -790,6 +816,7 @@ fun MainScreen(
     LaunchedEffect(overwriteConfirmState) {
         showOverwriteConfirmDialog.value = overwriteConfirmState != null
     }
+
     overwriteConfirmState?.let { state ->
         OverwriteConfirmDialog(
             show = showOverwriteConfirmDialog,
@@ -808,6 +835,7 @@ fun MainScreen(
     LaunchedEffect(largeChapterWarningState) {
         showLargeChapterWarningDialog.value = largeChapterWarningState != null
     }
+
     largeChapterWarningState?.let { state ->
         SuperDialog(
             title = "存在过大章节",
@@ -828,6 +856,7 @@ fun MainScreen(
     LaunchedEffect(connectionErrorState) {
         showConnectionErrorSheet.value = connectionErrorState != null
     }
+
     SuperBottomSheet(
         show = showConnectionErrorSheet,
         onDismissRequest = { viewModel.dismissConnectionError() }
@@ -850,6 +879,7 @@ fun MainScreen(
 
     val showEditBookInfoSheet = remember { mutableStateOf(false) }
     LaunchedEffect(editBookInfoState) { showEditBookInfoSheet.value = editBookInfoState != null }
+
     SuperBottomSheet(
         show = showEditBookInfoSheet,
         onDismissRequest = { viewModel.dismissEditBookInfo() }
@@ -897,6 +927,7 @@ fun MainScreen(
     LaunchedEffect(syncReadingDataState.showConfirmDialog) {
         showSyncReadingDataConfirmDialog.value = syncReadingDataState.showConfirmDialog
     }
+
     SyncReadingDataConfirmDialog(
         show = showSyncReadingDataConfirmDialog,
         onConfirm = { viewModel.confirmSyncReadingData() },
@@ -1110,7 +1141,6 @@ fun MainScreen(
                                         }
                                     }
                                 }
-
                                 if (bandStorageInfo.hasValidData && !bandStorageInfo.isLoading) {
                                     Column(
                                         modifier = Modifier
@@ -1147,7 +1177,6 @@ fun MainScreen(
                                                 )
                                             }
                                         }
-
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -1366,7 +1395,6 @@ fun MainScreen(
                             ItemType.BOOK -> prevItem.category != null && expandedCategories.contains(
                                 prevItem.category
                             )
-
                             null -> false
                             else -> true
                         }
@@ -1477,6 +1505,7 @@ fun MainScreen(
                                     animationSpec = tween(durationMillis = 180),
                                     label = "bookSwipeOffset"
                                 )
+
                                 val maxSwipeDistance = -450f
                                 val swipeTriggerDistance = -80f
 
@@ -1508,6 +1537,7 @@ fun MainScreen(
                                                 }
                                             )
                                         }
+
                                     if (quickEditCategoryEnabled) {
                                         boxModifier = boxModifier.pointerInput(book.path) {
                                             detectDragGestures(
@@ -1576,6 +1606,7 @@ fun MainScreen(
                                                 }
                                             }
                                         }
+
                                         BookItem(
                                             book = book,
                                             modifier = Modifier.offset {
@@ -1678,4 +1709,3 @@ fun MainScreen(
         }
     }
 }
-
