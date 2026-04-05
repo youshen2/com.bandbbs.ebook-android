@@ -55,7 +55,6 @@ fun SettingsScreen(
     val showRecentUpdate by viewModel.showRecentUpdate.collectAsState()
     val showSearchBar by viewModel.showSearchBar.collectAsState()
     val autoCheckUpdates by viewModel.autoCheckUpdates.collectAsState()
-    val ipCollectionAllowed by viewModel.ipCollectionAllowed.collectAsState()
     val showConnectionError by viewModel.showConnectionError.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val quickEditCategoryEnabled by viewModel.quickEditCategoryEnabled.collectAsState()
@@ -212,7 +211,6 @@ fun SettingsScreen(
                                 viewModel.setThemeMode(mode)
                             }
                         )
-
                         BasicComponent(
                             title = "悬浮导航栏",
                             summary = "启用后底部导航栏悬浮显示",
@@ -241,6 +239,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setBandTransferEnabled(it) })
                         }
                     )
+
                     if (bandTransferEnabled) {
                         BasicComponent(
                             title = "传输后自动后台",
@@ -288,22 +287,11 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAutoCheckUpdates(it) })
                         }
                     )
-                    BasicComponent(
-                        title = "允许联网",
-                        summary = "允许应用联网以检查更新等功能",
-                        endActions = {
-                            Switch(
-                                checked = ipCollectionAllowed,
-                                onCheckedChange = { viewModel.setIpCollectionAllowed(it) })
-                        }
+                    SuperArrow(
+                        title = "检查更新",
+                        summary = "手动检查应用版本更新",
+                        onClick = { viewModel.checkForUpdates() }
                     )
-                    if (ipCollectionAllowed) {
-                        SuperArrow(
-                            title = "检查更新",
-                            summary = "手动检查应用版本更新",
-                            onClick = { viewModel.checkForUpdates() }
-                        )
-                    }
                     SuperArrow(
                         title = "获取最新版本",
                         summary = "跳转到所有版本的下载页面",
@@ -440,7 +428,7 @@ fun SettingsScreen(
                     try {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://pan.quark.cn/s/47b6d6447142")
+                            Uri.parse("https://vb.luoxe.cn")
                         )
                         context.startActivity(intent)
                     } catch (e: Exception) {
@@ -470,7 +458,7 @@ fun SettingsScreen(
                 text = "前往官网捐赠",
                 onClick = {
                     try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://vs.lucky-e.top"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://vb.luoxe.cn"))
                         context.startActivity(intent)
                     } catch (e: Exception) {
                         Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()

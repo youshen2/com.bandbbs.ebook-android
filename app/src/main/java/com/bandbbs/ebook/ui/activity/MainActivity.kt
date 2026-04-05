@@ -61,7 +61,6 @@ import com.bandbbs.ebook.logic.InterHandshake
 import com.bandbbs.ebook.notifications.ForegroundTransferService
 import com.bandbbs.ebook.notifications.LiveNotificationManager
 import com.bandbbs.ebook.ui.components.FirstSyncConfirmDialog
-import com.bandbbs.ebook.ui.components.IpCollectionPermissionDialog
 import com.bandbbs.ebook.ui.components.UpdateCheckDialog
 import com.bandbbs.ebook.ui.screens.BandSettingsScreen
 import com.bandbbs.ebook.ui.screens.BuiltinFileManagerScreen
@@ -271,6 +270,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
         viewModel.setConnection(conn)
@@ -297,8 +297,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
-            val themeMode by viewModel.themeMode.collectAsState()
 
+            val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
                 MainViewModel.ThemeMode.DARK -> true
@@ -311,7 +311,6 @@ class MainActivity : ComponentActivity() {
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
-                val ipCollectionPermissionState by viewModel.ipCollectionPermissionState.collectAsState()
                 val updateCheckState by viewModel.updateCheckState.collectAsState()
                 val globalLoadingState by viewModel.globalLoadingState.collectAsState()
                 val syncOptionsState by viewModel.syncOptionsState.collectAsState()
@@ -464,6 +463,7 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
                                                 )
+
                                                 1 -> StatisticsScreen(
                                                     onBackClick = {
                                                         scope.launch {
@@ -480,6 +480,7 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     scrollState = statisticsScrollState
                                                 )
+
                                                 2 -> SettingsScreen(
                                                     viewModel = viewModel,
                                                     onBackClick = {
@@ -517,14 +518,12 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-
                                     entry<Screen.BandSettings> {
                                         BandSettingsScreen(
                                             viewModel = viewModel,
                                             onBackClick = navigateBack
                                         )
                                     }
-
                                     entry<Screen.SyncOptions> {
                                         syncOptionsState?.let { state ->
                                             SyncOptionsScreen(
@@ -553,7 +552,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-
                                     entry<Screen.Push> {
                                         PushScreen(
                                             pushState = pushState,
@@ -567,7 +565,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
-
                                     entry<Screen.ChapterList> {
                                         selectedBookForChapters?.let { book ->
                                             ChapterListScreen(
@@ -632,7 +629,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-
                                     entry<Screen.Reader> {
                                         ReaderScreen(
                                             viewModel = viewModel,
@@ -657,7 +653,6 @@ class MainActivity : ComponentActivity() {
                                             loadChapterContent = viewModel::loadChapterContent
                                         )
                                     }
-
                                     entry<Screen.BuiltinFileManager> {
                                         BuiltinFileManagerScreen(
                                             onBackClick = navigateBack,
@@ -722,32 +717,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
-
-                            val showIpSheetState = remember { mutableStateOf(false) }
-                            LaunchedEffect(ipCollectionPermissionState.showSheet) {
-                                showIpSheetState.value = ipCollectionPermissionState.showSheet
-                            }
-                            LaunchedEffect(showIpSheetState.value) {
-                                if (!showIpSheetState.value && ipCollectionPermissionState.showSheet) {
-                                    viewModel.dismissIpCollectionPermissionSheet()
-                                }
-                            }
-                            IpCollectionPermissionDialog(
-                                show = showIpSheetState,
-                                isFirstTime = ipCollectionPermissionState.isFirstTime,
-                                onAllow = {
-                                    scope.launch {
-                                        showIpSheetState.value = false
-                                        viewModel.onIpCollectionPermissionResult(true)
-                                    }
-                                },
-                                onDeny = {
-                                    scope.launch {
-                                        showIpSheetState.value = false
-                                        viewModel.onIpCollectionPermissionResult(false)
-                                    }
-                                }
-                            )
 
                             val showUpdateDialogState = remember { mutableStateOf(false) }
                             LaunchedEffect(updateCheckState.showSheet) {
@@ -839,7 +808,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                         if (!launched) {
-                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
+                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com"))
                                             context.startActivity(webIntent)
                                         }
                                         showAprilFools = false

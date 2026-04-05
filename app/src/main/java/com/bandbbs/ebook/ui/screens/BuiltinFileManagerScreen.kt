@@ -123,6 +123,7 @@ fun BuiltinFileManagerScreen(
     val activity = context as? Activity
 
     var hasFileAccess by remember { mutableStateOf(hasFileManagerAccess()) }
+
     val availablePresets = remember(hasFileAccess) {
         if (hasFileAccess) BuiltinFileManagerPaths.resolvedDefaults(context) else emptyList()
     }
@@ -159,22 +160,23 @@ fun BuiltinFileManagerScreen(
     }
 
     val systemFilePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-
-        val importedFile = UritoFile(uri, context)
-        if (importedFile == null || !importedFile.exists()) {
-            Toast.makeText(context, "文件读取失败", Toast.LENGTH_SHORT).show()
-            return@rememberLauncherForActivityResult
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val validFiles = uris.mapNotNull { uri ->
+                val importedFile = UritoFile(uri, context)
+                if (importedFile != null && importedFile.exists() && !importedFile.isDirectory && isSupportedImportFile(importedFile)) {
+                    importedFile
+                } else {
+                    null
+                }
+            }
+            if (validFiles.isNotEmpty()) {
+                onSelectFiles(validFiles)
+            } else {
+                Toast.makeText(context, "未选择有效的文件或不支持该格式", Toast.LENGTH_SHORT).show()
+            }
         }
-
-        if (!isSupportedImportFile(importedFile) || importedFile.isDirectory) {
-            Toast.makeText(context, "不支持该文件格式", Toast.LENGTH_SHORT).show()
-            return@rememberLauncherForActivityResult
-        }
-
-        onSelectFiles(listOf(importedFile))
     }
 
     var currentDir by remember { mutableStateOf<File?>(null) }
@@ -183,6 +185,7 @@ fun BuiltinFileManagerScreen(
 
     var isBackSwiping by remember { mutableStateOf(false) }
     var backSwipeProgress by remember { mutableFloatStateOf(0f) }
+
     val animatedBackProgress by animateFloatAsState(
         targetValue = if (isBackSwiping) backSwipeProgress else 0f,
         label = "backProgress"
@@ -223,7 +226,6 @@ fun BuiltinFileManagerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize(),
-
         ) {
             if (!hasFileAccess) {
                 FileManagerPermissionPage(
@@ -247,71 +249,80 @@ fun BuiltinFileManagerScreen(
                         }
                     },
                     onUseSystemPicker = {
-                        systemFilePickerLauncher.launch(arrayOf("*/*"))
+                        systemFilePickerLauncher.launch(
+                            arrayOf(
+                                "text/plain",
+                                "application/epub+zip",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                "application/pdf",
+                                "application/x-pdf",
+                                "application/x-mobipocket-ebook",
+                                "application/vnd.amazon.ebook",
+                                "application/octet-stream"
+                            )
+                        )
                     }
                 )
-                return@Box
-            }
-
-            if (isBackSwiping) {
-                FileManagerPage(
-                    dir = parentDir,
-                    availablePresets = availablePresets,
-                    selectedFiles = selectedFiles,
-                    onSelectFilesChange = {},
-                    onOpenDir = {},
-                    onBack = {},
-                    onConfirm = {},
-                    onOpenSystemPicker = {},
-                    modifier = Modifier.graphicsLayer {
-                        val scale = 0.95f + (animatedBackProgress * 0.05f)
-                        scaleX = scale
-                        scaleY = scale
-                        alpha = 0.5f + (animatedBackProgress * 0.5f)
-                    }
-                )
-            }
-
-            AnimatedContent(
-                targetState = currentDir,
-                label = "FileManagerTransition",
-                transitionSpec = {
-                    val animationSpec = spring<IntOffset>(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                    if (isPush) {
-                        (slideInHorizontally(animationSpec) { it } + fadeIn()) togetherWith
-                                (slideOutHorizontally(animationSpec) { -it } + fadeOut())
-                    } else {
-                        (slideInHorizontally(animationSpec) { -it } + fadeIn()) togetherWith
-                                (slideOutHorizontally(animationSpec) { it } + fadeOut())
-                    }
-                }
-            ) { targetDir ->
-                FileManagerPage(
-                    dir = targetDir,
-                    availablePresets = availablePresets,
-                    selectedFiles = selectedFiles,
-                    onSelectFilesChange = { selectedFiles = it },
-                    onOpenDir = { file ->
-                        isPush = true
-                        currentDir = file
-                    },
-                    onBack = handleBack,
-                    onConfirm = {
-                        onSelectFiles(selectedFiles.toList())
-                        selectedFiles = emptySet()
-                    },
-                    onOpenSystemPicker = {
-                        systemFilePickerLauncher.launch(arrayOf("*/*"))
-                    },
-                    modifier = Modifier.graphicsLayer {
-                        if (isBackSwiping && targetDir == currentDir) {
-                            translationX = animatedBackProgress * size.width
+            } else {
+                AnimatedContent(
+                    targetState = currentDir,
+                    transitionSpec = {
+                        if (isPush) {
+                            slideInHorizontally(
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                initialOffsetX = { fullWidth -> fullWidth }
+                            ) togetherWith slideOutHorizontally(
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                targetOffsetX = { fullWidth -> -fullWidth / 3 }
+                            )
+                        } else {
+                            slideInHorizontally(
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                initialOffsetX = { fullWidth -> -fullWidth / 3 }
+                            ) togetherWith slideOutHorizontally(
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                targetOffsetX = { fullWidth -> fullWidth }
+                            )
                         }
-                    }
-                )
+                    },
+                    label = "directory_transition"
+                ) { targetDir ->
+                    FileManagerPage(
+                        dir = targetDir,
+                        availablePresets = availablePresets,
+                        selectedFiles = selectedFiles,
+                        onSelectFilesChange = { selectedFiles = it },
+                        onOpenDir = { file ->
+                            isPush = true
+                            currentDir = file
+                        },
+                        onBack = handleBack,
+                        onConfirm = {
+                            if (selectedFiles.isNotEmpty()) {
+                                onSelectFiles(selectedFiles.toList())
+                            }
+                        },
+                        onOpenSystemPicker = {
+                            systemFilePickerLauncher.launch(
+                                arrayOf(
+                                    "text/plain",
+                                    "application/epub+zip",
+                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    "application/pdf",
+                                    "application/x-pdf",
+                                    "application/x-mobipocket-ebook",
+                                    "application/vnd.amazon.ebook",
+                                    "application/octet-stream"
+                                )
+                            )
+                        },
+                        modifier = Modifier.graphicsLayer {
+                            if (isBackSwiping && targetDir == currentDir) {
+                                translationX = animatedBackProgress * size.width
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -320,9 +331,11 @@ fun BuiltinFileManagerScreen(
 @Composable
 private fun FileManagerPermissionPage(
     onRequestPermission: () -> Unit,
-    onUseSystemPicker: () -> Unit
+    onUseSystemPicker: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = "内置文件管理器",
@@ -345,7 +358,7 @@ private fun FileManagerPermissionPage(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "你仍然可以使用系统文件选择器导入单个文件",
+                text = "你仍然可以使用系统文件选择器导入文件",
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onBackgroundVariant,
                 textAlign = TextAlign.Center
@@ -401,6 +414,7 @@ private fun FileManagerPage(
     val context = LocalContext.current
     var searchQuery by remember(dir) { mutableStateOf("") }
     var pathInput by remember(dir) { mutableStateOf("") }
+
     var fileItems by remember(dir) { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember(dir) { mutableStateOf(false) }
 
@@ -450,6 +464,7 @@ private fun FileManagerPage(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = if (dir == null) "选择文件" else dir.name,
@@ -606,7 +621,7 @@ private fun FileManagerPage(
 
                         SuperArrow(
                             title = "系统文件选择器",
-                            summary = "调用系统文件选择器导入单个文件",
+                            summary = "调用系统文件选择器导入文件",
                             startAction = {
                                 Icon(
                                     imageVector = MiuixIcons.File,
@@ -621,7 +636,6 @@ private fun FileManagerPage(
                 }
             } else {
                 item { SmallTitle(text = "当前路径: ${dir.absolutePath}") }
-
                 if (isLoading) {
                     item {
                         Column(
@@ -667,7 +681,6 @@ private fun FileManagerPage(
                             filteredFileItems.forEachIndexed { index, item ->
                                 val isFirst = index == 0
                                 val isLast = index == filteredFileItems.lastIndex
-
                                 val shape = when {
                                     filteredFileItems.size == 1 -> RoundedCornerShape(16.dp)
                                     isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)

@@ -9,7 +9,7 @@ import java.net.URL
 
 object VersionChecker {
     private const val TAG = "VersionChecker"
-    private const val API_CHECK_UPDATE = "https://api.luoxe.cn/sinebook/check_update"
+    private const val API_CHECK_UPDATE = "https://api.luoxe.cn/sinebook/check-update"
     private const val API_NOTICES = "https://api.luoxe.cn/sinebook/notices"
 
     private val json = Json {

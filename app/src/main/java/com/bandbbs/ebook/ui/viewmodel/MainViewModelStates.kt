@@ -169,11 +169,6 @@ data class UpdateCheckState(
     val isAutoCheck: Boolean = false
 )
 
-data class IpCollectionPermissionState(
-    val showSheet: Boolean = false,
-    val isFirstTime: Boolean = true
-)
-
 data class BandStorageInfo(
     val product: String? = null,
     val totalStorage: Long = 0,
