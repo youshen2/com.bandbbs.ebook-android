@@ -68,7 +68,7 @@ import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.R
 import com.bandbbs.ebook.database.AppDatabase
 import com.bandbbs.ebook.ui.components.CategoryDialog
-import com.bandbbs.ebook.ui.components.ConnectionErrorBottomSheet
+import com.bandbbs.ebook.ui.components.ConnectionErrorDialog
 import com.bandbbs.ebook.ui.components.EditBookInfoBottomSheet
 import com.bandbbs.ebook.ui.components.ImportBookBottomSheet
 import com.bandbbs.ebook.ui.components.ImportProgressDialog
@@ -302,7 +302,6 @@ fun MainScreen(
         var selectedProgressMode by remember { mutableStateOf(syncReadingDataState.progressSyncMode) }
         var selectedReadingTimeMode by remember { mutableStateOf(syncReadingDataState.readingTimeSyncMode) }
         var selectedBookmarkMode by remember { mutableStateOf(syncReadingDataState.bookmarkSyncMode) }
-
         val dialogScrollState = rememberScrollState()
 
         Column(
@@ -441,7 +440,6 @@ fun MainScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -467,7 +465,6 @@ fun MainScreen(
 
     val showStorageHelpDialog = remember { mutableStateOf(false) }
     val showConnectionRequiredDialog = remember { mutableStateOf(false) }
-
     LaunchedEffect(connectionRequiredDialogState) {
         showConnectionRequiredDialog.value = connectionRequiredDialogState != null
     }
@@ -540,7 +537,6 @@ fun MainScreen(
             singleLine = true,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -590,7 +586,6 @@ fun MainScreen(
             singleLine = true,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-
         Row(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 text = "取消",
@@ -707,6 +702,7 @@ fun MainScreen(
     LaunchedEffect(versionIncompatibleState) {
         showVersionIncompatibleDialog.value = versionIncompatibleState != null
     }
+
     versionIncompatibleState?.let { state ->
         VersionIncompatibleDialog(
             show = showVersionIncompatibleDialog,
@@ -718,7 +714,7 @@ fun MainScreen(
                 try {
                     val intent = Intent(
                         Intent.ACTION_VIEW,
-                        Uri.parse("https://vb.luoxe.cn/")
+                        Uri.parse("https://bandbbs.cn/threads/11267/")
                     )
                     context.startActivity(intent)
                 } catch (e: Exception) {}
@@ -800,6 +796,7 @@ fun MainScreen(
 
     val showImportReportSheet = remember { mutableStateOf(false) }
     LaunchedEffect(importReportState) { showImportReportSheet.value = importReportState != null }
+
     importReportState?.let { state ->
         ImportReportBottomSheet(
             show = showImportReportSheet,
@@ -812,6 +809,7 @@ fun MainScreen(
     LaunchedEffect(overwriteConfirmState) {
         showOverwriteConfirmDialog.value = overwriteConfirmState != null
     }
+
     overwriteConfirmState?.let { state ->
         OverwriteConfirmDialog(
             show = showOverwriteConfirmDialog,
@@ -846,32 +844,30 @@ fun MainScreen(
         }
     }
 
-    val showConnectionErrorSheet = remember { mutableStateOf(false) }
+    val showConnectionErrorDialog = remember { mutableStateOf(false) }
     LaunchedEffect(connectionErrorState) {
-        showConnectionErrorSheet.value = connectionErrorState != null
+        showConnectionErrorDialog.value = connectionErrorState != null
     }
-    SuperBottomSheet(
-        show = showConnectionErrorSheet,
-        onDismissRequest = { viewModel.dismissConnectionError() }
-    ) {
-        connectionErrorState?.let { state ->
-            ConnectionErrorBottomSheet(
-                deviceName = state.deviceName,
-                isUnsupportedDevice = state.isUnsupportedDevice,
-                onDismiss = { viewModel.dismissConnectionError() },
-                onRetry = {
-                    viewModel.dismissConnectionError()
-                    scope.launch {
-                        delay(300)
-                        viewModel.reconnect()
-                    }
+
+    connectionErrorState?.let { state ->
+        ConnectionErrorDialog(
+            show = showConnectionErrorDialog,
+            deviceName = state.deviceName,
+            isUnsupportedDevice = state.isUnsupportedDevice,
+            onDismiss = { viewModel.dismissConnectionError() },
+            onRetry = {
+                viewModel.dismissConnectionError()
+                scope.launch {
+                    delay(300)
+                    viewModel.reconnect()
                 }
-            )
-        }
+            }
+        )
     }
 
     val showEditBookInfoSheet = remember { mutableStateOf(false) }
     LaunchedEffect(editBookInfoState) { showEditBookInfoSheet.value = editBookInfoState != null }
+
     SuperBottomSheet(
         show = showEditBookInfoSheet,
         onDismissRequest = { viewModel.dismissEditBookInfo() }
@@ -882,7 +878,6 @@ fun MainScreen(
                     state.book.localCategory ?: ""
                 )
             }
-
             LaunchedEffect(state.book.localCategory) {
                 editLocalCategory = state.book.localCategory ?: ""
             }
@@ -919,7 +914,6 @@ fun MainScreen(
     LaunchedEffect(syncReadingDataState.showConfirmDialog) {
         showSyncReadingDataConfirmDialog.value = syncReadingDataState.showConfirmDialog
     }
-
     SyncReadingDataConfirmDialog(
         show = showSyncReadingDataConfirmDialog,
         onConfirm = { viewModel.confirmSyncReadingData() },
@@ -1131,6 +1125,7 @@ fun MainScreen(
                 if (bandTransferEnabled) {
                     item {
                         val pagerState = rememberPagerState(pageCount = { 1 + notices.size })
+
                         LaunchedEffect(pagerState.pageCount) {
                             if (pagerState.pageCount > 1) {
                                 while (true) {
@@ -1229,7 +1224,6 @@ fun MainScreen(
                                                         }
                                                     }
                                                 }
-
                                                 if (bandStorageInfo.hasValidData && !bandStorageInfo.isLoading) {
                                                     Column(
                                                         modifier = Modifier
@@ -1584,6 +1578,7 @@ fun MainScreen(
                                     )
                                 }
                             }
+
                             ItemType.RECENT_UPDATE_HEADER -> {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1604,6 +1599,7 @@ fun MainScreen(
                                     )
                                 }
                             }
+
                             ItemType.RECENT_BOOK, ItemType.RECENT_UPDATE_BOOK -> {
                                 val book = item.book!!
                                 AnimatedVisibility(
@@ -1647,6 +1643,7 @@ fun MainScreen(
                                     }
                                 }
                             }
+
                             ItemType.BOOK -> {
                                 val book = item.book!!
                                 val category = item.category!!
@@ -1758,6 +1755,7 @@ fun MainScreen(
                                                 }
                                             }
                                         }
+
                                         BookItem(
                                             book = book,
                                             modifier = Modifier.offset {
@@ -1800,6 +1798,7 @@ fun MainScreen(
                                     }
                                 }
                             }
+
                             ItemType.CATEGORY_HEADER -> {
                                 val category = item.category!!
                                 val categoryBooks =
