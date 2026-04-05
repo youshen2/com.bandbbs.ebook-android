@@ -50,8 +50,8 @@ class ImportHandler(
     private val autoDeleteSourceAfterImport: StateFlow<Boolean>,
     private val onBooksChanged: () -> Unit,
 ) {
-    private val prefs = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
 
+    private val prefs = application.getSharedPreferences("ebook_prefs", Context.MODE_PRIVATE)
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
     private val LAST_CUSTOM_REGEX_KEY = "last_custom_regex"
     private val CUSTOM_REGEX_TEMPLATES_KEY = "custom_regex_templates"
@@ -121,7 +121,6 @@ class ImportHandler(
                 prefs.getString(LAST_SPLIT_METHOD_KEY, ChapterSplitter.METHOD_DEFAULT)
                     ?: ChapterSplitter.METHOD_DEFAULT
             val savedCustomRegex = prefs.getString(LAST_CUSTOM_REGEX_KEY, "") ?: ""
-
             val templates = loadCustomRegexTemplates()
             val lastTemplateName = prefs.getString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, null)
             val selectedTemplateName =
@@ -166,7 +165,6 @@ class ImportHandler(
         if (!noSplit && splitMethod == ChapterSplitter.METHOD_CUSTOM && customRegex.isNotBlank()) {
             prefs.edit().putString(LAST_CUSTOM_REGEX_KEY, customRegex).apply()
         }
-
         saveCustomRegexTemplates(customRegexTemplates)
         prefs.edit().putString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, selectedCustomRegexTemplateName).apply()
 
@@ -308,16 +306,17 @@ class ImportHandler(
     fun confirmOverwrite() {
         val overwriteState = overwriteConfirmState.value ?: return
         overwriteConfirmState.value = null
+
         scope.launch(Dispatchers.IO) {
             deleteBookInternal(overwriteState.existingBook)
+
             performImport(
                 uri = overwriteState.uri,
                 finalBookName = overwriteState.newBookName,
                 splitMethod = overwriteState.splitMethod,
                 noSplit = overwriteState.noSplit,
                 isOverwrite = true,
-                wordsPerChapter = overwriteState.wordsPerChapter,
-                selectedCategory = overwriteState.selectedCategory,
+                wordsPerChapter = overwriteState.wordsPerChapter,                selectedCategory = overwriteState.selectedCategory,
                 enableChapterMerge = overwriteState.enableChapterMerge,
                 mergeMinWords = overwriteState.mergeMinWords,
                 enableChapterRename = overwriteState.enableChapterRename,
@@ -334,9 +333,11 @@ class ImportHandler(
             val context = application.applicationContext
             ChapterContentManager.deleteBookChapters(context, bookEntity.id)
             db.chapterDao().deleteChaptersByBookId(bookEntity.id)
+
             val readerPrefs =
                 application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
             readerPrefs.edit().remove("last_read_chapter_${bookEntity.id}").apply()
+
             ReadingTimeStorage.clearReadingTime(context, bookEntity.name)
             db.bookDao().delete(bookEntity)
         }
@@ -375,6 +376,7 @@ class ImportHandler(
                     enableChapterRename,
                     renamePattern
                 )
+
                 "epub" -> importEpubFile(
                     context,
                     uri,
@@ -386,6 +388,7 @@ class ImportHandler(
                     enableChapterRename,
                     renamePattern
                 )
+
                 "docx" -> importDocxFile(
                     context,
                     uri,
@@ -396,6 +399,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 "pdf" -> importPdfFile(
                     context,
                     uri,
@@ -406,6 +410,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 "mobi" -> importMobiFile(
                     context,
                     uri,
@@ -416,6 +421,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 else -> importTxtFile(
                     context,
                     uri,
@@ -452,6 +458,7 @@ class ImportHandler(
         chapters: List<Chapter>
     ): Pair<List<Chapter>, List<String>> {
         if (chapters.isEmpty()) return Pair(emptyList(), emptyList())
+
         val cleanedChapters = mutableListOf<Chapter>()
         val mergedTitles = mutableListOf<String>()
 
@@ -467,9 +474,11 @@ class ImportHandler(
                     ChapterContentManager.saveChapterContent(
                         context, bookId, lastChapter.index, mergedContent
                     )
+
                     cleanedChapters[cleanedChapters.size - 1] = lastChapter.copy(
                         wordCount = mergedContent.length
                     )
+
                     ChapterContentManager.deleteChapterContent(chapter.contentFilePath)
                     mergedTitles.add(chapter.name)
                 } else {
@@ -510,6 +519,7 @@ class ImportHandler(
                 val header = ByteArray(8)
                 val read = inputStream.read(header)
                 if (read < 8) return false
+
                 val docMagic = byteArrayOf(
                     0xD0.toByte(),
                     0xCF.toByte(),
@@ -543,8 +553,10 @@ class ImportHandler(
         return try {
             val parts = pattern.split(" -> ", limit = 2)
             if (parts.size != 2) return chapterName
+
             val findPattern = parts[0].trim()
             val replaceText = parts[1].trim()
+
             val regex = Regex(findPattern)
             regex.replace(chapterName) { matchResult ->
                 var result = replaceText
@@ -568,22 +580,29 @@ class ImportHandler(
         minWords: Int
     ): List<Chapter> {
         if (chapters.isEmpty() || minWords <= 0) return chapters
+
         val mergedChapters = mutableListOf<Chapter>()
         var i = 0
+
         while (i < chapters.size) {
             val currentChapter = chapters[i]
+
             if (currentChapter.wordCount < minWords && mergedChapters.isNotEmpty()) {
                 val lastChapter = mergedChapters.last()
+
                 val lastContent =
                     ChapterContentManager.readChapterContent(lastChapter.contentFilePath)
                 val currentContent =
                     ChapterContentManager.readChapterContent(currentChapter.contentFilePath)
+
                 val mergedContent =
                     lastContent.trimEnd() + "\n\n" + currentChapter.name + "\n\n" + currentContent.trimStart()
+
                 ChapterContentManager.saveChapterContent(
                     context, bookId, lastChapter.index, mergedContent
                 )
                 ChapterContentManager.deleteChapterContent(currentChapter.contentFilePath)
+
                 mergedChapters[mergedChapters.size - 1] = lastChapter.copy(
                     wordCount = mergedContent.length
                 )
@@ -592,6 +611,7 @@ class ImportHandler(
             }
             i++
         }
+
         return mergedChapters.mapIndexed { index, chapter ->
             chapter.copy(index = index)
         }
@@ -610,6 +630,10 @@ class ImportHandler(
     ) {
         importingState.update { it?.copy(statusText = "正在解析 NVB 文件...", progress = 0.1f) }
         val nvbBook = NvbParser.parse(context, uri)
+        if (nvbBook.chapters.isEmpty()) {
+            throw IllegalArgumentException("解析失败：章节数为 0，请尝试更换书籍文件或书籍来源")
+        }
+
         val existingBook = db.bookDao().getBookByName(finalBookName)
 
         importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
@@ -672,6 +696,7 @@ class ImportHandler(
 
             var processedChapters = nvbBook.chapters
             var parsedBookInfo: BookInfoParser.ParsedBookInfo? = null
+
             if (!noSplit && processedChapters.isNotEmpty() &&
                 (processedChapters[0].title == "简介" || processedChapters[0].title == "介绍")
             ) {
@@ -680,6 +705,7 @@ class ImportHandler(
                 }
                 val introContent = processedChapters[0].content
                 parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
+
                 if (parsedBookInfo != null) {
                     val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
                     if (bookEntity != null) {
@@ -724,6 +750,7 @@ class ImportHandler(
                         if (enableChapterRename) {
                             chapterName = applyRenamePattern(chapterName, renamePattern)
                         }
+
                         val contentFilePath =
                             ChapterContentManager.saveChapterContent(
                                 context, bookId.toInt(), currentIndex, nvbChapter.content
@@ -756,7 +783,6 @@ class ImportHandler(
                         mergeMinWords
                     )
                 }
-
                 processedList
             }
 
@@ -785,6 +811,7 @@ class ImportHandler(
                     progress = 0.9f
                 )
             }
+
             if (cleanedChapters.isNotEmpty()) {
                 db.chapterDao().insertAll(cleanedChapters)
             }
@@ -818,6 +845,10 @@ class ImportHandler(
     ) {
         importingState.update { it?.copy(statusText = "正在解析 EPUB 文件...", progress = 0.1f) }
         val epubBook = EpubParser.parse(context, uri)
+        if (epubBook.chapters.isEmpty()) {
+            throw IllegalArgumentException("解析失败：章节数为 0，请尝试更换书籍文件或下载来源")
+        }
+
         val existingBook = db.bookDao().getBookByName(finalBookName)
 
         importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
@@ -877,6 +908,7 @@ class ImportHandler(
 
             var processedEpubChapters = epubBook.chapters
             var parsedBookInfo: BookInfoParser.ParsedBookInfo? = null
+
             if (!noSplit && processedEpubChapters.isNotEmpty() &&
                 (processedEpubChapters[0].title == "简介" || processedEpubChapters[0].title == "介绍")
             ) {
@@ -885,6 +917,7 @@ class ImportHandler(
                 }
                 val introContent = processedEpubChapters[0].content
                 parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
+
                 if (parsedBookInfo != null) {
                     val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
                     if (bookEntity != null) {
@@ -929,6 +962,7 @@ class ImportHandler(
                         if (enableChapterRename) {
                             chapterName = applyRenamePattern(chapterName, renamePattern)
                         }
+
                         val contentFilePath =
                             ChapterContentManager.saveChapterContent(
                                 context, bookId.toInt(), currentIndex, epubChapter.content
@@ -961,7 +995,6 @@ class ImportHandler(
                         mergeMinWords
                     )
                 }
-
                 processedList
             }
 
@@ -990,6 +1023,7 @@ class ImportHandler(
                     progress = 0.9f
                 )
             }
+
             if (cleanedChapters.isNotEmpty()) {
                 db.chapterDao().insertAll(cleanedChapters)
             }
@@ -1072,6 +1106,7 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
+
             val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
                 context,
                 bookId.toInt(),
@@ -1115,6 +1150,9 @@ class ImportHandler(
                 )
             }
             val content = DocxParser.extractPlainText(context, uri)
+            if (content.isBlank()) {
+                throw IllegalArgumentException("解析失败：内容为空，请尝试更换书籍文件或下载来源")
+            }
 
             importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
             val destFile = File(booksDir, sourceFile.name)
@@ -1166,6 +1204,7 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
+
             val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
                 context,
                 bookId.toInt(),
@@ -1234,6 +1273,10 @@ class ImportHandler(
                         )
                     }
                 }
+            }
+
+            if (chaptersFromMobi.isEmpty() && content.isBlank()) {
+                throw IllegalArgumentException("解析失败：内容为空，请尝试更换书籍文件或下载来源")
             }
 
             importingState.update { it?.copy(statusText = "正在复制文件...", progress = 0.3f) }
@@ -1318,6 +1361,7 @@ class ImportHandler(
             }
 
             importingState.update { it?.copy(statusText = "正在后处理章节...", progress = 0.9f) }
+
             val (cleanedChapters, mergedTitles) = cleanAndMergeChapters(
                 context,
                 bookId.toInt(),
@@ -1359,7 +1403,14 @@ class ImportHandler(
             val destFile = File(booksDir, sourceFile.name)
             sourceFile.copyTo(destFile, overwrite = true)
 
-            importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.5f) }
+            importingState.update { it?.copy(statusText = "正在解析页数...", progress = 0.5f) }
+            val pageCount = PdfParser.getPageCount(destFile)
+            if (pageCount <= 0) {
+                destFile.delete()
+                throw IllegalArgumentException("解析失败：页数为 0，请尝试更换书籍文件或下载来源")
+            }
+
+            importingState.update { it?.copy(statusText = "正在写入数据库...", progress = 0.7f) }
             val bookId = db.bookDao().insert(
                 BookEntity(
                     name = finalBookName,
@@ -1369,9 +1420,6 @@ class ImportHandler(
                     localCategory = selectedCategory
                 )
             )
-
-            importingState.update { it?.copy(statusText = "正在解析页数...", progress = 0.7f) }
-            val pageCount = PdfParser.getPageCount(destFile).coerceAtLeast(1)
 
             importingState.update { it?.copy(statusText = "正在生成页目录...", progress = 0.85f) }
             val chaptersDir = ChapterContentManager.getChaptersDir(context)
@@ -1390,6 +1438,7 @@ class ImportHandler(
 
             importingState.update { it?.copy(statusText = "正在保存目录...", progress = 1.0f) }
             db.chapterDao().insertAll(chapters)
+
             sourceFile.delete()
         } ?: run {
             throw IllegalArgumentException("无法读取文件")
@@ -1413,6 +1462,7 @@ class ImportHandler(
         }.getOrElse {
             emptyList()
         }
+
         val defaultTemplates = defaultRegexTemplates()
         return (defaultTemplates + savedTemplates)
             .groupBy { it.name }
@@ -1482,7 +1532,6 @@ class ImportHandler(
     ): String? {
         for (file in state.files) {
             if (file.fileFormat !in listOf("txt", "docx", "mobi")) continue
-
             val estimatedMaxChapterBytes = estimateMaxChapterBytes(
                 uri = file.uri,
                 fileFormat = file.fileFormat,
@@ -1529,11 +1578,9 @@ class ImportHandler(
             }
             else -> return null
         }
-
         if (textContent is Int) {
             return textContent
         }
-
         val content = textContent as String
 
         if (noSplit) {

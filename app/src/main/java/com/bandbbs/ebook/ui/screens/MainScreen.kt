@@ -1083,8 +1083,7 @@ fun MainScreen(
                     item {
                         Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .fillMaxWidth(),
                             onClick = { viewModel.showUpdateDialog() },
                             colors = CardDefaults.defaultColors(
                                 color = MiuixTheme.colorScheme.errorContainer
@@ -1112,7 +1111,7 @@ fun MainScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "点击查看更新日志并下载",
+                                        text = "点击查看更新日志",
                                         color = MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                                         style = MiuixTheme.textStyles.body2
                                     )
