@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
@@ -17,10 +19,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.ui.components.AboutBottomSheet
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
@@ -28,17 +32,24 @@ import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.extra.SuperDropdown
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Favorites
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -65,6 +76,7 @@ fun SettingsScreen(
     val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
     val useBuiltinFileManager by viewModel.useBuiltinFileManager.collectAsState()
     val autoDeleteSourceAfterImport by viewModel.autoDeleteSourceAfterImport.collectAsState()
+    val showDonateCard by viewModel.showDonateCard.collectAsState()
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
@@ -96,6 +108,54 @@ fun SettingsScreen(
                 bottom = 40.dp
             )
         ) {
+            if (showDonateCard) {
+                item {
+                    Card(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.primaryContainer),
+                        onClick = {
+                            viewModel.dismissDonateCard()
+                            showDonateDialog.value = true
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = MiuixIcons.Favorites,
+                                contentDescription = null,
+                                tint = MiuixTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "支持开发者",
+                                    style = MiuixTheme.textStyles.title4,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MiuixTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "弦电子书完全免费，如果你觉得好用，可以考虑请开发者喝杯奶茶或咖啡。",
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            IconButton(onClick = { viewModel.dismissDonateCard() }) {
+                                Icon(
+                                    imageVector = MiuixIcons.Close,
+                                    contentDescription = "关闭",
+                                    tint = MiuixTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             if (bandTransferEnabled) {
                 item {
                     SmallTitle(text = "设备", modifier = Modifier.padding(top = 12.dp))
@@ -239,7 +299,6 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setBandTransferEnabled(it) })
                         }
                     )
-
                     if (bandTransferEnabled) {
                         BasicComponent(
                             title = "传输后自动后台",
@@ -428,7 +487,7 @@ fun SettingsScreen(
                     try {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://vb.luoxe.cn")
+                            Uri.parse("https://pan.quark.cn/s/47b6d6447142")
                         )
                         context.startActivity(intent)
                     } catch (e: Exception) {

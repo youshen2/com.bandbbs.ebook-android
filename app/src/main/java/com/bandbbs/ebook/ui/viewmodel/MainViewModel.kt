@@ -229,6 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val USE_FLOATING_NAVIGATION_BAR_KEY = "use_floating_navigation_bar"
     private val USE_BUILTIN_FILE_MANAGER_KEY = "use_builtin_file_manager"
     private val AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY = "auto_delete_source_after_import"
+    private val SHOW_DONATE_CARD_KEY = "show_donate_card"
 
     private var FIRST_AUTO_CHECK = true
 
@@ -283,6 +284,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoDeleteSourceAfterImport =
         MutableStateFlow(prefs.getBoolean(AUTO_DELETE_SOURCE_AFTER_IMPORT_KEY, false))
     val autoDeleteSourceAfterImport = _autoDeleteSourceAfterImport.asStateFlow()
+
+    private val _showDonateCard = MutableStateFlow(prefs.getBoolean(SHOW_DONATE_CARD_KEY, true))
+    val showDonateCard = _showDonateCard.asStateFlow()
 
     private val _isMultiSelectMode = MutableStateFlow(false)
     val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
@@ -364,8 +368,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         bookToDelete = _bookToDelete,
         selectedBookForChapters = _selectedBookForChapters,
         chaptersForSelectedBook = _chaptersForSelectedBook,
-        chapterToPreview = _chapterToPreview,
-        chaptersForPreview = _chaptersForPreview,
+        chapterToPreview = _chapterToPreview,        chaptersForPreview = _chaptersForPreview,
         bookForCoverImport = _bookForCoverImport,
         chapterEditorContent = _chapterEditorContent,
         onBooksChanged = { loadBooks() }
@@ -531,8 +534,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun requestDeleteSelectedBooks() {
         val selectedPaths = _selectedBooks.value
         if (selectedPaths.isEmpty()) return
+
         val booksToDelete = _books.value.filter { it.path in selectedPaths }
         if (booksToDelete.isEmpty()) return
+
         _booksToDelete.value = booksToDelete
     }
 
@@ -555,6 +560,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     db.bookDao().delete(bookEntity)
                 }
             }
+
             withContext(Dispatchers.Main) {
                 _booksToDelete.value = emptyList()
                 loadBooks()
@@ -696,14 +702,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteBandBook(book: Book) {
         if (!requireBandReadyOrShowDialog()) return
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
             Log.e("MainViewModel", "Cannot get file connection")
             return
         }
+
         if (fileConn.busy) {
             Log.w("MainViewModel", "File connection is busy")
             return
         }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val success = fileConn.deleteBook(
@@ -728,6 +737,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (!requireBandReadyOrShowDialog()) return
+
         if (!_hasClickedTransferButton.value) {
             prefs.edit().putBoolean(HAS_CLICKED_TRANSFER_BUTTON_KEY, true).apply()
             _hasClickedTransferButton.value = true
@@ -755,10 +765,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteBandChapters(book: Book, chapterIndices: Set<Int>) {
         if (!requireBandReadyOrShowDialog()) return
+
         val fileConn = runCatching { connectionHandler.getFileConnection() }.getOrElse {
             Log.e("MainViewModel", "Cannot get file connection")
             return
         }
+
         if (fileConn.busy) {
             Log.w("MainViewModel", "File connection is busy")
             return
@@ -954,6 +966,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     val context = getApplication<Application>().applicationContext
                     val fileUri = Uri.fromFile(File(book.path))
+
                     when (bookEntity.format) {
                         "nvb" -> {
                             val nvbBook = NvbParser.parse(context, fileUri)
@@ -978,6 +991,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resyncBookInfo(book: Book) {
         _globalLoadingState.value =
             GlobalLoadingState(isLoading = true, message = "正在同步书籍信息...")
+
         viewModelScope.launch(Dispatchers.IO) {
             _editBookInfoState.value?.let { currentState ->
                 _editBookInfoState.value = currentState.copy(isResyncing = true)
@@ -1087,6 +1101,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                     }
+
                     loadBooks()
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "Failed to resync book info", e)
@@ -1103,6 +1118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+
             withContext(Dispatchers.Main) {
                 _globalLoadingState.value = GlobalLoadingState(isLoading = false)
             }
@@ -1185,8 +1201,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 name = bm.name,
                 chapterIndex = bm.chapterIndex,
                 chapterName = bm.chapterName,
-                offsetInChapter = bm.offsetInChapter,
-                scrollOffset = bm.scrollOffset,
+                offsetInChapter = bm.offsetInChapter,                scrollOffset = bm.scrollOffset,
                 time = bm.time
             )
         } ?: emptyList()
@@ -1321,10 +1336,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             if (fp.containsKey("offsetInChapter")) {
                                 normalized["offsetInChapter"] = normalizedOffset
                             }
-
                             JSONObject(normalized).toString()
                         }
-
                         val readingTimeJson = finalTime?.let { JSONObject(it).toString() }
 
                         if (shouldSendReadingData || shouldPushBookmarks) {
@@ -1349,13 +1362,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     }
                                 )
                             )
-
                             if (!success) {
                                 failedBooks[book.name] = "手环未响应或同步失败"
                                 continue
                             }
                         }
-
                         syncedCount++
 
                         withContext(Dispatchers.Main) {
@@ -1363,7 +1374,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 syncedBooks = syncedCount
                             )
                         }
-
                     } catch (e: Exception) {
                         failedBooks[book.name] = e.message ?: "处理失败"
                     }
@@ -1377,7 +1387,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         "同步完成，成功 $syncedCount 本，失败 ${failedBooks.size} 本"
                     }
-
                     _syncReadingDataState.value = SyncReadingDataState(
                         isSyncing = false,
                         statusText = statusText,
@@ -1394,7 +1403,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     _syncReadingDataState.value = SyncReadingDataState(
@@ -1459,7 +1467,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     application.getSharedPreferences("chapter_reader_prefs", Context.MODE_PRIVATE)
 
                 val books = db.bookDao().getAllBooks()
-
                 books.forEach { book ->
                     val file = File(book.path)
                     if (!file.exists()) {
@@ -1517,7 +1524,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 val readerAllKeys = readerPrefs.all.keys.toList()
                 val readerEditor = readerPrefs.edit()
-
                 readerAllKeys.forEach { key ->
                     if (key.startsWith("last_read_chapter_")) {
                         val id = key.removePrefix("last_read_chapter_").toIntOrNull()
@@ -1634,6 +1640,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _autoDeleteSourceAfterImport.value = enabled
     }
 
+    fun dismissDonateCard() {
+        prefs.edit().putBoolean(SHOW_DONATE_CARD_KEY, false).apply()
+        _showDonateCard.value = false
+    }
+
     fun renameCategory(oldName: String, newName: String) {
         categoryHandler.renameCategory(oldName, newName)
     }
@@ -1649,6 +1660,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isAutoCheck = isAutoCheck
                 )
             }
+
             try {
                 val context = getApplication<Application>().applicationContext
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -1656,7 +1668,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val currentVersionCode = packageInfo.versionCode
 
                 val androidResult = VersionChecker.checkUpdate(currentVersionCode)
-
                 val updateInfoList = mutableListOf<VersionChecker.UpdateInfo>()
                 var errorMsg: String? = null
 
@@ -1713,8 +1724,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Log.w("MainViewModel", "设备名称为空，无法检查手环更新")
                 return@launch
             }
+
             try {
                 val bandResult = VersionChecker.checkBandUpdate(deviceName, bandVersion)
+
                 bandResult.fold(
                     onSuccess = { bandUpdateInfo ->
                         if (bandUpdateInfo.hasUpdate && bandUpdateInfo.deviceType == "band") {
@@ -1745,6 +1758,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (lastReadChapterId == -1) return null
 
         db.chapterDao().getChapterById(lastReadChapterId) ?: return null
+
         val allChapters = db.chapterDao().getChapterInfoForBook(book.id)
         val chapterIndex = allChapters.indexOfFirst { it.id == lastReadChapterId }
         if (chapterIndex == -1) return null
@@ -1805,12 +1819,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             "reading_time_prefs",
             Context.MODE_PRIVATE
         )
-
         val totalSeconds = readingTimePrefs.getLong("${bookName}_total_seconds", 0L)
         if (totalSeconds == 0L) {
             return null
         }
-
         val sessionsJson = readingTimePrefs.getString("${bookName}_sessions", null)
         val sessions = if (sessionsJson != null) {
             try {
@@ -1835,8 +1847,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         return mapOf(
             "totalSeconds" to totalSeconds,
-            "sessions" to sessionList,
-            "lastReadDate" to lastReadDate,
+            "sessions" to sessionList,            "lastReadDate" to lastReadDate,
             "firstReadDate" to firstReadDate
         )
     }
@@ -1845,18 +1856,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (readingTime == null) {
             return
         }
-
         val readingTimePrefs = getApplication<Application>().getSharedPreferences(
             "reading_time_prefs",
             Context.MODE_PRIVATE
         )
-
         val totalSeconds = (readingTime["totalSeconds"] as? Number)?.toLong() ?: 0L
         val lastReadDate = readingTime["lastReadDate"] as? String ?: ""
         val firstReadDate = readingTime["firstReadDate"] as? String ?: ""
 
         val editor = readingTimePrefs.edit()
         editor.putLong("${bookName}_total_seconds", totalSeconds)
+
         if (lastReadDate.isNotEmpty()) {
             editor.putString("${bookName}_last_read_date", lastReadDate)
         }
@@ -1928,6 +1938,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         lastReadInfo = "读至：${chapter.name}"
                     }
                 }
+
                 if (lastReadInfo == null && chapterCount > 0) {
                     lastReadInfo = "未读"
                 }
@@ -2009,7 +2020,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadBandSettings() {
         if (!requireBandReadyOrShowDialog()) return
-
         _globalLoadingState.value =
             GlobalLoadingState(isLoading = true, message = "正在加载手环设置...")
 
@@ -2131,7 +2141,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateBandSetting(key: String, value: String) {
         if (!requireBandReadyOrShowDialog()) return
-
         _bandSettingsState.value?.let { current ->
             _bandSettingsState.value = when (key) {
                 "EBOOK_FONT" -> current.copy(fontSize = value.toInt())
@@ -2211,7 +2220,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateAutoReadSetting(enabled: Boolean, speed: Int) {
         if (!requireBandReadyOrShowDialog()) return
-
         _bandSettingsState.value?.let { current ->
             _bandSettingsState.value =
                 current.copy(autoReadEnabled = enabled, autoReadSpeed = speed)
@@ -2229,7 +2237,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         put("enable", enabled)
                         put("speed", speed)
                     }.toString()
-
                     val success = conn.setSettings(mapOf("EBOOK_AUTO" to autoValue))
                     if (!success) {
                         throw Exception("设备返回失败")

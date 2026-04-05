@@ -98,7 +98,7 @@ private data class FileItem(
     val summary: String
 )
 
-private val SUPPORTED_IMPORT_EXTENSIONS = setOf("txt", "epub", "nvb", "docx", "pdf", "mobi")
+private val SUPPORTED_IMPORT_EXTENSIONS = setOf("txt", "epub", "nvb", "docx", "pdf", "mobi", "doc")
 
 private fun isSupportedImportFile(file: File): Boolean {
     if (file.isDirectory) return true
@@ -254,6 +254,7 @@ fun BuiltinFileManagerScreen(
                                 "text/plain",
                                 "application/epub+zip",
                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                "application/msword",
                                 "application/pdf",
                                 "application/x-pdf",
                                 "application/x-mobipocket-ebook",
@@ -308,6 +309,7 @@ fun BuiltinFileManagerScreen(
                                     "text/plain",
                                     "application/epub+zip",
                                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    "application/msword",
                                     "application/pdf",
                                     "application/x-pdf",
                                     "application/x-mobipocket-ebook",
@@ -364,6 +366,7 @@ private fun FileManagerPermissionPage(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(24.dp))
+
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MiuixTheme.colorScheme.primary,
@@ -402,7 +405,7 @@ private fun FileManagerPermissionPage(
 @Composable
 private fun FileManagerPage(
     dir: File?,
-    availablePresets: List<Pair<ImportPathPreset , File>>,
+    availablePresets: List<Pair<ImportPathPreset, File>>,
     selectedFiles: Set<File>,
     onSelectFilesChange: (Set<File>) -> Unit,
     onOpenDir: (File) -> Unit,
@@ -414,7 +417,6 @@ private fun FileManagerPage(
     val context = LocalContext.current
     var searchQuery by remember(dir) { mutableStateOf("") }
     var pathInput by remember(dir) { mutableStateOf("") }
-
     var fileItems by remember(dir) { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember(dir) { mutableStateOf(false) }
 
@@ -618,7 +620,6 @@ private fun FileManagerPage(
                                 )
                             }
                         }
-
                         SuperArrow(
                             title = "系统文件选择器",
                             summary = "调用系统文件选择器导入文件",
@@ -687,7 +688,6 @@ private fun FileManagerPage(
                                     isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                                     else -> RectangleShape
                                 }
-
                                 val isSelected = selectedFiles.contains(item.file)
 
                                 Card(

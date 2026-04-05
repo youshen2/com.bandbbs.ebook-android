@@ -257,6 +257,7 @@ class MainActivity : ComponentActivity() {
                     "text/plain",
                     "application/epub+zip",
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/msword",
                     "application/pdf",
                     "application/x-pdf",
                     "application/x-mobipocket-ebook",
@@ -270,7 +271,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
         viewModel.setConnection(conn)
@@ -297,7 +297,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
-
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
@@ -518,12 +517,14 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
+
                                     entry<Screen.BandSettings> {
                                         BandSettingsScreen(
                                             viewModel = viewModel,
                                             onBackClick = navigateBack
                                         )
                                     }
+
                                     entry<Screen.SyncOptions> {
                                         syncOptionsState?.let { state ->
                                             SyncOptionsScreen(
@@ -552,6 +553,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
+
                                     entry<Screen.Push> {
                                         PushScreen(
                                             pushState = pushState,
@@ -565,6 +567,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
+
                                     entry<Screen.ChapterList> {
                                         selectedBookForChapters?.let { book ->
                                             ChapterListScreen(
@@ -629,6 +632,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
+
                                     entry<Screen.Reader> {
                                         ReaderScreen(
                                             viewModel = viewModel,
@@ -653,6 +657,7 @@ class MainActivity : ComponentActivity() {
                                             loadChapterContent = viewModel::loadChapterContent
                                         )
                                     }
+
                                     entry<Screen.BuiltinFileManager> {
                                         BuiltinFileManagerScreen(
                                             onBackClick = navigateBack,
@@ -733,7 +738,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel.dismissUpdateCheck()
                                 },
                                 onOpenWebsite = {
-                                    val url = updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() } ?: "https://vb.luoxe.cn"
+                                    val url = updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() } ?: "https://bandbbs.cn"
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
                                         Uri.parse(url)
@@ -746,6 +751,7 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(globalLoadingState.isLoading) {
                                 showLoadingState.value = globalLoadingState.isLoading
                             }
+
                             if (showLoadingState.value) {
                                 SuperDialog(
                                     title = "处理中",
@@ -808,7 +814,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                         if (!launched) {
-                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com"))
+                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
                                             context.startActivity(webIntent)
                                         }
                                         showAprilFools = false

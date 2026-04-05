@@ -22,9 +22,7 @@ android {
         minSdk = 23
         targetSdk = 35
         versionCode = 126320
-
         versionName = "V26.3.2"
-
         resConfigs("zh")
     }
 
@@ -36,6 +34,7 @@ android {
             storePassword = keystoreProperties.getProperty("storePassword")
         }
     }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -84,21 +83,20 @@ dependencies {
     implementation(files("./libs/xms-wearable-lib_1.4_release.aar"))?.let { implementation(it) }
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.activity:activity-compose:1.12.0")
     implementation(platform("androidx.compose:compose-bom:2025.11.01"))
     implementation("androidx.compose.ui:ui")
+
     implementation("androidx.loader:loader:1.1.0")
     implementation("com.github.albfernandez:juniversalchardet:2.5.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("org.jsoup:jsoup:1.22.1")
-
     implementation("com.google.re2j:re2j:1.8")
-
     implementation("androidx.appcompat:appcompat:1.7.1")
-
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.github.yalantis:ucrop:2.2.11")
 
@@ -112,4 +110,7 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-icons:0.8.8")
     implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.8.8")
     implementation("top.yukonga.miuix.kmp:miuix-navigation3-adaptive:0.8.5")
+
+    implementation("org.apache.poi:poi:3.17")
+    implementation("org.apache.poi:poi-scratchpad:3.17")
 }
