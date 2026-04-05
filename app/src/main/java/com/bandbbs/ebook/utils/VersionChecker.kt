@@ -2,30 +2,56 @@ package com.bandbbs.ebook.utils
 
 import android.util.Log
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URL
 
 object VersionChecker {
     private const val TAG = "VersionChecker"
-    private const val API_URL = "https://api.lucky-e.top/v1/sinebook_vela/version"
+    private const val API_CHECK_UPDATE = "https://api.luoxe.cn/sinebook/check_update"
+    private const val API_NOTICES = "https://api.luoxe.cn/sinebook/notices"
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
     @Serializable
-    data class VersionResponse(
-        val device: List<DeviceVersion>
+    data class CheckUpdateReq(val model: String, val versionCode: Int)
+
+    @Serializable
+    data class UpdateConfig(
+        val model: String = "",
+        val versionCode: Int = 0,
+        val versionName: String = "",
+        val status: String = "",
+        val remark: String = "",
+        val normalDownloadUrl: String = "",
+        val normalBackupDownloadUrl: String = "",
+        val iconlessDownloadUrl: String = "",
+        val iconlessBackupDownloadUrl: String = "",
+        val forumUrl: String = "",
+        val regexps: List<String> = emptyList(),
+        val updateLogs: List<String> = emptyList()
     )
 
     @Serializable
-    data class DeviceVersion(
-        val type: String,
-        val device_name: String = "",
-        val version_code: Int,
-        val version_name: String,
-        val update_log: List<String> = emptyList()
+    data class CheckUpdateResp(
+        val hasUpdate: Boolean = false,
+        val update: UpdateConfig? = null
+    )
+
+    @Serializable
+    data class Notice(
+        val id: Int = 0,
+        val title: String = "",
+        val summary: String = "",
+        val content: String = "",
+        val time: String = "",
+        val link: String = "",
+        val created_at: Long = 0,
+        val updated_at: Long = 0
     )
 
     data class UpdateInfo(
@@ -33,17 +59,33 @@ object VersionChecker {
         val versionCode: Int,
         val versionName: String,
         val updateLog: List<String>,
-        val deviceType: String
+        val deviceType: String,
+        val downloadUrl: String = ""
     )
 
-    private suspend fun fetchVersionResponse(): Result<VersionResponse> {
+    suspend fun checkUpdate(currentVersionCode: Int): Result<UpdateInfo> {
+        return checkDeviceUpdate("Android", "android", currentVersionCode)
+    }
+
+    suspend fun checkBandUpdate(currentDeviceName: String, currentVersionCode: Int? = null): Result<UpdateInfo> {
+        return checkDeviceUpdate(currentDeviceName, "band", currentVersionCode ?: 0)
+    }
+
+    private suspend fun checkDeviceUpdate(model: String, deviceType: String, currentVersionCode: Int): Result<UpdateInfo> {
         return try {
-            val url = URL(API_URL)
+            val url = URL(API_CHECK_UPDATE)
             val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("User-Agent", "Sine-Android")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "Sine-Android")
+            connection.doOutput = true
+
+            connection.outputStream.use { os ->
+                val req = json.encodeToString(CheckUpdateReq(model, currentVersionCode))
+                os.write(req.toByteArray())
+            }
 
             val responseCode = connection.responseCode
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -53,47 +95,21 @@ object VersionChecker {
             val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
 
-            val versionResponse = json.decodeFromString<VersionResponse>(responseBody)
-            Result.success(versionResponse)
-        } catch (e: Exception) {
-            Log.e(TAG, "获取版本信息失败", e)
-            return Result.failure(e)
-        }
-    }
+            val resp = json.decodeFromString<CheckUpdateResp>(responseBody)
+            Log.e("resp", responseBody)
 
-    suspend fun checkUpdate(
-        currentVersionCode: Int
-    ): Result<UpdateInfo> {
-        return try {
-            val versionResponseResult = fetchVersionResponse()
-            val versionResponse = versionResponseResult.getOrElse {
-                return Result.failure(it)
-            }
-
-            val androidUpdate = versionResponse.device.find { it.type == "android" }
-            val androidUpdateInfo = androidUpdate?.let {
-                if (it.version_code > currentVersionCode) {
+            if (resp.hasUpdate && resp.update != null) {
+                val updateConfig = resp.update
+                Result.success(
                     UpdateInfo(
                         hasUpdate = true,
-                        versionCode = it.version_code,
-                        versionName = it.version_name,
-                        updateLog = it.update_log,
-                        deviceType = "android"
+                        versionCode = updateConfig.versionCode.takeIf { it > 0 } ?: (currentVersionCode + 1),
+                        versionName = updateConfig.versionName.ifEmpty { updateConfig.remark }.ifEmpty { "新版本" },
+                        updateLog = updateConfig.updateLogs,
+                        deviceType = deviceType,
+                        downloadUrl = updateConfig.normalDownloadUrl.ifEmpty { updateConfig.forumUrl }
                     )
-                } else {
-                    UpdateInfo(
-                        hasUpdate = false,
-                        versionCode = it.version_code,
-                        versionName = it.version_name,
-                        updateLog = it.update_log,
-                        deviceType = "android"
-                    )
-                }
-            }
-
-
-            if (androidUpdateInfo != null) {
-                Result.success(androidUpdateInfo)
+                )
             } else {
                 Result.success(
                     UpdateInfo(
@@ -101,7 +117,8 @@ object VersionChecker {
                         versionCode = currentVersionCode,
                         versionName = "",
                         updateLog = emptyList(),
-                        deviceType = "android"
+                        deviceType = deviceType,
+                        downloadUrl = ""
                     )
                 )
             }
@@ -111,46 +128,27 @@ object VersionChecker {
         }
     }
 
-    suspend fun checkBandUpdate(
-        currentDeviceName: String,
-        currentVersionCode: Int? = null
-    ): Result<UpdateInfo> {
+    suspend fun getNotices(): Result<List<Notice>> {
         return try {
-            val versionResponseResult = fetchVersionResponse()
-            val versionResponse = versionResponseResult.getOrElse {
-                return Result.failure(it)
+            val url = URL(API_NOTICES)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "Sine-Android")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                return Result.failure(Exception("HTTP错误: $responseCode"))
             }
 
-            val bandUpdate = versionResponse.device.find { device ->
-                device.type != "android" && device.device_name.isNotEmpty() &&
-                        currentDeviceName.matches(Regex(device.device_name))
-            }
+            val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
 
-            if (bandUpdate != null) {
-                val hasUpdate =
-                    currentVersionCode != null && bandUpdate.version_code > currentVersionCode
-                Result.success(
-                    UpdateInfo(
-                        hasUpdate = hasUpdate,
-                        versionCode = bandUpdate.version_code,
-                        versionName = bandUpdate.version_name,
-                        updateLog = bandUpdate.update_log,
-                        deviceType = "band"
-                    )
-                )
-            } else {
-                Result.success(
-                    UpdateInfo(
-                        hasUpdate = false,
-                        versionCode = currentVersionCode ?: 0,
-                        versionName = "",
-                        updateLog = emptyList(),
-                        deviceType = "band"
-                    )
-                )
-            }
+            val notices = json.decodeFromString<List<Notice>>(responseBody)
+            Result.success(notices)
         } catch (e: Exception) {
-            Log.e(TAG, "检查手环更新失败", e)
+            Log.e(TAG, "获取公告失败", e)
             Result.failure(e)
         }
     }

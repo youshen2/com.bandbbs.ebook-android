@@ -1,5 +1,7 @@
 package com.bandbbs.ebook.ui.components
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -37,16 +40,21 @@ fun VersionIncompatibleDialog(
     onDismiss: () -> Unit = {},
     onOpenWebsite: () -> Unit
 ) {
+    val context = LocalContext.current
     val dismiss = {
         show.value = false
         onDismiss()
+    }
+
+    BackHandler(enabled = show.value) {
+        // 拦截返回键，防止用户绕开弹窗
     }
 
     SuperDialog(
         title = "版本不兼容",
         titleColor = MiuixTheme.colorScheme.error,
         show = show,
-        onDismissRequest = dismiss
+        onDismissRequest = { /* 禁止点击外部取消 */ }
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -119,25 +127,30 @@ fun VersionIncompatibleDialog(
                 }
             }
 
-            TextButton(
-                text = "知道了",
-                onClick = dismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pressable(interactionSource = null, indication = SinkFeedback())
-            )
-
-            TextButton(
-                text = "前往官网下载",
-                onClick = {
-                    dismiss()
-                    onOpenWebsite()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pressable(interactionSource = null, indication = SinkFeedback()),
-                colors = ButtonDefaults.textButtonColorsPrimary()
-            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(
+                    text = "退出应用",
+                    onClick = {
+                        val activity = context as? Activity
+                        activity?.finish()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback())
+                )
+                Spacer(Modifier.width(16.dp))
+                TextButton(
+                    text = "前往官网下载",
+                    onClick = {
+                        dismiss()
+                        onOpenWebsite()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .pressable(interactionSource = null, indication = SinkFeedback()),
+                    colors = ButtonDefaults.textButtonColorsPrimary()
+                )
+            }
         }
     }
 }

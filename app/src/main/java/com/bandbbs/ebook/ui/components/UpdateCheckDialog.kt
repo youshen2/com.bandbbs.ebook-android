@@ -145,7 +145,7 @@ fun UpdateCheckDialog(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     TextButton(
-                        text = "前往下载",
+                        text = "跳转下载",
                         onClick = {
                             showDialog.value = false
                             onDismiss()

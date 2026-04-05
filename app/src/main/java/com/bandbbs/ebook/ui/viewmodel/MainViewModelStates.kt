@@ -191,3 +191,12 @@ data class BackupRestoreResult(
     val success: Boolean,
     val message: String
 )
+
+data class NoticeState(
+    val id: Int,
+    val title: String,
+    val summary: String,
+    val content: String,
+    val time: String,
+    val link: String
+)

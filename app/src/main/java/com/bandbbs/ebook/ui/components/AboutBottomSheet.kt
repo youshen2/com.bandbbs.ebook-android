@@ -41,7 +41,6 @@ fun AboutBottomSheet(
     onCheckUpdate: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
     val versionName = remember {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -73,17 +72,13 @@ fun AboutBottomSheet(
                     style = MiuixTheme.textStyles.title2,
                     fontWeight = FontWeight.Bold
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
-
                 Text(
                     text = "Android 手机端",
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantActions
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
-
                 Surface(
                     shape = RoundedCornerShape(50.dp),
                     color = MiuixTheme.colorScheme.secondaryContainer,
@@ -110,7 +105,6 @@ fun AboutBottomSheet(
                     summary = "NEORUAA, 乐色桶, 无源流沙"
                 )
             }
-
             Spacer(modifier = Modifier.height(8.dp))
 
             SmallTitle(text = "相关链接")
@@ -119,27 +113,8 @@ fun AboutBottomSheet(
                 insideMargin = PaddingValues(0.dp)
             ) {
                 SuperArrow(
-                    title = "QQ交流群",
-                    summary = "1067415278",
-                    startAction = {
-                        Icon(
-                            imageVector = MiuixIcons.Community,
-                            contentDescription = null,
-                            tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                            modifier = Modifier.padding(end = 16.dp)
-                        )
-                    },
-                    onClick = {
-                        val clipboard =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("QQ Group", "1067415278")
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "已复制群号", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                SuperArrow(
                     title = "官网",
-                    summary = "vs.lucky-e.top",
+                    summary = "vb.luoxe.cn",
                     startAction = {
                         Icon(
                             imageVector = MiuixIcons.Link,
@@ -151,7 +126,7 @@ fun AboutBottomSheet(
                     onClick = {
                         try {
                             val intent =
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://vs.lucky-e.top"))
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://vb.luoxe.cn"))
                             context.startActivity(intent)
                         } catch (e: Exception) {
                             Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()

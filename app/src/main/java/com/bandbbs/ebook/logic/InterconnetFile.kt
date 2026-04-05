@@ -496,6 +496,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         onSuccess: (message: String, count: Int) -> Unit,
         onCoverProgress: (current: Int, total: Int) -> Unit
     ) = mutex.withLock {
+        if (busy) return@withLock
+
         this.onError = onError
         this.onSuccess = onSuccess
         this.onCoverProgress = onCoverProgress
@@ -550,6 +552,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         onProgress: (progress: Double, String, status: String) -> Unit,
         onCoverProgress: (current: Int, total: Int) -> Unit = { _, _ -> }
     ) = mutex.withLock {
+        if (busy) return@withLock
+
         if (bookEntity?.format == "pdf") {
             onError("PDF 禁止传输到手环", 0)
             resetTransferState()

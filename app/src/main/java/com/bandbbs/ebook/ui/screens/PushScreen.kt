@@ -1,5 +1,6 @@
 package com.bandbbs.ebook.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -43,6 +47,8 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -60,13 +66,28 @@ fun PushScreen(
         label = "PushProgressAnimation"
     )
     val scrollState = rememberScrollState()
+    val showExitConfirmDialog = remember { mutableStateOf(false) }
+
+    BackHandler(enabled = true) {
+        if (pushState.isFinished) {
+            onCancelOrDone()
+        } else {
+            showExitConfirmDialog.value = true
+        }
+    }
 
     Scaffold(
         topBar = {
             SmallTopAppBar(
                 title = "推送进度",
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = {
+                        if (pushState.isFinished) {
+                            onBackClick()
+                        } else {
+                            showExitConfirmDialog.value = true
+                        }
+                    }) {
                         Icon(
                             imageVector = MiuixIcons.Back,
                             contentDescription = "返回",
@@ -81,7 +102,13 @@ fun PushScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
-                    onClick = onCancelOrDone,
+                    onClick = {
+                        if (pushState.isFinished) {
+                            onCancelOrDone()
+                        } else {
+                            showExitConfirmDialog.value = true
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 12.dp)
@@ -119,7 +146,6 @@ fun PushScreen(
                     summary = bytesToReadable(pushState.book?.size ?: 0)
                 )
             }
-
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,12 +173,10 @@ fun PushScreen(
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
-
                     LinearProgressIndicator(
                         progress = animatedProgress,
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     if (pushState.isSendingCover && pushState.coverProgress.isNotEmpty()) {
                         Text(
                             text = pushState.coverProgress,
@@ -162,20 +186,45 @@ fun PushScreen(
                     }
                 }
             }
-
             SmallTitle(text = "传输日志")
             PushLogCard(
                 transferLog = pushState.transferLog,
                 preview = pushState.preview
             )
-
             SmallTitle(text = "章节详情")
             PushTransferSummary(
                 currentIndex = pushState.currentChapterIndex,
                 chapters = pushState.transferChapters
             )
-
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        SuperDialog(
+            title = "取消传输",
+            summary = "传输正在进行中，确定要取消并退出吗？",
+            show = showExitConfirmDialog,
+            onDismissRequest = { showExitConfirmDialog.value = false }
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(
+                    text = "继续传输",
+                    onClick = { showExitConfirmDialog.value = false },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(16.dp))
+                TextButton(
+                    text = "确定取消",
+                    colors = ButtonDefaults.textButtonColors(
+                        color = MiuixTheme.colorScheme.error,
+                        textColor = MiuixTheme.colorScheme.onError
+                    ),
+                    onClick = {
+                        showExitConfirmDialog.value = false
+                        onCancelOrDone()
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }

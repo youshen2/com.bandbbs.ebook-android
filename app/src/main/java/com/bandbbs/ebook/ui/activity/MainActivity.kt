@@ -152,7 +152,6 @@ class MainActivity : ComponentActivity() {
                     .withAspectRatio(3f, 4f)
                     .withMaxResultSize(1200, 1600)
                     .withOptions(options)
-
                 cropCoverLauncher.launch(uCrop.getIntent(this))
             }
         }
@@ -241,7 +240,6 @@ class MainActivity : ComponentActivity() {
 
     private fun openImportPicker(navigateToFileManager: () -> Unit) {
         val useBuiltin = viewModel.useBuiltinFileManager.value
-
         if (useBuiltin) {
             openBuiltinFileManagerAction = { openBuiltinFileManager(navigateToFileManager) }
             if (hasStoragePermission()) {
@@ -273,10 +271,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
-
         viewModel.setConnection(conn)
 
         val notifManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -311,6 +307,7 @@ class MainActivity : ComponentActivity() {
 
             EbookTheme(darkTheme = darkTheme) {
                 var showAprilFools by remember { mutableStateOf(isAprilFools()) }
+
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
@@ -520,12 +517,14 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
+
                                     entry<Screen.BandSettings> {
                                         BandSettingsScreen(
                                             viewModel = viewModel,
                                             onBackClick = navigateBack
                                         )
                                     }
+
                                     entry<Screen.SyncOptions> {
                                         syncOptionsState?.let { state ->
                                             SyncOptionsScreen(
@@ -554,6 +553,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
+
                                     entry<Screen.Push> {
                                         PushScreen(
                                             pushState = pushState,
@@ -567,6 +567,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
+
                                     entry<Screen.ChapterList> {
                                         selectedBookForChapters?.let { book ->
                                             ChapterListScreen(
@@ -631,6 +632,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
+
                                     entry<Screen.Reader> {
                                         ReaderScreen(
                                             viewModel = viewModel,
@@ -655,6 +657,7 @@ class MainActivity : ComponentActivity() {
                                             loadChapterContent = viewModel::loadChapterContent
                                         )
                                     }
+
                                     entry<Screen.BuiltinFileManager> {
                                         BuiltinFileManagerScreen(
                                             onBackClick = navigateBack,
@@ -724,13 +727,11 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(ipCollectionPermissionState.showSheet) {
                                 showIpSheetState.value = ipCollectionPermissionState.showSheet
                             }
-
                             LaunchedEffect(showIpSheetState.value) {
                                 if (!showIpSheetState.value && ipCollectionPermissionState.showSheet) {
                                     viewModel.dismissIpCollectionPermissionSheet()
                                 }
                             }
-
                             IpCollectionPermissionDialog(
                                 show = showIpSheetState,
                                 isFirstTime = ipCollectionPermissionState.isFirstTime,
@@ -752,7 +753,6 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(updateCheckState.showSheet) {
                                 showUpdateDialogState.value = updateCheckState.showSheet
                             }
-
                             UpdateCheckDialog(
                                 showDialog = showUpdateDialogState,
                                 isChecking = updateCheckState.isChecking,
@@ -764,9 +764,10 @@ class MainActivity : ComponentActivity() {
                                     viewModel.dismissUpdateCheck()
                                 },
                                 onOpenWebsite = {
+                                    val url = updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() } ?: "https://vb.luoxe.cn"
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        Uri.parse("https://vs.lucky-e.top")
+                                        Uri.parse(url)
                                     )
                                     context.startActivity(intent)
                                 }
@@ -820,9 +821,7 @@ class MainActivity : ComponentActivity() {
                                     fontWeight = FontWeight.Bold,
                                     color = MiuixTheme.colorScheme.onBackground
                                 )
-
                                 Spacer(modifier = Modifier.height(48.dp))
-
                                 Button(
                                     onClick = {
                                         val packageNames = listOf(
@@ -830,7 +829,6 @@ class MainActivity : ComponentActivity() {
                                             "com.miHoYo.Yuanshen",
                                             "com.miHoYo.Ys.bilibili"
                                         )
-
                                         var launched = false
                                         for (pkg in packageNames) {
                                             val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
@@ -840,7 +838,6 @@ class MainActivity : ComponentActivity() {
                                                 break
                                             }
                                         }
-
                                         if (!launched) {
                                             val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
                                             context.startActivity(webIntent)
@@ -854,9 +851,7 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     Text("原神，启动！", color = MiuixTheme.colorScheme.onPrimary)
                                 }
-
                                 Spacer(modifier = Modifier.height(16.dp))
-
                                 TextButton(
                                     text = "不玩原神，我是来用电子书的",
                                     onClick = { showAprilFools = false },
@@ -874,7 +869,6 @@ class MainActivity : ComponentActivity() {
 
     private fun observeViewModelStates() {
         var wasTransferring = false
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.pushState.collect { pushState ->
