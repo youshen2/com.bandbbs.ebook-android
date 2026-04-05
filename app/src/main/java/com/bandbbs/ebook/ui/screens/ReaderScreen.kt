@@ -65,8 +65,8 @@ import com.bandbbs.ebook.database.BookmarkEntity
 import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
 import com.bandbbs.ebook.ui.components.PdfPageViewer
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
-import com.bandbbs.ebook.utils.BookmarkManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage
+import com.bandbbs.ebook.utils.manager.BookmarkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -286,11 +286,13 @@ fun ReaderScreen(
                         ReadingTimeStorage.recordReadingEnd(context, bookName)
                     }
                 }
+
                 Lifecycle.Event.ON_RESUME -> {
                     if (bookName != null) {
                         ReadingTimeStorage.recordReadingStart(context, bookName)
                     }
                 }
+
                 else -> {}
             }
         }

@@ -50,7 +50,9 @@ fun ConnectionErrorDialog(
         }
     ) {
         if (isUnsupportedDevice) {
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            Column(modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     BasicComponent(
                         title = "小米手环 8",

@@ -16,8 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -245,7 +245,8 @@ fun ImportBookBottomSheet(
                                         value = customRegex,
                                         onValueChange = {
                                             customRegex = it
-                                            val matchedTemplate = customRegexTemplates.firstOrNull { tpl -> tpl.regex == it }
+                                            val matchedTemplate =
+                                                customRegexTemplates.firstOrNull { tpl -> tpl.regex == it }
                                             selectedCustomRegexTemplateName = matchedTemplate?.name
                                         },
                                         label = "正则表达式",
@@ -261,7 +262,8 @@ fun ImportBookBottomSheet(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         TextButton(
-                                            text = selectedCustomRegexTemplateName?.let { "模板：$it" } ?: "选择模板",
+                                            text = selectedCustomRegexTemplateName?.let { "模板：$it" }
+                                                ?: "选择模板",
                                             onClick = { showRegexTemplateDialog.value = true },
                                             modifier = Modifier.weight(1f)
                                         )
@@ -270,7 +272,8 @@ fun ImportBookBottomSheet(
                                             text = "保存为模板",
                                             onClick = {
                                                 if (customRegex.isBlank()) return@TextButton
-                                                quickSaveTemplateName = selectedCustomRegexTemplateName.orEmpty()
+                                                quickSaveTemplateName =
+                                                    selectedCustomRegexTemplateName.orEmpty()
                                                 showQuickSaveTemplateDialog.value = true
                                             },
                                             enabled = customRegex.isNotBlank(),
@@ -441,7 +444,8 @@ fun ImportBookBottomSheet(
         }
     ) {
         val targetName = quickSaveTemplateName.trim()
-        val isDuplicateName = targetName.isNotBlank() && customRegexTemplates.any { it.name == targetName }
+        val isDuplicateName =
+            targetName.isNotBlank() && customRegexTemplates.any { it.name == targetName }
 
         TextField(
             value = quickSaveTemplateName,

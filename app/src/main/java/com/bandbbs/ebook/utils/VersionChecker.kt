@@ -2,7 +2,6 @@ package com.bandbbs.ebook.utils
 
 import android.util.Log
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URL
@@ -67,11 +66,18 @@ object VersionChecker {
         return checkDeviceUpdate("Android", "android", currentVersionCode)
     }
 
-    suspend fun checkBandUpdate(currentDeviceName: String, currentVersionCode: Int? = null): Result<UpdateInfo> {
+    suspend fun checkBandUpdate(
+        currentDeviceName: String,
+        currentVersionCode: Int? = null
+    ): Result<UpdateInfo> {
         return checkDeviceUpdate(currentDeviceName, "band", currentVersionCode ?: 0)
     }
 
-    private suspend fun checkDeviceUpdate(model: String, deviceType: String, currentVersionCode: Int): Result<UpdateInfo> {
+    private suspend fun checkDeviceUpdate(
+        model: String,
+        deviceType: String,
+        currentVersionCode: Int
+    ): Result<UpdateInfo> {
         return try {
             val url = URL(API_CHECK_UPDATE)
             val connection = url.openConnection() as HttpURLConnection
@@ -103,8 +109,10 @@ object VersionChecker {
                 Result.success(
                     UpdateInfo(
                         hasUpdate = true,
-                        versionCode = updateConfig.versionCode.takeIf { it > 0 } ?: (currentVersionCode + 1),
-                        versionName = updateConfig.versionName.ifEmpty { updateConfig.remark }.ifEmpty { "新版本" },
+                        versionCode = updateConfig.versionCode.takeIf { it > 0 }
+                            ?: (currentVersionCode + 1),
+                        versionName = updateConfig.versionName.ifEmpty { updateConfig.remark }
+                            .ifEmpty { "新版本" },
                         updateLog = updateConfig.updateLogs,
                         deviceType = deviceType,
                         downloadUrl = updateConfig.normalDownloadUrl.ifEmpty { updateConfig.forumUrl }

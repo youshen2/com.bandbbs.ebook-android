@@ -8,8 +8,8 @@ import com.bandbbs.ebook.database.BookEntity
 import com.bandbbs.ebook.database.Chapter
 import com.bandbbs.ebook.database.ChapterDao
 import com.bandbbs.ebook.ui.model.Book
-import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.bytesToReadable
+import com.bandbbs.ebook.utils.manager.ChapterContentManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -180,6 +180,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                             conn.scope.launch { sendNextChapter(0) }
                         }
                     }
+
                     "error" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Error>(it)
                         if (readDataCompleter != null) {
@@ -192,6 +193,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                             handleErrorResponse(jsonMessage.message, jsonMessage.count)
                         }
                     }
+
                     "success" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Success>(it)
                         if (readDataCompleter != null) {
@@ -201,26 +203,33 @@ class InterconnetFile(private val conn: InterHandshake) {
                             handleSuccessResponse(jsonMessage.message, jsonMessage.count)
                         }
                     }
+
                     "next" -> {
                         if (!busy) return@listener
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Next>(it)
                         val nextSlicedListIndex = chapterIndexMap[jsonMessage.count]
                         if (nextSlicedListIndex == null) {
-                            onError?.invoke("章节索引映射错误: ${jsonMessage.count}", jsonMessage.count)
+                            onError?.invoke(
+                                "章节索引映射错误: ${jsonMessage.count}",
+                                jsonMessage.count
+                            )
                             resetTransferState()
                             return@listener
                         }
                         conn.scope.launch { sendNextChapter(nextSlicedListIndex) }
                     }
+
                     "next_chunk" -> {
                         if (!busy) return@listener
                         currentChunkIndex++
                         sendCurrentChunk()
                     }
+
                     "chapter_chunk_complete" -> {
                         if (!busy) return@listener
                         sendChapterComplete()
                     }
+
                     "chapter_saved" -> {
                         if (!busy) return@listener
                         val nextSlicedListIndex = currentChapterIndexInSlicedList + 1
@@ -230,16 +239,19 @@ class InterconnetFile(private val conn: InterHandshake) {
                             conn.scope.launch { sendNextChapter(nextSlicedListIndex) }
                         }
                     }
+
                     "transfer_finished" -> {
                         if (!busy) return@listener
                         onProgress?.invoke(1.0, "", " --")
                         onSuccess?.invoke("传输完成", chapterIndices.size)
                         busy = false
                     }
+
                     "cover_chunk_received", "cover_ready" -> {
                         if (!busy) return@listener
                         sendNextCoverChunk()
                     }
+
                     "cover_saved" -> {
                         if (!busy) return@listener
                         if (isCoverOnlyTransfer) {
@@ -247,30 +259,43 @@ class InterconnetFile(private val conn: InterHandshake) {
                             resetTransferState()
                         }
                     }
+
                     "cancel" -> {
                         onSuccess?.invoke("取消传输", 0)
                         resetTransferState()
                     }
+
                     "book_status" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.BookStatus>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.BookStatus>(it)
                         bookStatusCompleter?.complete(
                             BookStatusResult(jsonMessage.syncedChapters, jsonMessage.hasCover)
                         )
                     }
+
                     "sync_reading_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SyncReadingDataMessage>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SyncReadingDataMessage>(it)
                         readingDataCompleter?.complete(
-                            SyncReadingData(jsonMessage.filename, jsonMessage.progress, jsonMessage.readingTime, jsonMessage.bookmarks ?: emptyList())
+                            SyncReadingData(
+                                jsonMessage.filename,
+                                jsonMessage.progress,
+                                jsonMessage.readingTime,
+                                jsonMessage.bookmarks ?: emptyList()
+                            )
                         )
                     }
+
                     "progress" -> {
                         val jsonMessage = json.decodeFromString<FileMessagesFromDevice.Progress>(it)
                         val progressValue = jsonMessage.count / 100.0
                         onProgress?.invoke(progressValue, jsonMessage.message, "")
                         deleteChaptersProgressCallback?.invoke(progressValue, jsonMessage.message)
                     }
+
                     "storage_info" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.StorageInfo>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.StorageInfo>(it)
                         onStorageInfo?.invoke(
                             BandStorageInfoData(
                                 product = jsonMessage.product,
@@ -282,8 +307,10 @@ class InterconnetFile(private val conn: InterHandshake) {
                             )
                         )
                     }
+
                     "settings_data" -> {
-                        val jsonMessage = json.decodeFromString<FileMessagesFromDevice.SettingsData>(it)
+                        val jsonMessage =
+                            json.decodeFromString<FileMessagesFromDevice.SettingsData>(it)
                         settingsCompleter?.complete(jsonMessage.settings)
                     }
                 }
@@ -300,23 +327,29 @@ class InterconnetFile(private val conn: InterHandshake) {
                 deleteChaptersCompleter?.complete(false)
                 clearDeleteChaptersCallbacks()
             }
+
             deleteBookCompleter != null -> {
                 deleteBookErrorCallback?.invoke(message)
                 deleteBookCompleter?.complete(false)
                 clearDeleteBookCallbacks()
             }
+
             settingsCompleter != null -> {
                 settingsCompleter?.completeExceptionally(Exception(message))
             }
+
             settingsUpdateCompleter != null -> {
                 settingsUpdateCompleter?.complete(false)
             }
+
             readingDataCompleter != null -> {
                 readingDataCompleter?.complete(null)
             }
+
             readDataCompleter != null -> {
                 readDataCompleter?.complete(false)
             }
+
             else -> {
                 onError?.invoke(message, count)
                 resetTransferState()
@@ -331,14 +364,17 @@ class InterconnetFile(private val conn: InterHandshake) {
                 deleteChaptersCompleter?.complete(true)
                 clearDeleteChaptersCallbacks()
             }
+
             deleteBookCompleter != null -> {
                 deleteBookSuccessCallback?.invoke(message)
                 deleteBookCompleter?.complete(true)
                 clearDeleteBookCallbacks()
             }
+
             settingsUpdateCompleter != null -> {
                 settingsUpdateCompleter?.complete(true)
             }
+
             else -> {
                 onSuccess?.invoke(message, count)
                 resetTransferState()
@@ -421,7 +457,8 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun getBookStatus(bookName: String): BookStatusResult = mutex.withLock {
         bookStatusCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookStatus(filename = bookName))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetBookStatus(filename = bookName)))
+            .await()
         return try {
             withTimeout(5000L) { bookStatusCompleter!!.await() }
         } catch (e: Exception) {
@@ -433,7 +470,8 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun getReadingData(bookName: String): SyncReadingData? = mutex.withLock {
         readingDataCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetReadingData(filename = bookName))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.GetReadingData(filename = bookName)))
+            .await()
         return try {
             withTimeout(5000L) { readingDataCompleter!!.await() }
         } catch (e: Exception) {
@@ -445,12 +483,16 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun setReadingData(data: SyncReadingData): Boolean = mutex.withLock {
         readDataCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetReadingData(
-            filename = data.filename,
-            progress = data.progress,
-            readingTime = data.readingTime,
-            bookmarks = data.bookmarks
-        ))).await()
+        conn.sendMessage(
+            json.encodeToString(
+                FileMessagesToSend.SetReadingData(
+                    filename = data.filename,
+                    progress = data.progress,
+                    readingTime = data.readingTime,
+                    bookmarks = data.bookmarks
+                )
+            )
+        ).await()
 
         return try {
             withTimeout(5000L) { readDataCompleter!!.await() }
@@ -479,7 +521,8 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     suspend fun setSettings(settings: Map<String, String>): Boolean = mutex.withLock {
         settingsUpdateCompleter = CompletableDeferred()
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.SetSettings(settings = settings)))
+            .await()
         return try {
             withTimeout(5000L) { settingsUpdateCompleter!!.await() }
         } catch (e: Exception) {
@@ -511,7 +554,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         }
 
         hasPendingCoverTransfer = true
-        conn.sendMessage(json.encodeToString(FileMessagesToSend.StartCoverTransfer(filename = book.name))).await()
+        conn.sendMessage(json.encodeToString(FileMessagesToSend.StartCoverTransfer(filename = book.name)))
+            .await()
         startTimeout(15000L)
     }
 
@@ -569,7 +613,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.onSuccess = onSuccess
         this.onProgress = onProgress
         this.onCoverProgress = onCoverProgress
-        this.chapterIndexMap = chaptersIndicesToSend.mapIndexed { listIndex, index -> index to listIndex }.toMap()
+        this.chapterIndexMap =
+            chaptersIndicesToSend.mapIndexed { listIndex, index -> index to listIndex }.toMap()
 
         this.currentChapterChunks = emptyList()
         this.currentChunkIndex = 0
@@ -616,7 +661,10 @@ class InterconnetFile(private val conn: InterHandshake) {
                 onProgress?.invoke(1.0, "", " --")
                 onSuccess?.invoke("传输完成", chapterIndices.size)
             } else {
-                onError?.invoke("无效的章节索引: $chapterIndexInSlicedList", currentChapterIndexInBook)
+                onError?.invoke(
+                    "无效的章节索引: $chapterIndexInSlicedList",
+                    currentChapterIndexInBook
+                )
             }
             resetTransferState()
             return
@@ -625,7 +673,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.currentChapterIndexInSlicedList = chapterIndexInSlicedList
         val chapterIndex = chapterIndices[chapterIndexInSlicedList]
 
-        val chapterInfo = withContext(Dispatchers.IO) { chapterDao.getChapterInfoByIndex(bookId, chapterIndex) }
+        val chapterInfo =
+            withContext(Dispatchers.IO) { chapterDao.getChapterInfoByIndex(bookId, chapterIndex) }
         if (chapterInfo == null) {
             onError?.invoke("无法加载章节信息: index $chapterIndex", chapterIndex)
             resetTransferState()
@@ -695,11 +744,13 @@ class InterconnetFile(private val conn: InterHandshake) {
             }
 
             val totalChaptersToSend = chapterIndices.size.coerceAtLeast(1)
-            val progress = (currentChapterIndexInSlicedList.toDouble() + (currentChunkIndex + 1.0) / currentChapterChunks.size) / totalChaptersToSend
+            val progress =
+                (currentChapterIndexInSlicedList.toDouble() + (currentChunkIndex + 1.0) / currentChapterChunks.size) / totalChaptersToSend
 
             if (lastChunkTime != 0L) {
                 val timeTaken = currentTime - lastChunkTime
-                val speed = if (timeTaken > 0) " ${bytesToReadable(chunkContent.toByteArray().size / (timeTaken / 1000.0))}/s" else " --"
+                val speed =
+                    if (timeTaken > 0) " ${bytesToReadable(chunkContent.toByteArray().size / (timeTaken / 1000.0))}/s" else " --"
                 onProgress?.invoke(
                     progress,
                     "${chapter.name} (${currentChunkIndex + 1}/${currentChapterChunks.size})",
@@ -739,11 +790,15 @@ class InterconnetFile(private val conn: InterHandshake) {
 
     private fun compressCoverImage(imageBytes: ByteArray): ByteArray {
         return try {
-            val originalBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return imageBytes
+            val originalBitmap =
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return imageBytes
             val scale = minOf(160f / originalBitmap.width, 213f / originalBitmap.height)
-            val finalWidth = if (scale < 1) (originalBitmap.width * scale).toInt() else originalBitmap.width
-            val finalHeight = if (scale < 1) (originalBitmap.height * scale).toInt() else originalBitmap.height
-            val scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, finalWidth, finalHeight, true)
+            val finalWidth =
+                if (scale < 1) (originalBitmap.width * scale).toInt() else originalBitmap.width
+            val finalHeight =
+                if (scale < 1) (originalBitmap.height * scale).toInt() else originalBitmap.height
+            val scaledBitmap =
+                Bitmap.createScaledBitmap(originalBitmap, finalWidth, finalHeight, true)
 
             val outputStream = ByteArrayOutputStream()
             var quality = 85
@@ -769,7 +824,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.scope.launch {
             if (currentCoverChunkIndex >= coverImageChunks.size) {
                 try {
-                    conn.sendMessage(json.encodeToString(FileMessagesToSend.CoverTransferComplete())).await()
+                    conn.sendMessage(json.encodeToString(FileMessagesToSend.CoverTransferComplete()))
+                        .await()
                     coverImageChunks = emptyList()
                     currentCoverChunkIndex = 0
                     hasPendingCoverTransfer = false
@@ -805,7 +861,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         conn.scope.launch {
             try {
                 conn.sendMessage(json.encodeToString(FileMessagesToSend.Cancel())).await()
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+            }
         }
         resetTransferState()
     }
@@ -844,13 +901,16 @@ class InterconnetFile(private val conn: InterHandshake) {
         data class Ready(val type: String = "ready", val count: Int) : FileMessagesFromDevice()
 
         @Serializable
-        data class Error(val type: String = "error", val message: String, val count: Int) : FileMessagesFromDevice()
+        data class Error(val type: String = "error", val message: String, val count: Int) :
+            FileMessagesFromDevice()
 
         @Serializable
-        data class Success(val type: String = "success", val message: String, val count: Int) : FileMessagesFromDevice()
+        data class Success(val type: String = "success", val message: String, val count: Int) :
+            FileMessagesFromDevice()
 
         @Serializable
-        data class Next(val type: String = "next", val message: String, val count: Int) : FileMessagesFromDevice()
+        data class Next(val type: String = "next", val message: String, val count: Int) :
+            FileMessagesFromDevice()
 
         @Serializable
         data class BookStatus(
@@ -869,7 +929,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         ) : FileMessagesFromDevice()
 
         @Serializable
-        data class Progress(val type: String = "progress", val message: String, val count: Int) : FileMessagesFromDevice()
+        data class Progress(val type: String = "progress", val message: String, val count: Int) :
+            FileMessagesFromDevice()
 
         @Serializable
         data class StorageInfo(
@@ -926,7 +987,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         ) : FileMessagesToSend()
 
         @Serializable
-        data class Cancel(val tag: String = "file", val stat: String = "cancel") : FileMessagesToSend()
+        data class Cancel(val tag: String = "file", val stat: String = "cancel") :
+            FileMessagesToSend()
 
         @Serializable
         data class GetBookStatus(
@@ -999,7 +1061,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         ) : FileMessagesToSend()
 
         @Serializable
-        data class GetStorageInfo(val tag: String = "file", val stat: String = "get_storage_info") : FileMessagesToSend()
+        data class GetStorageInfo(val tag: String = "file", val stat: String = "get_storage_info") :
+            FileMessagesToSend()
 
         @Serializable
         data class GetSettings(

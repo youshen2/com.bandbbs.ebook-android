@@ -3,6 +3,7 @@ package com.bandbbs.ebook.utils
 import android.content.Context
 import android.net.Uri
 import com.bandbbs.ebook.database.Chapter
+import com.bandbbs.ebook.utils.manager.ChapterContentManager
 import org.mozilla.universalchardet.UniversalDetector
 import java.nio.charset.Charset
 import kotlin.math.max

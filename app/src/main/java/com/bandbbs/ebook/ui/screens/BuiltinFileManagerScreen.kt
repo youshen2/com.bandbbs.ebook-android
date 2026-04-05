@@ -1,7 +1,6 @@
 package com.bandbbs.ebook.ui.screens
 
 import android.Manifest
-import android.R
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -24,7 +23,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +54,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.bandbbs.ebook.utils.BuiltinFileManagerPaths
@@ -65,10 +62,8 @@ import com.bandbbs.ebook.utils.UritoFile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -90,6 +85,7 @@ import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.icon.extended.Search
 import top.yukonga.miuix.kmp.icon.extended.Send
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import java.io.File
 
 private data class FileItem(
     val file: File,
@@ -132,7 +128,8 @@ fun BuiltinFileManagerScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
-            Toast.makeText(context, "未授予存储权限，无法访问内置文件管理器", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "未授予存储权限，无法访问内置文件管理器", Toast.LENGTH_SHORT)
+                .show()
         }
         hasFileAccess = hasFileManagerAccess()
     }
@@ -165,7 +162,10 @@ fun BuiltinFileManagerScreen(
         if (uris.isNotEmpty()) {
             val validFiles = uris.mapNotNull { uri ->
                 val importedFile = UritoFile(uri, context)
-                if (importedFile != null && importedFile.exists() && !importedFile.isDirectory && isSupportedImportFile(importedFile)) {
+                if (importedFile != null && importedFile.exists() && !importedFile.isDirectory && isSupportedImportFile(
+                        importedFile
+                    )
+                ) {
                     importedFile
                 } else {
                     null
@@ -194,7 +194,8 @@ fun BuiltinFileManagerScreen(
     val parentDir = remember(currentDir, availablePresets) {
         if (currentDir == null) null
         else {
-            val isRootPreset = availablePresets.any { it.second.absolutePath == currentDir?.absolutePath }
+            val isRootPreset =
+                availablePresets.any { it.second.absolutePath == currentDir?.absolutePath }
             if (isRootPreset) null else currentDir?.parentFile
         }
     }
@@ -233,16 +234,21 @@ fun BuiltinFileManagerScreen(
                         when {
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && activity != null -> {
                                 val packageUri = Uri.parse("package:${activity.packageName}")
-                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, packageUri)
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    packageUri
+                                )
                                 runCatching {
                                     allFilesAccessSettingsLauncher.launch(intent)
                                 }.onFailure {
                                     allFilesAccessSettingsLauncher.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
                                 }
                             }
+
                             Build.VERSION.SDK_INT < Build.VERSION_CODES.R -> {
                                 readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                             }
+
                             else -> {
                                 Toast.makeText(context, "无法申请权限", Toast.LENGTH_SHORT).show()
                             }
@@ -435,7 +441,10 @@ private fun FileManagerPage(
                             file = it,
                             name = it.name,
                             isDirectory = it.isDirectory,
-                            summary = if (it.isDirectory) "文件夹" else Formatter.formatFileSize(context, it.length())
+                            summary = if (it.isDirectory) "文件夹" else Formatter.formatFileSize(
+                                context,
+                                it.length()
+                            )
                         )
                     }
             }
@@ -461,7 +470,8 @@ private fun FileManagerPage(
         if (normalizedQueryLower.isBlank()) fileItems
         else fileItems.filter { item ->
             item.name.contains(normalizedQueryLower, ignoreCase = true) ||
-                    (isSuffixFilter && !item.isDirectory && item.name.lowercase().endsWith(normalizedQueryLower))
+                    (isSuffixFilter && !item.isDirectory && item.name.lowercase()
+                        .endsWith(normalizedQueryLower))
         }
     }
 
@@ -486,7 +496,10 @@ private fun FileManagerPage(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { onSelectFilesChange(emptySet()) }) {
-                                Icon(imageVector = MiuixIcons.Close, contentDescription = "清空选择")
+                                Icon(
+                                    imageVector = MiuixIcons.Close,
+                                    contentDescription = "清空选择"
+                                )
                             }
                             IconButton(onClick = onConfirm) {
                                 Icon(imageVector = MiuixIcons.Send, contentDescription = "导入")
@@ -506,7 +519,8 @@ private fun FileManagerPage(
                 start = 16.dp,
                 top = 8.dp,
                 end = 16.dp,
-                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
+                bottom = WindowInsets.navigationBars.asPaddingValues()
+                    .calculateBottomPadding() + 24.dp
             )
         ) {
             if (dir == null) {
@@ -528,7 +542,10 @@ private fun FileManagerPage(
                         trailingIcon = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (pathInput.isNotBlank()) {
-                                    IconButton(onClick = { pathInput = "" }, modifier = Modifier.padding(end = 6.dp)) {
+                                    IconButton(
+                                        onClick = { pathInput = "" },
+                                        modifier = Modifier.padding(end = 6.dp)
+                                    ) {
                                         Icon(MiuixIcons.Close, contentDescription = "清除")
                                     }
                                 }
@@ -536,14 +553,33 @@ private fun FileManagerPage(
                                     onClick = {
                                         val input = pathInput.trim()
                                         if (input.isEmpty()) {
-                                            Toast.makeText(context, "请输入路径", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                "请输入路径",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                             return@IconButton
                                         }
                                         val target = File(input)
                                         when {
-                                            !target.exists() -> Toast.makeText(context, "路径不存在", Toast.LENGTH_SHORT).show()
-                                            !target.isDirectory -> Toast.makeText(context, "该路径不是文件夹", Toast.LENGTH_SHORT).show()
-                                            !target.canRead() -> Toast.makeText(context, "无法读取该路径", Toast.LENGTH_SHORT).show()
+                                            !target.exists() -> Toast.makeText(
+                                                context,
+                                                "路径不存在",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            !target.isDirectory -> Toast.makeText(
+                                                context,
+                                                "该路径不是文件夹",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            !target.canRead() -> Toast.makeText(
+                                                context,
+                                                "无法读取该路径",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
                                             else -> {
                                                 onOpenDir(target)
                                             }
@@ -685,7 +721,11 @@ private fun FileManagerPage(
                                 val shape = when {
                                     filteredFileItems.size == 1 -> RoundedCornerShape(16.dp)
                                     isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                                    isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                    isLast -> RoundedCornerShape(
+                                        bottomStart = 16.dp,
+                                        bottomEnd = 16.dp
+                                    )
+
                                     else -> RectangleShape
                                 }
                                 val isSelected = selectedFiles.contains(item.file)
@@ -696,7 +736,8 @@ private fun FileManagerPage(
                                     onClick = {
                                         if (item.isDirectory) onOpenDir(item.file)
                                         else {
-                                            val newSet = if (isSelected) selectedFiles - item.file else selectedFiles + item.file
+                                            val newSet =
+                                                if (isSelected) selectedFiles - item.file else selectedFiles + item.file
                                             onSelectFilesChange(newSet)
                                         }
                                     }
@@ -734,7 +775,8 @@ private fun FileManagerPage(
                                                 )
                                             },
                                             onClick = {
-                                                val newSet = if (isSelected) selectedFiles - item.file else selectedFiles + item.file
+                                                val newSet =
+                                                    if (isSelected) selectedFiles - item.file else selectedFiles + item.file
                                                 onSelectFilesChange(newSet)
                                             }
                                         )

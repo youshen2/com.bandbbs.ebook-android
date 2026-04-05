@@ -71,7 +71,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
             if (connected) {
                 scope.launch {
                     try {
-                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}").await()
+                        super.sendMessage("{\"tag\":\"$TYPE\",\"count\":0,\"version\":$PHONE_VERSION_CODE}")
+                            .await()
                     } catch (e: Exception) {
                         Log.e("Handshake", "Ping failed", e)
                     }
@@ -104,7 +105,11 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
                 if (bandVersion != null) {
                     onBandVersionReceived.invoke(bandVersion)
                     if (bandVersion < MIN_BAND_VERSION_CODE) {
-                        onVersionIncompatible.invoke(bandVersion, MIN_BAND_VERSION_CODE, MIN_BAND_VERSION)
+                        onVersionIncompatible.invoke(
+                            bandVersion,
+                            MIN_BAND_VERSION_CODE,
+                            MIN_BAND_VERSION
+                        )
                     }
                 }
 

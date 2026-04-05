@@ -11,8 +11,8 @@ import com.bandbbs.ebook.database.Chapter
 import com.bandbbs.ebook.ui.model.Book
 import com.bandbbs.ebook.ui.model.ChapterEditContent
 import com.bandbbs.ebook.ui.model.ChapterSegment
-import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ReadingTimeStorage
+import com.bandbbs.ebook.utils.manager.ChapterContentManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

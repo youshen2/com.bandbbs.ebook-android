@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.utils
+package com.bandbbs.ebook.utils.parser
 
 import android.content.Context
 import android.net.Uri
@@ -149,6 +149,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "creator" -> {
                             if (inMetadata) {
                                 parser.next()
@@ -157,6 +158,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "meta" -> {
                             if (inMetadata) {
                                 val name = parser.getAttributeValue(null, "name")
@@ -166,6 +168,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "item" -> {
                             if (inManifest) {
                                 val id = parser.getAttributeValue(null, "id")
@@ -189,6 +192,7 @@ object EpubParser {
                                 }
                             }
                         }
+
                         "itemref" -> {
                             if (inSpine) {
                                 val idref = parser.getAttributeValue(null, "idref")
@@ -201,6 +205,7 @@ object EpubParser {
                         }
                     }
                 }
+
                 XmlPullParser.END_TAG -> {
                     val tagName = parser.name.substringAfterLast(":")
                     when (tagName) {
@@ -267,8 +272,14 @@ object EpubParser {
                         line.contains(titleTrimmed, ignoreCase = true) ||
                         titleTrimmed.contains(line, ignoreCase = true) ||
                         (line.length > 3 && titleTrimmed.length > 3 &&
-                                (line.substring(0, minOf(10, line.length)) == titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) ||
-                                        titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) == line.substring(0, minOf(10, line.length))))
+                                (line.substring(
+                                    0,
+                                    minOf(10, line.length)
+                                ) == titleTrimmed.substring(0, minOf(10, titleTrimmed.length)) ||
+                                        titleTrimmed.substring(
+                                            0,
+                                            minOf(10, titleTrimmed.length)
+                                        ) == line.substring(0, minOf(10, line.length))))
 
                 if (isTitleLine) {
                     removedCount++
@@ -315,10 +326,16 @@ object EpubParser {
 
     private fun extractTextContent(html: String): String {
         var text = html.replace(
-            Regex("<script[^>]*>.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), ""
+            Regex(
+                "<script[^>]*>.*?</script>",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            ), ""
         )
         text = text.replace(
-            Regex("<style[^>]*>.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), ""
+            Regex(
+                "<style[^>]*>.*?</style>",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            ), ""
         )
         text = text.replace(Regex("<[^>]+>"), " ")
         text = text.replace("&nbsp;", " ")

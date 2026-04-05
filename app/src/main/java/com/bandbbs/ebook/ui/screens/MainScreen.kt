@@ -40,7 +40,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.R
@@ -97,11 +95,9 @@ import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
@@ -115,7 +111,6 @@ import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Notes
-import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.Recent
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.icon.extended.Search
@@ -231,7 +226,10 @@ fun MainScreen(
         show = showDeleteDialog,
         onDismissRequest = { viewModel.cancelDeleteBook() }
     ) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             if (bandTransferEnabled) {
                 Button(
                     onClick = {
@@ -310,9 +308,13 @@ fun MainScreen(
                 .heightIn(max = 450.dp)
                 .verticalScroll(dialogScrollState)
         ) {
-            SmallTitle(text = "选择要同步的书籍", insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp))
+            SmallTitle(
+                text = "选择要同步的书籍",
+                insideMargin = PaddingValues(start = 4.dp, bottom = 8.dp)
+            )
             Card {
-                val allSelected = syncReadingDataState.selectedBooksForSync.size == books.size && books.isNotEmpty()
+                val allSelected =
+                    syncReadingDataState.selectedBooksForSync.size == books.size && books.isNotEmpty()
                 BasicComponent(
                     title = "全选",
                     endActions = {
@@ -717,7 +719,8 @@ fun MainScreen(
                         Uri.parse("https://bandbbs.cn/threads/11267/")
                     )
                     context.startActivity(intent)
-                } catch (e: Exception) {}
+                } catch (e: Exception) {
+                }
             }
         )
     }
@@ -958,7 +961,8 @@ fun MainScreen(
                             try {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(notice.link))
                                 context.startActivity(intent)
-                            } catch (e: Exception) {}
+                            } catch (e: Exception) {
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -1076,7 +1080,10 @@ fun MainScreen(
                     bottom = 120.dp
                 ),
             ) {
-                val updatesToShow = if (updateCheckState.updateInfoList.isNotEmpty()) updateCheckState.updateInfoList else listOfNotNull(updateCheckState.updateInfo)
+                val updatesToShow =
+                    if (updateCheckState.updateInfoList.isNotEmpty()) updateCheckState.updateInfoList else listOfNotNull(
+                        updateCheckState.updateInfo
+                    )
                 val hasUpdate = updatesToShow.any { it.hasUpdate }
 
                 if (hasUpdate) {
@@ -1130,7 +1137,8 @@ fun MainScreen(
                                 while (true) {
                                     delay(5000)
                                     if (!pagerState.isScrollInProgress) {
-                                        val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
+                                        val nextPage =
+                                            (pagerState.currentPage + 1) % pagerState.pageCount
                                         pagerState.animateScrollToPage(nextPage)
                                     }
                                 }
@@ -1141,7 +1149,12 @@ fun MainScreen(
                             if (notices.isNotEmpty()) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 0.dp, top = 8.dp)
+                                    modifier = Modifier.padding(
+                                        start = 4.dp,
+                                        end = 4.dp,
+                                        bottom = 0.dp,
+                                        top = 8.dp
+                                    )
                                 ) {
                                     Icon(
                                         imageVector = MiuixIcons.Info,
@@ -1162,7 +1175,10 @@ fun MainScreen(
                                 state = pagerState,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = if (pagerState.pageCount > 1) 4.dp else 8.dp),
+                                    .padding(
+                                        top = 8.dp,
+                                        bottom = if (pagerState.pageCount > 1) 4.dp else 8.dp
+                                    ),
                                 pageSpacing = 12.dp
                             ) { page ->
                                 if (page == 0) {
@@ -1196,8 +1212,12 @@ fun MainScreen(
                                                         ) {
                                                             Icon(
                                                                 modifier = Modifier.size(170.dp),
-                                                                imageVector = ImageVector.vectorResource(R.drawable.check_circle_outline),
-                                                                tint = MiuixTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                                imageVector = ImageVector.vectorResource(
+                                                                    R.drawable.check_circle_outline
+                                                                ),
+                                                                tint = MiuixTheme.colorScheme.primary.copy(
+                                                                    alpha = 0.8f
+                                                                ),
                                                                 contentDescription = null
                                                             )
                                                         }
@@ -1218,7 +1238,9 @@ fun MainScreen(
                                                                 text = connectionState.descriptionText,
                                                                 style = MiuixTheme.textStyles.body2,
                                                                 fontWeight = FontWeight.Medium,
-                                                                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                                                color = MiuixTheme.colorScheme.onSurface.copy(
+                                                                    alpha = 0.8f
+                                                                )
                                                             )
                                                         }
                                                     }
@@ -1228,31 +1250,42 @@ fun MainScreen(
                                                         modifier = Modifier
                                                             .weight(1f)
                                                             .fillMaxHeight(),
-                                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                                        verticalArrangement = Arrangement.spacedBy(
+                                                            12.dp
+                                                        )
                                                     ) {
                                                         Card(
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
                                                                 .weight(1f),
                                                             insideMargin = PaddingValues(16.dp),
-                                                            onClick = { showStorageHelpDialog.value = true },
+                                                            onClick = {
+                                                                showStorageHelpDialog.value = true
+                                                            },
                                                             showIndication = true,
                                                             pressFeedbackType = PressFeedbackType.Tilt,
                                                             colors = CardDefaults.defaultColors(
                                                                 color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
                                                             )
                                                         ) {
-                                                            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                                            Column(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                horizontalAlignment = Alignment.Start
+                                                            ) {
                                                                 Text(
                                                                     modifier = Modifier.fillMaxWidth(),
                                                                     text = "实际可用",
                                                                     fontWeight = FontWeight.Medium,
                                                                     style = MiuixTheme.textStyles.body2,
-                                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(
+                                                                        alpha = 0.8f
+                                                                    ) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                                                 )
                                                                 Text(
                                                                     modifier = Modifier.fillMaxWidth(),
-                                                                    text = bytesToReadable(bandStorageInfo.actualAvailable),
+                                                                    text = bytesToReadable(
+                                                                        bandStorageInfo.actualAvailable
+                                                                    ),
                                                                     style = MiuixTheme.textStyles.title2,
                                                                     fontWeight = FontWeight.SemiBold,
                                                                     color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface,
@@ -1264,25 +1297,37 @@ fun MainScreen(
                                                                 .fillMaxWidth()
                                                                 .weight(1f),
                                                             insideMargin = PaddingValues(16.dp),
-                                                            onClick = { showStorageHelpDialog.value = true },
+                                                            onClick = {
+                                                                showStorageHelpDialog.value = true
+                                                            },
                                                             showIndication = true,
                                                             pressFeedbackType = PressFeedbackType.Tilt,
                                                             colors = CardDefaults.defaultColors(
                                                                 color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.errorContainer else MiuixTheme.colorScheme.surfaceContainer
                                                             )
                                                         ) {
-                                                            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                                            Column(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                horizontalAlignment = Alignment.Start
+                                                            ) {
                                                                 Text(
                                                                     modifier = Modifier.fillMaxWidth(),
                                                                     text = "已用空间",
                                                                     fontWeight = FontWeight.Medium,
                                                                     style = MiuixTheme.textStyles.body2,
-                                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                                    color = if (bandStorageInfo.showWarning) MiuixTheme.colorScheme.onErrorContainer.copy(
+                                                                        alpha = 0.8f
+                                                                    ) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                                                 )
-                                                                val usableSpace = bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
-                                                                val progress = if (usableSpace > 0) {
-                                                                    (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(0f, 1f)
-                                                                } else 0f
+                                                                val usableSpace =
+                                                                    bandStorageInfo.totalStorage - bandStorageInfo.reservedStorage
+                                                                val progress =
+                                                                    if (usableSpace > 0) {
+                                                                        (bandStorageInfo.usedStorage.toFloat() / usableSpace.toFloat()).coerceIn(
+                                                                            0f,
+                                                                            1f
+                                                                        )
+                                                                    } else 0f
                                                                 Text(
                                                                     modifier = Modifier.fillMaxWidth(),
                                                                     text = "${(progress * 100).toInt()}%",
@@ -1309,9 +1354,15 @@ fun MainScreen(
                                             ) {
                                                 BasicComponent(
                                                     title = connectionState.statusText,
-                                                    titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.onErrorContainer),
+                                                    titleColor = BasicComponentDefaults.titleColor(
+                                                        color = MiuixTheme.colorScheme.onErrorContainer
+                                                    ),
                                                     summary = connectionState.descriptionText,
-                                                    summaryColor = BasicComponentDefaults.summaryColor(color = MiuixTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)),
+                                                    summaryColor = BasicComponentDefaults.summaryColor(
+                                                        color = MiuixTheme.colorScheme.onErrorContainer.copy(
+                                                            alpha = 0.8f
+                                                        )
+                                                    ),
                                                     startAction = {
                                                         Icon(
                                                             imageVector = MiuixIcons.Info,
@@ -1378,7 +1429,10 @@ fun MainScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     repeat(pagerState.pageCount) { iteration ->
-                                        val color = if (pagerState.currentPage == iteration) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantActions.copy(alpha = 0.5f)
+                                        val color =
+                                            if (pagerState.currentPage == iteration) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantActions.copy(
+                                                alpha = 0.5f
+                                            )
                                         Box(
                                             modifier = Modifier
                                                 .padding(horizontal = 3.dp)
@@ -1544,6 +1598,7 @@ fun MainScreen(
                             ItemType.BOOK -> prevItem.category != null && expandedCategories.contains(
                                 prevItem.category
                             )
+
                             null -> false
                             else -> true
                         }

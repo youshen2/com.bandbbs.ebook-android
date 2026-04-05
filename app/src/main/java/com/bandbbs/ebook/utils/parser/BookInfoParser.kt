@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.utils
+package com.bandbbs.ebook.utils.parser
 
 /**
  * 书籍信息解析器

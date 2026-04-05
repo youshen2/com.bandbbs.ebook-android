@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.utils
+package com.bandbbs.ebook.utils.manager
 
 import android.content.Context
 import java.io.File

@@ -14,17 +14,17 @@ import com.bandbbs.ebook.ui.viewmodel.ImportingState
 import com.bandbbs.ebook.ui.viewmodel.LargeChapterWarningState
 import com.bandbbs.ebook.ui.viewmodel.OverwriteConfirmState
 import com.bandbbs.ebook.ui.viewmodel.RegexTemplate
-import com.bandbbs.ebook.utils.BookInfoParser
-import com.bandbbs.ebook.utils.ChapterContentManager
 import com.bandbbs.ebook.utils.ChapterSplitter
-import com.bandbbs.ebook.utils.DocParser
-import com.bandbbs.ebook.utils.DocxParser
-import com.bandbbs.ebook.utils.EpubParser
-import com.bandbbs.ebook.utils.MobiParser
-import com.bandbbs.ebook.utils.NvbParser
-import com.bandbbs.ebook.utils.PdfParser
 import com.bandbbs.ebook.utils.ReadingTimeStorage
 import com.bandbbs.ebook.utils.UritoFile
+import com.bandbbs.ebook.utils.manager.ChapterContentManager
+import com.bandbbs.ebook.utils.parser.BookInfoParser
+import com.bandbbs.ebook.utils.parser.DocParser
+import com.bandbbs.ebook.utils.parser.DocxParser
+import com.bandbbs.ebook.utils.parser.EpubParser
+import com.bandbbs.ebook.utils.parser.MobiParser
+import com.bandbbs.ebook.utils.parser.NvbParser
+import com.bandbbs.ebook.utils.parser.PdfParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -66,7 +66,8 @@ class ImportHandler(
         scope.launch {
             val context = application.applicationContext
             val validFiles = mutableListOf<com.bandbbs.ebook.ui.viewmodel.ImportFileInfo>()
-            val allowedExtensions = listOf(".txt", ".epub", ".nvb", ".docx", ".pdf", ".mobi", ".doc")
+            val allowedExtensions =
+                listOf(".txt", ".epub", ".nvb", ".docx", ".pdf", ".mobi", ".doc")
 
             uris.forEach { uri ->
                 UritoFile(uri, context)?.let { sourceFile ->
@@ -157,7 +158,8 @@ class ImportHandler(
         }
 
         saveCustomRegexTemplates(customRegexTemplates)
-        prefs.edit().putString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, selectedCustomRegexTemplateName).apply()
+        prefs.edit().putString(LAST_CUSTOM_REGEX_TEMPLATE_NAME_KEY, selectedCustomRegexTemplateName)
+            .apply()
 
         scope.launch(Dispatchers.IO) {
             val finalCategory = selectedCategory ?: state.selectedCategory
@@ -367,6 +369,7 @@ class ImportHandler(
                     enableChapterRename,
                     renamePattern
                 )
+
                 "epub" -> importEpubFile(
                     context,
                     uri,
@@ -378,6 +381,7 @@ class ImportHandler(
                     enableChapterRename,
                     renamePattern
                 )
+
                 "docx" -> importDocxFile(
                     context,
                     uri,
@@ -388,6 +392,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 "doc" -> importDocFile(
                     context,
                     uri,
@@ -398,6 +403,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 "pdf" -> importPdfFile(
                     context,
                     uri,
@@ -408,6 +414,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 "mobi" -> importMobiFile(
                     context,
                     uri,
@@ -418,6 +425,7 @@ class ImportHandler(
                     selectedCategory,
                     customRegex
                 )
+
                 else -> importTxtFile(
                     context,
                     uri,
@@ -501,6 +509,7 @@ class ImportHandler(
                         File(path).takeIf { it.exists() }?.delete()
                     }
                 }
+
                 "content" -> {
                     context.contentResolver.delete(uri, null, null)
                 }
@@ -1539,7 +1548,8 @@ class ImportHandler(
 
     private fun loadCustomRegexTemplates(): List<RegexTemplate> {
         val savedTemplates = runCatching {
-            val raw = prefs.getString(CUSTOM_REGEX_TEMPLATES_KEY, null) ?: return@runCatching emptyList()
+            val raw =
+                prefs.getString(CUSTOM_REGEX_TEMPLATES_KEY, null) ?: return@runCatching emptyList()
             val array = JSONArray(raw)
             buildList {
                 for (i in 0 until array.length()) {
@@ -1629,7 +1639,7 @@ class ImportHandler(
                 fileFormat = file.fileFormat,
                 splitMethod = splitMethod,
                 noSplit = noSplit,
-                wordsPerChapter = wordsPerChapter,                customRegex = customRegex
+                wordsPerChapter = wordsPerChapter, customRegex = customRegex
             ) ?: continue
 
             if (estimatedMaxChapterBytes > ChapterSplitter.MAX_CHAPTER_SIZE_BYTES) {
@@ -1668,6 +1678,7 @@ class ImportHandler(
                     MobiParser.extractPlainText(context, uri) { _, _ -> }
                 }
             }
+
             else -> return null
         }
 

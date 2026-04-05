@@ -5,10 +5,10 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Environment
-import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -28,21 +28,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -74,10 +73,8 @@ import com.bandbbs.ebook.ui.screens.SyncOptionsScreen
 import com.bandbbs.ebook.ui.theme.EbookTheme
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.yalantis.ucrop.UCrop
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.FabPosition
@@ -88,6 +85,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -100,9 +98,9 @@ import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.pressable
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.Calendar
 
 sealed interface Screen : NavKey {
     data object HomePager : Screen
@@ -199,7 +197,8 @@ class MainActivity : ComponentActivity() {
             if (hasStoragePermission()) {
                 openBuiltinFileManagerAction?.invoke()
             } else {
-                Toast.makeText(this, "请在系统设置中授予“所有文件访问权限”", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "请在系统设置中授予“所有文件访问权限”", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
 
@@ -213,12 +212,16 @@ class MainActivity : ComponentActivity() {
     private fun hasStoragePermission(): Boolean {
         val permission = getRequiredStoragePermission()
         val hasReadPermission = permission != null &&
-                ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(
+                    this,
+                    permission
+                ) == PackageManager.PERMISSION_GRANTED
 
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 Environment.isExternalStorageManager() || hasReadPermission
             }
+
             else -> hasReadPermission
         }
     }
@@ -371,19 +374,37 @@ class MainActivity : ComponentActivity() {
                                     FloatingNavigationBar {
                                         FloatingNavigationBarItem(
                                             selected = pagerState.currentPage == 0,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        0
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.VerticalSplit,
                                             label = "主页"
                                         )
                                         FloatingNavigationBarItem(
                                             selected = pagerState.currentPage == 1,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        1
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.Sort,
                                             label = "统计"
                                         )
                                         FloatingNavigationBarItem(
                                             selected = pagerState.currentPage == 2,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        2
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.Settings,
                                             label = "设置"
                                         )
@@ -392,19 +413,37 @@ class MainActivity : ComponentActivity() {
                                     NavigationBar {
                                         NavigationBarItem(
                                             selected = pagerState.currentPage == 0,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        0
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.VerticalSplit,
                                             label = "主页"
                                         )
                                         NavigationBarItem(
                                             selected = pagerState.currentPage == 1,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        1
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.Sort,
                                             label = "统计"
                                         )
                                         NavigationBarItem(
                                             selected = pagerState.currentPage == 2,
-                                            onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                                            onClick = {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        2
+                                                    )
+                                                }
+                                            },
                                             icon = MiuixIcons.Settings,
                                             label = "设置"
                                         )
@@ -665,7 +704,11 @@ class MainActivity : ComponentActivity() {
                                                 if (files.size == 1) {
                                                     viewModel.startImport(Uri.fromFile(files.first()))
                                                 } else {
-                                                    viewModel.startImportBatch(files.map { Uri.fromFile(it) })
+                                                    viewModel.startImportBatch(files.map {
+                                                        Uri.fromFile(
+                                                            it
+                                                        )
+                                                    })
                                                 }
                                                 navigateBack()
                                             }
@@ -738,7 +781,9 @@ class MainActivity : ComponentActivity() {
                                     viewModel.dismissUpdateCheck()
                                 },
                                 onOpenWebsite = {
-                                    val url = updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() } ?: "https://bandbbs.cn"
+                                    val url =
+                                        updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() }
+                                            ?: "https://bandbbs.cn"
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
                                         Uri.parse(url)
@@ -806,7 +851,8 @@ class MainActivity : ComponentActivity() {
                                         )
                                         var launched = false
                                         for (pkg in packageNames) {
-                                            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+                                            val launchIntent =
+                                                context.packageManager.getLaunchIntentForPackage(pkg)
                                             if (launchIntent != null) {
                                                 context.startActivity(launchIntent)
                                                 launched = true
@@ -814,7 +860,10 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                         if (!launched) {
-                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ys.mihoyo.com/"))
+                                            val webIntent = Intent(
+                                                Intent.ACTION_VIEW,
+                                                Uri.parse("https://ys.mihoyo.com/")
+                                            )
                                             context.startActivity(webIntent)
                                         }
                                         showAprilFools = false
@@ -822,7 +871,10 @@ class MainActivity : ComponentActivity() {
                                     colors = ButtonDefaults.buttonColorsPrimary(),
                                     modifier = Modifier
                                         .fillMaxWidth(0.6f)
-                                        .pressable(interactionSource = null, indication = SinkFeedback())
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 ) {
                                     Text("原神，启动！", color = MiuixTheme.colorScheme.onPrimary)
                                 }
@@ -832,7 +884,10 @@ class MainActivity : ComponentActivity() {
                                     onClick = { showAprilFools = false },
                                     modifier = Modifier
                                         .fillMaxWidth(0.6f)
-                                        .pressable(interactionSource = null, indication = SinkFeedback())
+                                        .pressable(
+                                            interactionSource = null,
+                                            indication = SinkFeedback()
+                                        )
                                 )
                             }
                         }

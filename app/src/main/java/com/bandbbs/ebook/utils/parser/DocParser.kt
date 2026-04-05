@@ -1,4 +1,4 @@
-package com.bandbbs.ebook.utils
+package com.bandbbs.ebook.utils.parser
 
 import android.content.Context
 import android.net.Uri

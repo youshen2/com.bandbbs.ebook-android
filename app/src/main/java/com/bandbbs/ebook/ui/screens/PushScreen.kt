@@ -205,7 +205,10 @@ fun PushScreen(
             show = showExitConfirmDialog,
             onDismissRequest = { showExitConfirmDialog.value = false }
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 TextButton(
                     text = "继续传输",
                     onClick = { showExitConfirmDialog.value = false },
