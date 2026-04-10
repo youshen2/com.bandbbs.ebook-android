@@ -79,9 +79,7 @@ fun SettingsScreen(
 
     val showAboutSheet = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
-    val showGetLatestVersionDialog = remember { mutableStateOf(false) }
     val showCleanDirtyDataDialog = remember { mutableStateOf(false) }
-    val showDonateDialog = remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
@@ -114,7 +112,12 @@ fun SettingsScreen(
                         colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.primaryContainer),
                         onClick = {
                             viewModel.dismissDonateCard()
-                            showDonateDialog.value = true
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.luoxe.cn/docs/donate/"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     ) {
                         Row(
@@ -350,10 +353,38 @@ fun SettingsScreen(
                         summary = "手动检查应用版本更新",
                         onClick = { viewModel.checkForUpdates() }
                     )
+                }
+            }
+
+            item {
+                SmallTitle(text = "教程与支持", modifier = Modifier.padding(top = 12.dp))
+                Card(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    insideMargin = PaddingValues(0.dp)
+                ) {
                     SuperArrow(
-                        title = "获取最新版本",
-                        summary = "跳转到所有版本的下载页面",
-                        onClick = { showGetLatestVersionDialog.value = true }
+                        title = "打开疑难杂症文档",
+                        summary = "查看常见问题解决方案",
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.luoxe.cn/docs/sine/book/question/"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    SuperArrow(
+                        title = "捐赠",
+                        summary = "支持开发者",
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.luoxe.cn/docs/donate/"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
             }
@@ -396,11 +427,6 @@ fun SettingsScreen(
                         .padding(bottom = 16.dp),
                     insideMargin = PaddingValues(0.dp)
                 ) {
-                    SuperArrow(
-                        title = "捐赠",
-                        summary = "支持开发者",
-                        onClick = { showDonateDialog.value = true }
-                    )
                     SuperArrow(
                         title = "关于",
                         summary = "版本信息与开发者",
@@ -467,67 +493,6 @@ fun SettingsScreen(
         }
     }
 
-    SuperDialog(
-        title = "各文件夹前缀介绍",
-        summary = "MiBand和BandPro前缀是给小米手环8Pro、9Pro用的\nRW前缀是给REDMI Watch5、6用的\nBand9前缀是给小米手环9和9NFC用的\nBand10前缀是给小米手环10用的",
-        show = showGetLatestVersionDialog,
-        onDismissRequest = { showGetLatestVersionDialog.value = false }
-    ) {
-        Row(horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(
-                text = "取消",
-                onClick = { showGetLatestVersionDialog.value = false },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(20.dp))
-            TextButton(
-                text = "确定",
-                onClick = {
-                    try {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://pan.quark.cn/s/47b6d6447142")
-                        )
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                    }
-                    showGetLatestVersionDialog.value = false
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.textButtonColorsPrimary()
-            )
-        }
-    }
-
-    SuperDialog(
-        title = "支持开发者",
-        summary = "弦电子书完全免费，如果你觉得好用，可以考虑请开发者喝杯奶茶或咖啡。",
-        show = showDonateDialog,
-        onDismissRequest = { showDonateDialog.value = false }
-    ) {
-        Row(horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(
-                text = "暂不",
-                onClick = { showDonateDialog.value = false },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(20.dp))
-            TextButton(
-                text = "前往官网捐赠",
-                onClick = {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://vb.luoxe.cn"))
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "无法打开浏览器", Toast.LENGTH_SHORT).show()
-                    }
-                    showDonateDialog.value = false
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.textButtonColorsPrimary()
-            )
-        }
-    }
 
     AboutBottomSheet(show = showAboutSheet)
 }
