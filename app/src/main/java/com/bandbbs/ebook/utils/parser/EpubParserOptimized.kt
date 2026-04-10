@@ -30,22 +30,21 @@ object EpubParserOptimized {
     )
 
     fun parse(context: Context, uri: Uri): EpubBook {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            return parseFromInputStream(inputStream)
+        // 第一遍:找到container.xml并解析OPF路径
+        val opfPath = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            findOpfPath(inputStream)
+        } ?: throw IllegalArgumentException("无效的EPUB文件：找不到container.xml")
+
+        // 第二遍:重新打开流读取必要的文件
+        return context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            parseFromInputStream(inputStream, opfPath)
         } ?: throw IllegalArgumentException("无法打开文件")
     }
 
-    private fun parseFromInputStream(inputStream: InputStream): EpubBook {
-        // 第一遍:找到container.xml并解析OPF路径
-        val opfPath = findOpfPath(inputStream)
-            ?: throw IllegalArgumentException("无效的EPUB文件：找不到container.xml")
-
-        // 重新打开流进行第二遍处理
-        // 注意:这里假设inputStream支持reset,如果不支持需要重新打开文件
+    private fun parseFromInputStream(inputStream: InputStream, opfPath: String): EpubBook {
         val zipEntries = mutableMapOf<String, ByteArray>()
 
-        // 第二遍:只读取必要的文件
-        inputStream.reset()
+        // 只读取必要的文件
         ZipInputStream(inputStream).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {

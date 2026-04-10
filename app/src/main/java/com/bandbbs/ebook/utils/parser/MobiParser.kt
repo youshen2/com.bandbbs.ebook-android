@@ -335,17 +335,25 @@ object MobiParser {
             val out = ByteArrayOutputStream(min(input.size * 4, 2_000_000))
             val buffer = ByteArray(8192)
             var total = 0
-            while (!inflater.finished() && !inflater.needsInput()) {
+            var consecutiveZeros = 0
+            while (!inflater.finished()) {
                 val n = try {
                     inflater.inflate(buffer)
                 } catch (e: DataFormatException) {
                     throw e
                 }
-                if (n <= 0) break
-                out.write(buffer, 0, n)
-                total += n
-                if (total > 10_000_000) {
-                    throw IOException("解压输出过大")
+                if (n > 0) {
+                    out.write(buffer, 0, n)
+                    total += n
+                    consecutiveZeros = 0
+                    if (total > 10_000_000) {
+                        throw IOException("解压输出过大")
+                    }
+                } else {
+                    consecutiveZeros++
+                    if (consecutiveZeros > 3 || inflater.needsInput()) {
+                        break
+                    }
                 }
             }
             return out.toByteArray()
