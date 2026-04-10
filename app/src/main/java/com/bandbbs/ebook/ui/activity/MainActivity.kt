@@ -324,7 +324,10 @@ class MainActivity : ComponentActivity() {
                 val currentScreen = backStack.lastOrNull() ?: Screen.HomePager
                 val statisticsScrollState = rememberScrollState()
 
-                val pagerState = rememberPagerState(pageCount = { 3 })
+                val pagerState = rememberPagerState(
+                    pageCount = { 3 },
+                    initialPage = 0
+                )
 
                 val navigateTo = { screen: Screen ->
                     if (backStack.lastOrNull() != screen) {
@@ -376,9 +379,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 0,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        0
-                                                    )
+                                                    pagerState.animateScrollToPage(0)
                                                 }
                                             },
                                             icon = MiuixIcons.VerticalSplit,
@@ -388,9 +389,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 1,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        1
-                                                    )
+                                                    pagerState.animateScrollToPage(1)
                                                 }
                                             },
                                             icon = MiuixIcons.Sort,
@@ -400,9 +399,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 2,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        2
-                                                    )
+                                                    pagerState.animateScrollToPage(2)
                                                 }
                                             },
                                             icon = MiuixIcons.Settings,
@@ -415,9 +412,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 0,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        0
-                                                    )
+                                                    pagerState.animateScrollToPage(0)
                                                 }
                                             },
                                             icon = MiuixIcons.VerticalSplit,
@@ -427,9 +422,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 1,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        1
-                                                    )
+                                                    pagerState.animateScrollToPage(1)
                                                 }
                                             },
                                             icon = MiuixIcons.Sort,
@@ -439,9 +432,7 @@ class MainActivity : ComponentActivity() {
                                             selected = pagerState.currentPage == 2,
                                             onClick = {
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(
-                                                        2
-                                                    )
+                                                    pagerState.animateScrollToPage(2)
                                                 }
                                             },
                                             icon = MiuixIcons.Settings,
@@ -489,7 +480,9 @@ class MainActivity : ComponentActivity() {
                                     entry<Screen.HomePager> {
                                         HorizontalPager(
                                             state = pagerState,
-                                            modifier = Modifier.fillMaxSize()
+                                            modifier = Modifier.fillMaxSize(),
+                                            beyondViewportPageCount = 1,
+                                            key = { it }
                                         ) { page ->
                                             when (page) {
                                                 0 -> MainScreen(
