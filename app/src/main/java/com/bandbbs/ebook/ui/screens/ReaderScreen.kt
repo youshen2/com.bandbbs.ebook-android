@@ -66,6 +66,7 @@ import com.bandbbs.ebook.ui.components.BookmarkListBottomSheet
 import com.bandbbs.ebook.ui.components.PdfPageViewer
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import com.bandbbs.ebook.utils.ReadingTimeStorage
+import com.bandbbs.ebook.utils.ReadingPositionManager
 import com.bandbbs.ebook.utils.manager.BookmarkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -93,30 +94,8 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-private const val PREFS_NAME = "chapter_reader_prefs"
-private const val KEY_READING_POSITION = "reading_position_index_"
-private const val KEY_READING_OFFSET = "reading_position_offset_"
-private const val KEY_LAST_READ_CHAPTER = "last_read_chapter_"
-
-fun saveReadingPosition(context: Context, chapterId: Int, index: Int, offset: Int) {
-    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit()
-        .putInt("$KEY_READING_POSITION$chapterId", index)
-        .putInt("$KEY_READING_OFFSET$chapterId", offset)
-        .apply()
-}
-
-fun loadReadingPosition(context: Context, chapterId: Int): Pair<Int, Int> {
-    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    val index = prefs.getInt("$KEY_READING_POSITION$chapterId", 0)
-    val offset = prefs.getInt("$KEY_READING_OFFSET$chapterId", 0)
-    return index to offset
-}
-
-fun saveLastReadChapter(context: Context, bookId: Int, chapterId: Int) {
-    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit().putInt("$KEY_LAST_READ_CHAPTER$bookId", chapterId).apply()
-}
+private const val CHAPTER_TURN_DEBOUNCE_MS = 450L
+private const val TIME_UPDATE_INTERVAL_MS = 60000L
 
 @Composable
 fun ReaderScreen(
@@ -130,6 +109,10 @@ fun ReaderScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    val positionManager = remember(scope) {
+        ReadingPositionManager(context, scope)
+    }
 
     val chapter by viewModel.chapterToPreview.collectAsState()
     val allChapters by viewModel.chaptersForPreview.collectAsState()
@@ -192,14 +175,13 @@ fun ReaderScreen(
 
         turnInProgress = true
         scope.launch {
-            delay(450)
+            delay(CHAPTER_TURN_DEBOUNCE_MS)
             turnInProgress = false
         }
 
         chapter?.let { ch ->
             if (!isPdf) {
-                saveReadingPosition(
-                    context,
+                positionManager.saveReadingPositionImmediately(
                     ch.id,
                     firstVisibleItemIndex,
                     firstVisibleItemScrollOffset
@@ -226,7 +208,7 @@ fun ReaderScreen(
         if (allChapters.isNotEmpty()) {
             val bookId = allChapters[0].bookId
             withContext(Dispatchers.IO) {
-                saveLastReadChapter(context, bookId, chapter!!.id)
+                positionManager.saveLastReadChapter(bookId, chapter!!.id)
             }
         }
 
@@ -241,7 +223,7 @@ fun ReaderScreen(
         }
 
         val (index, offset) = withContext(Dispatchers.IO) {
-            loadReadingPosition(context, chapter!!.id)
+            positionManager.loadReadingPosition(chapter!!.id)
         }
 
         if (!isPdf) {
@@ -253,18 +235,12 @@ fun ReaderScreen(
     }
 
     LaunchedEffect(firstVisibleItemIndex, firstVisibleItemScrollOffset) {
-        if (!isPdf) {
-            delay(1000)
-            if (chapter != null) {
-                withContext(Dispatchers.IO) {
-                    saveReadingPosition(
-                        context,
-                        chapter!!.id,
-                        firstVisibleItemIndex,
-                        firstVisibleItemScrollOffset
-                    )
-                }
-            }
+        if (!isPdf && chapter != null) {
+            positionManager.saveReadingPosition(
+                chapter!!.id,
+                firstVisibleItemIndex,
+                firstVisibleItemScrollOffset
+            )
         }
     }
 
@@ -274,8 +250,7 @@ fun ReaderScreen(
                 Lifecycle.Event.ON_PAUSE -> {
                     currentChapter?.let { ch ->
                         if (!isPdf) {
-                            saveReadingPosition(
-                                context,
+                            positionManager.saveReadingPositionImmediately(
                                 ch.id,
                                 currentFirstVisibleItemIndex,
                                 currentFirstVisibleItemScrollOffset
@@ -301,14 +276,14 @@ fun ReaderScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
             currentChapter?.let { ch ->
                 if (!isPdf) {
-                    saveReadingPosition(
-                        context,
+                    positionManager.saveReadingPositionImmediately(
                         ch.id,
                         currentFirstVisibleItemIndex,
                         currentFirstVisibleItemScrollOffset
                     )
                 }
             }
+            positionManager.flushAll()
             if (bookName != null) {
                 ReadingTimeStorage.recordReadingEnd(context, bookName)
             }
@@ -427,11 +402,11 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
+    LaunchedEffect(showControls) {
+        while (isActive) {
             val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
             currentTime = sdf.format(Date())
-            delay(1000 * 60)
+            delay(TIME_UPDATE_INTERVAL_MS)
         }
     }
 

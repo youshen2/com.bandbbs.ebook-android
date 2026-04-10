@@ -33,13 +33,13 @@ open class Interconn(context: Context) {
 
     fun connect(): CompletableDeferred<String> {
         return CompletableDeferred<String>().apply {
-            nodeApi.connectedNodes.addOnSuccessListener {
-                if (it.isEmpty()) {
+            nodeApi.connectedNodes.addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
                     completeExceptionally(Exception("未找到设备！"))
                     return@addOnSuccessListener
                 }
-                currentNode = it[0]
-                complete(currentNode!!.name)
+                currentNode = nodes[0]
+                complete(nodes[0].name)
             }.addOnFailureListener {
                 completeExceptionally(Exception("获取设备列表失败，请检查小米运动健康是否已连接！"))
             }
@@ -49,12 +49,18 @@ open class Interconn(context: Context) {
     fun auth(): CompletableDeferred<Unit> {
         val permissions = arrayOf<Permission?>(Permission.DEVICE_MANAGER)
         return CompletableDeferred<Unit>().apply {
-            authApi.checkPermissions(currentNode!!.id, permissions).addOnSuccessListener {
-                for ((index, value) in it.withIndex()) {
+            val node = currentNode
+            if (node == null) {
+                completeExceptionally(Exception("设备未连接！"))
+                return@apply
+            }
+
+            authApi.checkPermissions(node.id, permissions).addOnSuccessListener { results ->
+                for ((index, value) in results.withIndex()) {
                     if (!value) {
-                        authApi.requestPermission(currentNode!!.id, permissions[index])
-                            .addOnFailureListener {
-                                Log.e("Auth", "Auth success")
+                        authApi.requestPermission(node.id, permissions[index])
+                            .addOnFailureListener { error ->
+                                Log.e("Auth", "Auth failed", error)
                             }
                     }
                 }
@@ -67,7 +73,13 @@ open class Interconn(context: Context) {
 
     fun openApp(): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
-            nodeApi.launchWearApp(currentNode!!.id, "/pages/push").addOnSuccessListener {
+            val node = currentNode
+            if (node == null) {
+                completeExceptionally(Exception("设备未连接！"))
+                return@apply
+            }
+
+            nodeApi.launchWearApp(node.id, "/pages/push").addOnSuccessListener {
                 Log.d("OpenApp", "success")
                 complete(Unit)
             }.addOnFailureListener {
@@ -79,7 +91,13 @@ open class Interconn(context: Context) {
 
     fun registerListener(): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
-            messageApi.addListener(currentNode!!.id, onMessageListener)
+            val node = currentNode
+            if (node == null) {
+                completeExceptionally(Exception("设备未连接！"))
+                return@apply
+            }
+
+            messageApi.addListener(node.id, onMessageListener)
                 .addOnSuccessListener {
                     complete(Unit)
                 }
@@ -98,7 +116,13 @@ open class Interconn(context: Context) {
     open fun sendMessage(message: String): CompletableDeferred<Unit> {
         Log.d("Interconn >>>", message)
         return CompletableDeferred<Unit>().apply {
-            messageApi.sendMessage(currentNode!!.id, message.toByteArray()).addOnSuccessListener {
+            val node = currentNode
+            if (node == null) {
+                completeExceptionally(Exception("设备未连接！"))
+                return@apply
+            }
+
+            messageApi.sendMessage(node.id, message.toByteArray()).addOnSuccessListener {
                 complete(Unit)
             }.addOnFailureListener {
                 Log.e("Send", "fail", it)
@@ -120,19 +144,28 @@ open class Interconn(context: Context) {
 
     fun getAppState(): CompletableDeferred<Boolean> {
         return CompletableDeferred<Boolean>().apply {
-            nodeApi.isWearAppInstalled(currentNode!!.id).addOnSuccessListener { complete(it) }
+            val node = currentNode
+            if (node == null) {
+                completeExceptionally(Exception("设备未连接！"))
+                return@apply
+            }
+
+            nodeApi.isWearAppInstalled(node.id).addOnSuccessListener { complete(it) }
                 .addOnFailureListener { completeExceptionally(it) }
         }
     }
 
     fun destroy(): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
-            if (currentNode == null) complete(Unit)
-            else {
-                messageApi.removeListener(currentNode!!.id).addOnSuccessListener {
+            val node = currentNode
+            if (node == null) {
+                complete(Unit)
+            } else {
+                messageApi.removeListener(node.id).addOnSuccessListener {
                     currentNode = null
                     complete(Unit)
                 }.addOnFailureListener {
+                    currentNode = null
                     complete(Unit)
                 }
             }

@@ -23,11 +23,23 @@ object EpubParser {
     )
 
     fun parse(context: Context, uri: Uri): EpubBook {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            return parseFromInputStream(inputStream)
-        } ?: throw IllegalArgumentException("无法打开文件")
+        val optimizedBook = EpubParserOptimized.parse(context, uri)
+
+        return EpubBook(
+            title = optimizedBook.title,
+            author = optimizedBook.author,
+            chapters = optimizedBook.chapters.map { chapter ->
+                EpubChapter(
+                    title = chapter.title,
+                    content = chapter.content,
+                    wordCount = chapter.wordCount
+                )
+            },
+            coverImage = optimizedBook.coverImage
+        )
     }
 
+    @Deprecated("Use EpubParserOptimized for better memory efficiency")
     private fun parseFromInputStream(inputStream: InputStream): EpubBook {
         val zipEntries = mutableMapOf<String, ByteArray>()
         ZipInputStream(inputStream).use { zipStream ->
@@ -305,18 +317,31 @@ object EpubParser {
         }
     }
 
+    // 预编译正则表达式以提高性能
+    private val titleRegex = Regex("<title[^>]*>([^<]+)</title>", RegexOption.IGNORE_CASE)
+    private val h1Regex = Regex("<h1[^>]*>([^<]+)</h1>", RegexOption.IGNORE_CASE)
+    private val h2Regex = Regex("<h2[^>]*>([^<]+)</h2>", RegexOption.IGNORE_CASE)
+    private val scriptRegex = Regex(
+        "<script[^>]*>.*?</script>",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+    private val styleRegex = Regex(
+        "<style[^>]*>.*?</style>",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+    private val tagRegex = Regex("<[^>]+>")
+    private val spaceRegex = Regex("[ \\t]+")
+    private val newlineRegex = Regex("\\n\\s*\\n+")
+
     private fun extractTitle(html: String): String {
-        val titleRegex = Regex("<title[^>]*>([^<]+)</title>", RegexOption.IGNORE_CASE)
         titleRegex.find(html)?.let {
             return it.groupValues[1].trim()
         }
 
-        val h1Regex = Regex("<h1[^>]*>([^<]+)</h1>", RegexOption.IGNORE_CASE)
         h1Regex.find(html)?.let {
             return it.groupValues[1].trim()
         }
 
-        val h2Regex = Regex("<h2[^>]*>([^<]+)</h2>", RegexOption.IGNORE_CASE)
         h2Regex.find(html)?.let {
             return it.groupValues[1].trim()
         }
@@ -325,19 +350,9 @@ object EpubParser {
     }
 
     private fun extractTextContent(html: String): String {
-        var text = html.replace(
-            Regex(
-                "<script[^>]*>.*?</script>",
-                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-            ), ""
-        )
-        text = text.replace(
-            Regex(
-                "<style[^>]*>.*?</style>",
-                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-            ), ""
-        )
-        text = text.replace(Regex("<[^>]+>"), " ")
+        var text = scriptRegex.replace(html, "")
+        text = styleRegex.replace(text, "")
+        text = tagRegex.replace(text, " ")
         text = text.replace("&nbsp;", " ")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
@@ -345,30 +360,13 @@ object EpubParser {
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
 
-        text = text.replace(Regex("[ \\t]+"), " ")
-        text = text.replace(Regex("\\n\\s*\\n+"), "\n\n")
+        text = spaceRegex.replace(text, " ")
+        text = newlineRegex.replace(text, "\n\n")
 
         return text.trim()
     }
 
     fun isEpubFile(context: Context, uri: Uri): Boolean {
-        return try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                ZipInputStream(inputStream).use { zipStream ->
-                    var entry = zipStream.nextEntry
-                    while (entry != null) {
-                        if (entry.name == "mimetype") {
-                            val mimetype = String(zipStream.readBytes(), Charsets.US_ASCII).trim()
-                            return mimetype == "application/epub+zip"
-                        }
-                        zipStream.closeEntry()
-                        entry = zipStream.nextEntry
-                    }
-                    false
-                }
-            } ?: false
-        } catch (e: Exception) {
-            false
-        }
+        return EpubParserOptimized.isEpubFile(context, uri)
     }
 }

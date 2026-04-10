@@ -1,41 +1,39 @@
 package com.bandbbs.ebook.utils.manager
 
 import android.content.Context
+import android.util.Log
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 
-/**
- * 章节内容管理器
- * 负责章节内容的文件存储和读取,避免数据库CursorWindow 2MB限制
- */
 object ChapterContentManager {
+    private const val TAG = "ChapterContentManager"
 
-    /**
-     * 获取章节内容存储目录
-     */
     fun getChaptersDir(context: Context): File {
         return File(context.filesDir, "chapters").apply { mkdirs() }
     }
 
-    /**
-     * 保存章节内容到文件
-     * @param context 上下文
-     * @param bookId 书籍ID
-     * @param chapterIndex 章节索引
-     * @param content 章节内容
-     * @return 章节内容文件路径
-     */
     fun saveChapterContent(
         context: Context,
         bookId: Int,
         chapterIndex: Int,
         content: String
     ): String {
-        val chaptersDir = getChaptersDir(context)
-        val bookDir = File(chaptersDir, "book_$bookId").apply { mkdirs() }
-        val chapterFile = generateChapterFile(bookDir, chapterIndex)
-        chapterFile.writeText(content)
-        return chapterFile.absolutePath
+        try {
+            val chaptersDir = getChaptersDir(context)
+            val bookDir = File(chaptersDir, "book_$bookId").apply {
+                if (!exists() && !mkdirs()) {
+                    throw IOException("Failed to create book directory: $absolutePath")
+                }
+            }
+            val chapterFile = generateChapterFile(bookDir, chapterIndex)
+            chapterFile.writeText(content)
+            Log.d(TAG, "Saved chapter $chapterIndex for book $bookId (${content.length} chars)")
+            return chapterFile.absolutePath
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to save chapter $chapterIndex for book $bookId", e)
+            throw e
+        }
     }
 
     private fun generateChapterFile(bookDir: File, chapterIndex: Int): File {
@@ -51,41 +49,64 @@ object ChapterContentManager {
         return candidate
     }
 
-    /**
-     * 读取章节内容
-     * @param filePath 章节内容文件路径
-     * @return 章节内容,如果文件不存在返回空字符串
-     */
     fun readChapterContent(filePath: String): String {
         val file = File(filePath)
-        return if (file.exists()) {
-            file.readText()
-        } else {
+        return try {
+            if (file.exists()) {
+                file.readText()
+            } else {
+                Log.w(TAG, "Chapter file not found: $filePath")
+                ""
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to read chapter content from: $filePath", e)
+            ""
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory reading chapter: $filePath", e)
             ""
         }
     }
 
-    /**
-     * 删除书籍的所有章节内容文件
-     * @param context 上下文
-     * @param bookId 书籍ID
-     */
-    fun deleteBookChapters(context: Context, bookId: Int) {
-        val chaptersDir = getChaptersDir(context)
-        val bookDir = File(chaptersDir, "book_$bookId")
-        if (bookDir.exists()) {
-            bookDir.deleteRecursively()
+    fun deleteBookChapters(context: Context, bookId: Int): Boolean {
+        return try {
+            val chaptersDir = getChaptersDir(context)
+            val bookDir = File(chaptersDir, "book_$bookId")
+            if (bookDir.exists()) {
+                val success = bookDir.deleteRecursively()
+                if (success) {
+                    Log.d(TAG, "Deleted all chapters for book $bookId")
+                } else {
+                    Log.w(TAG, "Failed to delete some chapters for book $bookId")
+                }
+                success
+            } else {
+                Log.d(TAG, "No chapters directory found for book $bookId")
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting chapters for book $bookId", e)
+            false
         }
     }
 
-    /**
-     * 删除单个章节内容文件
-     * @param filePath 章节内容文件路径
-     */
-    fun deleteChapterContent(filePath: String) {
-        val file = File(filePath)
-        if (file.exists()) {
-            file.delete()
+    fun deleteChapterContent(filePath: String): Boolean {
+        return try {
+            val file = File(filePath)
+            if (file.exists()) {
+                val success = file.delete()
+                if (success) {
+                    Log.d(TAG, "Deleted chapter file: $filePath")
+                } else {
+                    Log.w(TAG, "Failed to delete chapter file: $filePath")
+                }
+                success
+            } else {
+                Log.d(TAG, "Chapter file not found: $filePath")
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting chapter file: $filePath", e)
+            false
         }
     }
 }
