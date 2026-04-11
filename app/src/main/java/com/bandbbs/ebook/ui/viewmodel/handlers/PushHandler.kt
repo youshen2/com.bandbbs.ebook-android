@@ -28,7 +28,8 @@ class PushHandler(
     private val connectionHandler: ConnectionHandler,
     private val firstSyncConfirmedKey: String,
     private val appContext: Context,
-    private val autoRetryOnTransferError: StateFlow<Boolean>
+    private val autoRetryOnTransferError: StateFlow<Boolean>,
+    private val onFirstTransferFailure: () -> Unit
 ) {
     private var pendingPushBook: Book? = null
     private var pendingPushChapters: Set<Int>? = null
@@ -382,6 +383,12 @@ class PushHandler(
                 addTransferLog("开始传输，共 ${sortedIndices.size} 章")
                 if (coverImagePath != null) {
                     addTransferLog("包含封面图片")
+                }
+
+                // 设置第一次传输超时回调
+                fileConn.onFirstTransferTimeout = {
+                    Log.d("PushHandler", "onFirstTransferTimeout callback invoked")
+                    onFirstTransferFailure()
                 }
 
                 fileConn.sentChapters(

@@ -216,12 +216,10 @@ class MainActivity : ComponentActivity() {
                     this,
                     permission
                 ) == PackageManager.PERMISSION_GRANTED
-
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 Environment.isExternalStorageManager() || hasReadPermission
             }
-
             else -> hasReadPermission
         }
     }
@@ -274,6 +272,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         val conn = InterHandshake(this, lifecycleScope)
         (application as App).conn = conn
         viewModel.setConnection(conn)
@@ -301,6 +300,7 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             val themeMode by viewModel.themeMode.collectAsState()
+
             val darkTheme = when (themeMode) {
                 MainViewModel.ThemeMode.LIGHT -> false
                 MainViewModel.ThemeMode.DARK -> true
@@ -309,7 +309,6 @@ class MainActivity : ComponentActivity() {
 
             EbookTheme(darkTheme = darkTheme) {
                 var showAprilFools by remember { mutableStateOf(isAprilFools()) }
-
                 val chapterToPreview by viewModel.chapterToPreview.collectAsState()
                 val selectedBookForChapters by viewModel.selectedBookForChapters.collectAsState()
                 val chaptersForSelectedBook by viewModel.chaptersForSelectedBook.collectAsState()
@@ -318,6 +317,7 @@ class MainActivity : ComponentActivity() {
                 val syncOptionsState by viewModel.syncOptionsState.collectAsState()
                 val pushState by viewModel.pushState.collectAsState()
                 val firstSyncConfirmState by viewModel.firstSyncConfirmState.collectAsState()
+                val firstTransferFailureDialogState by viewModel.firstTransferFailureDialogState.collectAsState()
                 val useFloatingNavigationBar by viewModel.useFloatingNavigationBar.collectAsState()
 
                 val backStack = remember { mutableStateListOf<NavKey>(Screen.HomePager) }
@@ -365,6 +365,11 @@ class MainActivity : ComponentActivity() {
                 val showFirstSyncConfirmDialog = remember { mutableStateOf(false) }
                 LaunchedEffect(firstSyncConfirmState) {
                     showFirstSyncConfirmDialog.value = firstSyncConfirmState != null
+                }
+
+                val showFirstTransferFailureDialog = remember { mutableStateOf(false) }
+                LaunchedEffect(firstTransferFailureDialogState) {
+                    showFirstTransferFailureDialog.value = firstTransferFailureDialogState
                 }
 
                 val showBottomBar = currentScreen is Screen.HomePager
@@ -494,7 +499,6 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     onNavigateToSyncOptions = { navigateTo(Screen.SyncOptions) }
                                                 )
-
                                                 1 -> StatisticsScreen(
                                                     onBackClick = {
                                                         scope.launch {
@@ -511,7 +515,6 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     scrollState = statisticsScrollState
                                                 )
-
                                                 2 -> SettingsScreen(
                                                     viewModel = viewModel,
                                                     onBackClick = {
@@ -549,14 +552,12 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-
                                     entry<Screen.BandSettings> {
                                         BandSettingsScreen(
                                             viewModel = viewModel,
                                             onBackClick = navigateBack
                                         )
                                     }
-
                                     entry<Screen.SyncOptions> {
                                         syncOptionsState?.let { state ->
                                             SyncOptionsScreen(
@@ -585,7 +586,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-
                                     entry<Screen.Push> {
                                         PushScreen(
                                             pushState = pushState,
@@ -599,7 +599,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
-
                                     entry<Screen.ChapterList> {
                                         selectedBookForChapters?.let { book ->
                                             ChapterListScreen(
@@ -664,7 +663,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-
                                     entry<Screen.Reader> {
                                         ReaderScreen(
                                             viewModel = viewModel,
@@ -689,7 +687,6 @@ class MainActivity : ComponentActivity() {
                                             loadChapterContent = viewModel::loadChapterContent
                                         )
                                     }
-
                                     entry<Screen.BuiltinFileManager> {
                                         BuiltinFileManagerScreen(
                                             onBackClick = navigateBack,
@@ -715,6 +712,13 @@ class MainActivity : ComponentActivity() {
                                 entryProvider = entryProvider,
                                 onBack = {
                                     if (backStack.size > 1) {
+                                        when (backStack.last()) {
+                                            is Screen.ChapterList -> viewModel.closeChapterList()
+                                            is Screen.Reader -> viewModel.closeChapterPreview()
+                                            is Screen.SyncOptions -> viewModel.cancelPush()
+                                            is Screen.Push -> viewModel.cancelPush()
+                                            else -> {}
+                                        }
                                         navigateBack()
                                     } else {
                                         finish()
@@ -776,7 +780,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenWebsite = {
                                     val url =
                                         updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() }
-                                            ?: "https://bandbbs.cn"
+                                            ?: "https://bandbbs.cn/threads/11267/"
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
                                         Uri.parse(url)
@@ -813,6 +817,31 @@ class MainActivity : ComponentActivity() {
                                 onConfirm = { viewModel.confirmFirstSync() },
                                 onCancel = { viewModel.cancelFirstSyncConfirm() }
                             )
+
+                            if (showFirstTransferFailureDialog.value) {
+                                SuperDialog(
+                                    title = "传输提示",
+                                    summary = "如果经常传输几个章节就提示未响应，请检查小米运动健康版本。如果小米运动健康不是最新版本，请尝试更新到最新版后重试。",
+                                    show = showFirstTransferFailureDialog,
+                                    onDismissRequest = {
+                                        viewModel.dismissFirstTransferFailureDialog()
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        TextButton(
+                                            text = "我知道了",
+                                            onClick = {
+                                                viewModel.dismissFirstTransferFailureDialog()
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.textButtonColorsPrimary()
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -905,12 +934,14 @@ class MainActivity : ComponentActivity() {
                         val progressPercent =
                             if (pushState.progress > 0.0) (pushState.progress * 100).toInt() else null
                         val title = if (progressPercent != null) "$progressPercent%" else "传输中"
+
                         ForegroundTransferService.startService(
                             applicationContext,
                             title,
                             pushState.preview,
                             progressPercent
                         )
+
                         if (!wasTransferring) {
                             if (viewModel.autoMinimizeOnTransfer.value && !pushState.isFinished) {
                                 moveTaskToBack(true)

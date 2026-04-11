@@ -181,6 +181,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _firstSyncConfirmState = MutableStateFlow<Book?>(null)
     val firstSyncConfirmState = _firstSyncConfirmState.asStateFlow()
 
+    private val _firstTransferFailureDialogState = MutableStateFlow(false)
+    val firstTransferFailureDialogState = _firstTransferFailureDialogState.asStateFlow()
+
     private val _editBookInfoState = MutableStateFlow<EditBookInfoState?>(null)
     val editBookInfoState = _editBookInfoState.asStateFlow()
 
@@ -223,6 +226,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val AUTO_MINIMIZE_ON_TRANSFER_KEY = "auto_minimize_on_transfer"
     private val AUTO_RETRY_ON_TRANSFER_ERROR_KEY = "auto_retry_on_transfer_error"
     private val HAS_CLICKED_TRANSFER_BUTTON_KEY = "has_clicked_transfer_button"
+    private val FIRST_TRANSFER_FAILURE_DIALOG_SHOWN_KEY = "first_transfer_failure_dialog_shown"
     private val QUICK_RENAME_CATEGORY_KEY = "quick_rename_category"
     private val LAST_SPLIT_METHOD_KEY = "last_split_method"
     private val BAND_TRANSFER_ENABLED_KEY = "band_transfer_enabled"
@@ -356,7 +360,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         connectionHandler = connectionHandler,
         firstSyncConfirmedKey = FIRST_SYNC_CONFIRMED_KEY,
         appContext = application.applicationContext,
-        autoRetryOnTransferError = _autoRetryOnTransferError
+        autoRetryOnTransferError = _autoRetryOnTransferError,
+        onFirstTransferFailure = { showFirstTransferFailureDialog() }
     )
 
     private val libraryHandler = LibraryHandler(
@@ -761,6 +766,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmFirstSync() = pushHandler.confirmFirstSync()
 
     fun cancelFirstSyncConfirm() = pushHandler.cancelFirstSyncConfirm()
+
+    fun showFirstTransferFailureDialog() {
+        val hasShown = prefs.getBoolean(FIRST_TRANSFER_FAILURE_DIALOG_SHOWN_KEY, false)
+        Log.d("MainViewModel", "showFirstTransferFailureDialog called, hasShown=$hasShown")
+        if (!hasShown) {
+            _firstTransferFailureDialogState.value = true
+            Log.d("MainViewModel", "Setting firstTransferFailureDialogState to true")
+        }
+    }
+
+    fun dismissFirstTransferFailureDialog() {
+        _firstTransferFailureDialogState.value = false
+        prefs.edit().putBoolean(FIRST_TRANSFER_FAILURE_DIALOG_SHOWN_KEY, true).apply()
+    }
 
     fun cancelPush() = pushHandler.cancelPush()
 

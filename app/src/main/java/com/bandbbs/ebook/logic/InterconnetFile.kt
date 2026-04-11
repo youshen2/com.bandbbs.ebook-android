@@ -62,6 +62,7 @@ class InterconnetFile(private val conn: InterHandshake) {
     var onProgress: ((progress: Double, chunkPreview: String, status: String) -> Unit)? = null
     var onCoverProgress: ((current: Int, total: Int) -> Unit)? = null
     var onStorageInfo: ((BandStorageInfoData) -> Unit)? = null
+    var onFirstTransferTimeout: (() -> Unit)? = null
 
     var busy = false
         private set
@@ -104,6 +105,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         timeoutJob = conn.scope.launch {
             delay(timeoutMillis)
             if (busy) {
+                Log.d("InterconnetFile", "Transfer timeout, invoking onFirstTransferTimeout callback")
+                onFirstTransferTimeout?.invoke()
                 onError?.invoke("传输超时，手环未响应", currentChapterIndexInBook)
                 resetTransferState()
             }
@@ -613,6 +616,7 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.onSuccess = onSuccess
         this.onProgress = onProgress
         this.onCoverProgress = onCoverProgress
+        // 不重置 onFirstTransferTimeout，保留 PushHandler 设置的回调
         this.chapterIndexMap =
             chaptersIndicesToSend.mapIndexed { listIndex, index -> index to listIndex }.toMap()
 
