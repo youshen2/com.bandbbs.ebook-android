@@ -21,8 +21,8 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 126320
-        versionName = "V26.3.2"
+        versionCode = 126330
+        versionName = "Marcury V26.3.3"
         resConfigs("zh")
     }
 

@@ -16,9 +16,9 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         private const val TYPE = "__hs__"
         private const val TIMEOUT = 10000L
         private const val PING_INTERVAL = 5000L
-        private const val PHONE_VERSION_CODE = 126320
-        private const val MIN_BAND_VERSION_CODE = 260405
-        const val MIN_BAND_VERSION = "V26.3.2"
+        private const val PHONE_VERSION_CODE = 126330
+        private const val MIN_BAND_VERSION_CODE = 260411
+        const val MIN_BAND_VERSION = "Marcury(V26.3.3)"
     }
 
     private var promise: CompletableDeferred<Unit>? = null
