@@ -10,19 +10,18 @@ import android.os.Environment
 import android.provider.Settings
 import android.text.format.Formatter
 import android.widget.Toast
-import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +41,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -59,7 +56,6 @@ import androidx.core.content.ContextCompat
 import com.bandbbs.ebook.utils.BuiltinFileManagerPaths
 import com.bandbbs.ebook.utils.ImportPathPreset
 import com.bandbbs.ebook.utils.UritoFile
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -78,7 +74,6 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.Clear
 import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.Folder
@@ -122,6 +117,9 @@ fun BuiltinFileManagerScreen(
     val activity = context as? Activity
 
     var hasFileAccess by remember { mutableStateOf(hasFileManagerAccess(context)) }
+    var currentDir by remember { mutableStateOf<File?>(null) }
+    var isPush by remember { mutableStateOf(true) }
+    var selectedFiles by remember { mutableStateOf(setOf<File>()) }
 
     val availablePresets = remember(hasFileAccess) {
         if (hasFileAccess) BuiltinFileManagerPaths.resolvedDefaults(context) else emptyList()
@@ -146,19 +144,6 @@ fun BuiltinFileManagerScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (!hasFileAccess && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            val granted = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-            if (!granted) {
-                readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            hasFileAccess = hasFileManagerAccess(context)
-        }
-    }
-
     val supportedMimeTypes = remember {
         arrayOf(
             "text/plain",
@@ -179,10 +164,7 @@ fun BuiltinFileManagerScreen(
         if (uris.isNotEmpty()) {
             val validFiles = uris.mapNotNull { uri ->
                 val importedFile = UritoFile(uri, context)
-                if (importedFile != null && importedFile.exists() && !importedFile.isDirectory && isSupportedImportFile(
-                        importedFile
-                    )
-                ) {
+                if (importedFile != null && importedFile.exists() && !importedFile.isDirectory && isSupportedImportFile(importedFile)) {
                     importedFile
                 } else {
                     null
@@ -196,9 +178,18 @@ fun BuiltinFileManagerScreen(
         }
     }
 
-    var currentDir by remember { mutableStateOf<File?>(null) }
-    var isPush by remember { mutableStateOf(true) }
-    var selectedFiles by remember { mutableStateOf(setOf<File>()) }
+    LaunchedEffect(Unit) {
+        if (!hasFileAccess && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            hasFileAccess = hasFileManagerAccess(context)
+        }
+    }
 
     LaunchedEffect(availablePresets, hasFileAccess) {
         if (hasFileAccess && availablePresets.isEmpty()) {
@@ -206,14 +197,6 @@ fun BuiltinFileManagerScreen(
             onBackClick()
         }
     }
-
-    var isBackSwiping by remember { mutableStateOf(false) }
-    var backSwipeProgress by remember { mutableFloatStateOf(0f) }
-
-    val animatedBackProgress by animateFloatAsState(
-        targetValue = if (isBackSwiping) backSwipeProgress else 0f,
-        label = "backProgress"
-    )
 
     val parentDir = remember(currentDir, availablePresets) {
         if (currentDir == null) null
@@ -224,7 +207,7 @@ fun BuiltinFileManagerScreen(
         }
     }
 
-    val handleBack = {
+    val navigateBack = {
         if (currentDir != null) {
             isPush = false
             currentDir = parentDir
@@ -233,24 +216,16 @@ fun BuiltinFileManagerScreen(
         }
     }
 
-    PredictiveBackHandler(enabled = currentDir != null) { progress ->
-        isBackSwiping = true
-        try {
-            progress.collect { backEvent ->
-                backSwipeProgress = backEvent.progress
-            }
-            handleBack()
-        } catch (_: CancellationException) {
-        } finally {
-            isBackSwiping = false
-            backSwipeProgress = 0f
-        }
+    BackHandler(enabled = currentDir != null) {
+        isPush = false
+        currentDir = parentDir
     }
 
-    Scaffold(popupHost = {}) { paddingValues ->
+    Scaffold(popupHost = {}) { _ ->
         Box(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.background),
         ) {
             if (!hasFileAccess) {
                 FileManagerPermissionPage(
@@ -266,7 +241,9 @@ fun BuiltinFileManagerScreen(
                                 runCatching {
                                     allFilesAccessSettingsLauncher.launch(intent)
                                 }.onFailure {
-                                    allFilesAccessSettingsLauncher.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                    allFilesAccessSettingsLauncher.launch(
+                                        Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                    )
                                 }
                             }
 
@@ -295,23 +272,15 @@ fun BuiltinFileManagerScreen(
                 AnimatedContent(
                     targetState = currentDir,
                     transitionSpec = {
-                        if (isPush) {
-                            slideInHorizontally(
-                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                initialOffsetX = { fullWidth -> fullWidth }
-                            ) togetherWith slideOutHorizontally(
-                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                targetOffsetX = { fullWidth -> -fullWidth / 3 }
-                            )
-                        } else {
-                            slideInHorizontally(
-                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                initialOffsetX = { fullWidth -> -fullWidth / 3 }
-                            ) togetherWith slideOutHorizontally(
-                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                targetOffsetX = { fullWidth -> fullWidth }
-                            )
-                        }
+                        val enter = slideInHorizontally(
+                            animationSpec = tween(durationMillis = 220),
+                            initialOffsetX = { fullWidth -> fullWidth / 5 }
+                        ) + fadeIn(animationSpec = tween(durationMillis = 220))
+                        val exit = slideOutHorizontally(
+                            animationSpec = tween(durationMillis = 220),
+                            targetOffsetX = { fullWidth -> -fullWidth / 5 }
+                        ) + fadeOut(animationSpec = tween(durationMillis = 220))
+                        enter togetherWith exit
                     },
                     label = "directory_transition"
                 ) { targetDir ->
@@ -324,7 +293,7 @@ fun BuiltinFileManagerScreen(
                             isPush = true
                             currentDir = file
                         },
-                        onBack = handleBack,
+                        onBack = navigateBack,
                         onConfirm = {
                             if (selectedFiles.isNotEmpty()) {
                                 onSelectFiles(selectedFiles.toList())
@@ -333,11 +302,9 @@ fun BuiltinFileManagerScreen(
                         onOpenSystemPicker = {
                             systemFilePickerLauncher.launch(supportedMimeTypes)
                         },
-                        modifier = Modifier.graphicsLayer {
-                            if (isBackSwiping && targetDir == currentDir) {
-                                translationX = animatedBackProgress * size.width
-                            }
-                        }
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MiuixTheme.colorScheme.background)
                     )
                 }
             }
@@ -488,8 +455,7 @@ private fun FileManagerPage(
         if (normalizedQueryLower.isBlank()) fileItems
         else fileItems.filter { item ->
             item.name.contains(normalizedQueryLower, ignoreCase = true) ||
-                    (isSuffixFilter && !item.isDirectory && item.name.lowercase()
-                        .endsWith(normalizedQueryLower))
+                    (isSuffixFilter && !item.isDirectory && item.name.lowercase().endsWith(normalizedQueryLower))
         }
     }
 
@@ -598,9 +564,7 @@ private fun FileManagerPage(
                                                 Toast.LENGTH_SHORT
                                             ).show()
 
-                                            else -> {
-                                                onOpenDir(target)
-                                            }
+                                            else -> onOpenDir(target)
                                         }
                                     }
                                 ) {
@@ -716,7 +680,7 @@ private fun FileManagerPage(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = MiuixIcons.Clear,
+                                imageVector = MiuixIcons.Close,
                                 contentDescription = "Empty",
                                 modifier = Modifier.size(64.dp),
                                 tint = MiuixTheme.colorScheme.onBackgroundVariant.copy(alpha = 0.5f)
@@ -743,7 +707,6 @@ private fun FileManagerPage(
                                         bottomStart = 16.dp,
                                         bottomEnd = 16.dp
                                     )
-
                                     else -> RectangleShape
                                 }
                                 val isSelected = selectedFiles.contains(item.file)
