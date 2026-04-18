@@ -6,12 +6,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.view.HapticFeedbackConstants
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -51,6 +58,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -155,6 +163,7 @@ fun ReaderScreen(
 
     val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
     val density = LocalDensity.current
+    var readerSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
 
@@ -331,12 +340,41 @@ fun ReaderScreen(
         }
     }
 
+    fun triggerHaptic() {
+        if (!readerSettings.hapticFeedbackEnabled) return
+        val view = (context as? Activity)?.window?.decorView
+        if (view != null) {
+            view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+        } else {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val manager = context.getSystemService(VibratorManager::class.java)
+                manager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (vibrator != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(20)
+                }
+            }
+        }
+    }
+
     val swipeThresholdPx = remember(readerSettings.pageTurnSensitivity, density) {
         val baseDp = 180f
         val minDp = 60f
         val t = (readerSettings.pageTurnSensitivity.coerceIn(1, 10) - 1) / 9f
         val thresholdDp = baseDp - (baseDp - minDp) * t
         with(density) { thresholdDp.dp.toPx() }
+    }
+
+    val clickTurnDistancePx = remember(readerSettings.clickPageTurnDistance, density) {
+        val distanceDp = readerSettings.clickPageTurnDistance.coerceIn(1, 100)
+        with(density) { distanceDp.dp.toPx() }
     }
 
     val overscrollThresholdPx = remember(readerSettings.pageTurnSensitivity, density) {
@@ -433,17 +471,22 @@ fun ReaderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .onSizeChanged { readerSize = it }
                 .nestedScroll(overscrollConnection)
                 .pointerInput(
                     readerSettings.pageTurnMode,
                     readerSettings.pageTurnSensitivity,
+                    readerSettings.clickPageTurnEnabled,
+                    readerSize,
                     showSettings.value,
                     showBookmarks.value,
                     turnInProgress,
                     currentChapterIndex,
                     allChapters.size
                 ) {
-                    if (readerSettings.pageTurnMode == PageTurnMode.SWIPE && !showSettings.value && !showBookmarks.value) {
+                    if (showSettings.value || showBookmarks.value) return@pointerInput
+
+                    if (readerSettings.pageTurnMode == PageTurnMode.SWIPE) {
                         var dragX = 0f
                         detectHorizontalDragGestures(
                             onDragStart = { dragX = 0f },
@@ -455,28 +498,73 @@ fun ReaderScreen(
                             onDragEnd = {
                                 if (!turnInProgress && abs(dragX) >= swipeThresholdPx) {
                                     if (dragX < 0) {
-                                        if (currentChapterIndex < allChapters.size - 1) changeChapterByDelta(
-                                            1
-                                        )
+                                        if (currentChapterIndex < allChapters.size - 1) {
+                                            changeChapterByDelta(1)
+                                        }
                                     } else {
-                                        if (currentChapterIndex > 0) changeChapterByDelta(-1)
+                                        if (currentChapterIndex > 0) {
+                                            changeChapterByDelta(-1)
+                                        }
                                     }
                                 }
                                 dragX = 0f
                             }
                         )
+                    } else if (readerSettings.clickPageTurnEnabled && readerSize.height > 0) {
+                        detectTapGestures { offset ->
+                            val height = readerSize.height.toFloat()
+                            if (height <= 0f) return@detectTapGestures
+
+                            val topZone = height * 0.33f
+                            val bottomZone = height * 0.67f
+
+                            val pageTurnPercent = readerSettings.clickPageTurnDistance.coerceIn(1, 100)
+                            val clickDistancePx = height * pageTurnPercent / 100f
+
+                            when {
+                                offset.y <= topZone -> {
+                                    if (turnInProgress) return@detectTapGestures
+                                    triggerHaptic()
+
+                                    if (isPdf) {
+                                        if (currentChapterIndex > 0) {
+                                            changeChapterByDelta(-1)
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            listState.animateScrollBy(-clickDistancePx)
+                                        }
+                                    }
+                                }
+
+                                offset.y >= bottomZone -> {
+                                    if (turnInProgress) return@detectTapGestures
+                                    triggerHaptic()
+
+                                    if (isPdf) {
+                                        if (currentChapterIndex < allChapters.size - 1) {
+                                            changeChapterByDelta(1)
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            listState.animateScrollBy(clickDistancePx)
+                                        }
+                                    }
+                                }
+
+                                else -> {
+                                    triggerHaptic()
+                                    showControls = !showControls
+                                }
+                            }
+                        }
                     }
                 }
         ) {
             if (chapter != null) {
                 if (isPdf && currentBook != null) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { showControls = !showControls }
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         PdfPageViewer(
                             pdfPath = currentBook.path,
@@ -487,12 +575,7 @@ fun ReaderScreen(
                 } else {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { showControls = !showControls },
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             top = systemBarsPadding.calculateTopPadding() + 16.dp,
                             bottom = systemBarsPadding.calculateBottomPadding() + 48.dp,

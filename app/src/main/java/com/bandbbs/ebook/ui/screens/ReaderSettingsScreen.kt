@@ -1,6 +1,9 @@
 package com.bandbbs.ebook.ui.screens
 
 import android.content.Context
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +65,9 @@ private const val KEY_PAGE_TURN_MODE = "page_turn_mode"
 private const val KEY_PAGE_TURN_SENSITIVITY = "page_turn_sensitivity"
 private const val KEY_CUSTOM_BRIGHTNESS_ENABLED = "custom_brightness_enabled"
 private const val KEY_CUSTOM_BRIGHTNESS = "custom_brightness"
+private const val KEY_CLICK_PAGE_TURN_ENABLED = "click_page_turn_enabled"
+private const val KEY_CLICK_PAGE_TURN_DISTANCE = "click_page_turn_distance"
+private const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
 
 private const val DEFAULT_FONT_SIZE = 18f
 private const val DEFAULT_LINE_HEIGHT = 1.6f
@@ -83,6 +89,9 @@ data class ReaderSettings(
     val autoScrollSpeed: Int = 0,
     val pageTurnMode: PageTurnMode = PageTurnMode.BUTTON,
     val pageTurnSensitivity: Int = 5,
+    val clickPageTurnEnabled: Boolean = false,
+    val clickPageTurnDistance: Int = 10,
+    val hapticFeedbackEnabled: Boolean = true,
     val customBrightnessEnabled: Boolean = false,
     val customBrightness: Float = 0.5f
 )
@@ -111,6 +120,9 @@ fun saveReaderSettings(context: Context, settings: ReaderSettings) {
         .putInt(KEY_AUTO_SCROLL_SPEED, settings.autoScrollSpeed)
         .putString(KEY_PAGE_TURN_MODE, settings.pageTurnMode.name)
         .putInt(KEY_PAGE_TURN_SENSITIVITY, settings.pageTurnSensitivity)
+        .putBoolean(KEY_CLICK_PAGE_TURN_ENABLED, settings.clickPageTurnEnabled)
+        .putInt(KEY_CLICK_PAGE_TURN_DISTANCE, settings.clickPageTurnDistance)
+        .putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, settings.hapticFeedbackEnabled)
         .putBoolean(KEY_CUSTOM_BRIGHTNESS_ENABLED, settings.customBrightnessEnabled)
         .putFloat(KEY_CUSTOM_BRIGHTNESS, settings.customBrightness)
         .apply()
@@ -131,6 +143,9 @@ fun loadReaderSettings(context: Context): ReaderSettings {
         autoScrollSpeed = prefs.getInt(KEY_AUTO_SCROLL_SPEED, 0),
         pageTurnMode = mode,
         pageTurnSensitivity = prefs.getInt(KEY_PAGE_TURN_SENSITIVITY, 5).coerceIn(1, 10),
+        clickPageTurnEnabled = prefs.getBoolean(KEY_CLICK_PAGE_TURN_ENABLED, false),
+        clickPageTurnDistance = prefs.getInt(KEY_CLICK_PAGE_TURN_DISTANCE, 10).coerceIn(1, 100),
+        hapticFeedbackEnabled = prefs.getBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true),
         customBrightnessEnabled = prefs.getBoolean(KEY_CUSTOM_BRIGHTNESS_ENABLED, false),
         customBrightness = prefs.getFloat(KEY_CUSTOM_BRIGHTNESS, 0.5f).coerceIn(0.01f, 1f)
     )
@@ -323,6 +338,35 @@ fun ReaderSettingsScreen(
                                 onValueChange = { update { copy(pageTurnSensitivity = it.roundToInt()) } }
                             )
                         }
+
+                        SuperSwitch(
+                            title = "点击翻页",
+                            summary = if (current.clickPageTurnEnabled) "已开启，可设置点击区域距离" else "关闭后可继续使用普通点击",
+                            checked = current.clickPageTurnEnabled,
+                            onCheckedChange = { enabled ->
+                                update { copy(clickPageTurnEnabled = enabled) }
+                            }
+                        )
+
+                        if (current.clickPageTurnEnabled) {
+                            ReaderValueSlider(
+                                title = "翻页距离",
+                                valueText = "${current.clickPageTurnDistance}%",
+                                value = current.clickPageTurnDistance.toFloat(),
+                                valueRange = 1f..100f,
+                                steps = 98,
+                                onValueChange = { update { copy(clickPageTurnDistance = it.roundToInt()) } }
+                            )
+                        }
+
+                        SuperSwitch(
+                            title = "振动反馈",
+                            summary = if (current.hapticFeedbackEnabled) "翻页和切换时震动提示" else "关闭震动提示",
+                            checked = current.hapticFeedbackEnabled,
+                            onCheckedChange = { enabled ->
+                                update { copy(hapticFeedbackEnabled = enabled) }
+                            }
+                        )
                     }
                 }
             }
