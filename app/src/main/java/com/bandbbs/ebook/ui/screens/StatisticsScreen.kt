@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,13 +113,15 @@ fun StatisticsScreen(
     scrollState: androidx.compose.foundation.ScrollState? = null
 ) {
     val context = LocalContext.current
+    val syncReadingDataState = viewModel.syncReadingDataState.collectAsState()
+    val syncResultState = viewModel.syncResultState.collectAsState()
     val stats = remember { mutableStateOf<ReadingTimeStats?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(syncReadingDataState.value, syncResultState.value) {
         scope.launch {
             isLoading.value = true
             val calculatedStats = withContext(Dispatchers.IO) {
