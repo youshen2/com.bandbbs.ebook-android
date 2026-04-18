@@ -6,13 +6,10 @@ import android.util.Log
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
+import java.nio.charset.Charset
 import java.net.URLDecoder
 import java.util.zip.ZipInputStream
 
-/**
- * 优化的EPUB解析器
- * 使用流式处理避免大文件OOM问题
- */
 object EpubParserOptimized {
     private const val TAG = "EpubParserOptimized"
 
@@ -353,7 +350,7 @@ object EpubParserOptimized {
         }
     }
 
-    private fun charset(name: String) = kotlin.text.Charsets.forName(name)
+    private fun charset(name: String) = Charset.forName(name)
 
     private fun detectHtmlCharset(htmlBytes: ByteArray): String {
         val sample = String(htmlBytes, Charsets.ISO_8859_1)

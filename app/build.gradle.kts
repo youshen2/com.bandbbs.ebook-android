@@ -21,7 +21,7 @@ android {
         applicationId = "com.bandbbs.ebook.plus"
         minSdk = 23
         targetSdk = 35
-        versionCode = 116330
+        versionCode = 126330
         versionName = "Marcury V26.3.3"
         resConfigs("zh")
     }
@@ -99,6 +99,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.github.yalantis:ucrop:2.2.11")
+    implementation(libs.androidx.work.runtime.ktx)
 
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")

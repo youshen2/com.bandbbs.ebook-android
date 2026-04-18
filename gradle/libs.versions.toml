@@ -1,6 +1,9 @@
 [versions]
 agp = "8.13.0"
 kotlin = "2.2.0"
+workRuntimeKtx = "2.11.2"
+[libraries]
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
