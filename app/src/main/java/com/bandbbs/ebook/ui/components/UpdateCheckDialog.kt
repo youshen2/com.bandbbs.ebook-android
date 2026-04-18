@@ -10,6 +10,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bandbbs.ebook.utils.VersionChecker
@@ -87,16 +88,16 @@ fun UpdateCheckDialog(
                                 updatesToShow = updatesToShow,
                                 deviceName = deviceName
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
 
                         UpdateDialogState.UpToDate -> {
+                            Spacer(modifier = Modifier.height(8.dp))
                             UpToDateContent(deviceName = deviceName)
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             ActionArea(
                 state = dialogState,
@@ -191,8 +192,9 @@ private fun UpToDateContent(deviceName: String?) {
         } else {
             "当前应用已是最新版本，无需更新。"
         },
-        style = MiuixTheme.textStyles.body1,
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+        style = MiuixTheme.textStyles.title4,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        textAlign = TextAlign.Center
     )
 }
 
