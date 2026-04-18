@@ -780,7 +780,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenWebsite = {
                                     val url =
                                         updateCheckState.updateInfoList.firstOrNull()?.downloadUrl?.takeIf { it.isNotEmpty() }
-                                            ?: "https://bandbbs.cn/threads/11267/"
+                                            ?: "https://vb.luoxe.cn"
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
                                         Uri.parse(url)
