@@ -26,7 +26,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bandbbs.ebook.ui.components.AboutBottomSheet
+import com.bandbbs.ebook.ui.components.AboutDialog
 import com.bandbbs.ebook.ui.viewmodel.MainViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
@@ -77,7 +77,7 @@ fun SettingsScreen(
     val autoDeleteSourceAfterImport by viewModel.autoDeleteSourceAfterImport.collectAsState()
     val showDonateCard by viewModel.showDonateCard.collectAsState()
 
-    val showAboutSheet = remember { mutableStateOf(false) }
+    val showAboutDialog = remember { mutableStateOf(false) }
     val showDeleteReadingTimeDialog = remember { mutableStateOf(false) }
     val showCleanDirtyDataDialog = remember { mutableStateOf(false) }
 
@@ -144,13 +144,6 @@ fun SettingsScreen(
                                     text = "弦电子书完全免费，如果你觉得好用，可以考虑请开发者喝杯奶茶或咖啡。",
                                     style = MiuixTheme.textStyles.footnote1,
                                     color = MiuixTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                )
-                            }
-                            IconButton(onClick = { viewModel.dismissDonateCard() }) {
-                                Icon(
-                                    imageVector = MiuixIcons.Close,
-                                    contentDescription = "关闭",
-                                    tint = MiuixTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
@@ -430,7 +423,7 @@ fun SettingsScreen(
                     SuperArrow(
                         title = "关于",
                         summary = "版本信息与开发者",
-                        onClick = { showAboutSheet.value = true }
+                        onClick = { showAboutDialog.value = true }
                     )
                 }
             }
@@ -494,7 +487,7 @@ fun SettingsScreen(
     }
 
 
-    AboutBottomSheet(show = showAboutSheet)
+    AboutDialog(showDialog = showAboutDialog)
 }
 
 @Composable
