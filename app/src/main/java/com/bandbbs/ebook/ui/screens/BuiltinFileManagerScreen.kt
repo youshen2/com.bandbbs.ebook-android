@@ -102,11 +102,14 @@ private fun isSupportedImportFile(file: File): Boolean {
     return extension in SUPPORTED_IMPORT_EXTENSIONS
 }
 
-private fun hasFileManagerAccess(): Boolean {
+private fun hasFileManagerAccess(context: android.content.Context): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         Environment.isExternalStorageManager()
     } else {
-        true
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }
 
@@ -118,7 +121,7 @@ fun BuiltinFileManagerScreen(
     val context = LocalContext.current
     val activity = context as? Activity
 
-    var hasFileAccess by remember { mutableStateOf(hasFileManagerAccess()) }
+    var hasFileAccess by remember { mutableStateOf(hasFileManagerAccess(context)) }
 
     val availablePresets = remember(hasFileAccess) {
         if (hasFileAccess) BuiltinFileManagerPaths.resolvedDefaults(context) else emptyList()
@@ -131,20 +134,20 @@ fun BuiltinFileManagerScreen(
             Toast.makeText(context, "未授予存储权限，无法访问内置文件管理器", Toast.LENGTH_SHORT)
                 .show()
         }
-        hasFileAccess = hasFileManagerAccess()
+        hasFileAccess = hasFileManagerAccess(context)
     }
 
     val allFilesAccessSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        hasFileAccess = hasFileManagerAccess()
+        hasFileAccess = hasFileManagerAccess(context)
         if (!hasFileAccess) {
             Toast.makeText(context, "未授予所有文件访问权限", Toast.LENGTH_SHORT).show()
         }
     }
 
     LaunchedEffect(Unit) {
-        if (!hasFileAccess && Build.VERSION.SDK_INT < Build.VERSION_CODES.R && activity != null) {
+        if (!hasFileAccess && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val granted = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -152,8 +155,22 @@ fun BuiltinFileManagerScreen(
             if (!granted) {
                 readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
-            hasFileAccess = hasFileManagerAccess()
+            hasFileAccess = hasFileManagerAccess(context)
         }
+    }
+
+    val supportedMimeTypes = remember {
+        arrayOf(
+            "text/plain",
+            "application/epub+zip",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/msword",
+            "application/pdf",
+            "application/x-pdf",
+            "application/x-mobipocket-ebook",
+            "application/vnd.amazon.ebook",
+            "application/octet-stream"
+        )
     }
 
     val systemFilePickerLauncher = rememberLauncherForActivityResult(
@@ -182,6 +199,13 @@ fun BuiltinFileManagerScreen(
     var currentDir by remember { mutableStateOf<File?>(null) }
     var isPush by remember { mutableStateOf(true) }
     var selectedFiles by remember { mutableStateOf(setOf<File>()) }
+
+    LaunchedEffect(availablePresets, hasFileAccess) {
+        if (hasFileAccess && availablePresets.isEmpty()) {
+            systemFilePickerLauncher.launch(supportedMimeTypes)
+            onBackClick()
+        }
+    }
 
     var isBackSwiping by remember { mutableStateOf(false) }
     var backSwipeProgress by remember { mutableFloatStateOf(0f) }
@@ -230,6 +254,7 @@ fun BuiltinFileManagerScreen(
         ) {
             if (!hasFileAccess) {
                 FileManagerPermissionPage(
+                    isLegacyAndroid = Build.VERSION.SDK_INT < Build.VERSION_CODES.R,
                     onRequestPermission = {
                         when {
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && activity != null -> {
@@ -246,7 +271,15 @@ fun BuiltinFileManagerScreen(
                             }
 
                             Build.VERSION.SDK_INT < Build.VERSION_CODES.R -> {
-                                readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                val granted = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.READ_EXTERNAL_STORAGE
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (granted) {
+                                    hasFileAccess = true
+                                } else {
+                                    readExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                }
                             }
 
                             else -> {
@@ -255,19 +288,7 @@ fun BuiltinFileManagerScreen(
                         }
                     },
                     onUseSystemPicker = {
-                        systemFilePickerLauncher.launch(
-                            arrayOf(
-                                "text/plain",
-                                "application/epub+zip",
-                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                "application/msword",
-                                "application/pdf",
-                                "application/x-pdf",
-                                "application/x-mobipocket-ebook",
-                                "application/vnd.amazon.ebook",
-                                "application/octet-stream"
-                            )
-                        )
+                        systemFilePickerLauncher.launch(supportedMimeTypes)
                     }
                 )
             } else {
@@ -310,19 +331,7 @@ fun BuiltinFileManagerScreen(
                             }
                         },
                         onOpenSystemPicker = {
-                            systemFilePickerLauncher.launch(
-                                arrayOf(
-                                    "text/plain",
-                                    "application/epub+zip",
-                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    "application/msword",
-                                    "application/pdf",
-                                    "application/x-pdf",
-                                    "application/x-mobipocket-ebook",
-                                    "application/vnd.amazon.ebook",
-                                    "application/octet-stream"
-                                )
-                            )
+                            systemFilePickerLauncher.launch(supportedMimeTypes)
                         },
                         modifier = Modifier.graphicsLayer {
                             if (isBackSwiping && targetDir == currentDir) {
@@ -338,6 +347,7 @@ fun BuiltinFileManagerScreen(
 
 @Composable
 private fun FileManagerPermissionPage(
+    isLegacyAndroid: Boolean,
     onRequestPermission: () -> Unit,
     onUseSystemPicker: () -> Unit,
     modifier: Modifier = Modifier
@@ -360,13 +370,21 @@ private fun FileManagerPermissionPage(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "需要存储权限才能浏览内部存储目录",
+                text = if (isLegacyAndroid) {
+                    "旧版安卓需要读取存储权限才能浏览内部存储目录"
+                } else {
+                    "需要存储权限才能浏览内部存储目录"
+                },
                 style = MiuixTheme.textStyles.body1,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "你仍然可以使用系统文件选择器导入文件",
+                text = if (isLegacyAndroid) {
+                    "若拒绝权限，可直接改用系统文件选择器导入文件"
+                } else {
+                    "你仍然可以使用系统文件选择器导入文件"
+                },
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onBackgroundVariant,
                 textAlign = TextAlign.Center
