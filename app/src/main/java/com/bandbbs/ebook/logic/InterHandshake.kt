@@ -32,6 +32,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
     var connectedBandVersion: Int? = null
         private set
 
+    private var hasDispatchedBandVersion = false
+
     override val onMessageListener = OnMessageReceivedListener { _, message ->
         resetTimeout()
         val messageStr = message.decodeToString()
@@ -88,6 +90,7 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
         promise = null
         connected = false
         isHandshaking = false
+        hasDispatchedBandVersion = false
         timeoutRunnable?.let { handler.removeCallbacks(it) }
         pingRunnable?.let { handler.removeCallbacks(it) }
         pingRunnable = null
@@ -102,7 +105,8 @@ class InterHandshake(context: Context, val scope: CoroutineScope) : Interconn(co
 
                 connectedBandVersion = bandVersion
 
-                if (bandVersion != null) {
+                if (bandVersion != null && !hasDispatchedBandVersion) {
+                    hasDispatchedBandVersion = true
                     onBandVersionReceived.invoke(bandVersion)
                     if (bandVersion < MIN_BAND_VERSION_CODE) {
                         onVersionIncompatible.invoke(

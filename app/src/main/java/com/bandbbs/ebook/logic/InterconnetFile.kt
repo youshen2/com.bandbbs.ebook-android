@@ -2,6 +2,7 @@ package com.bandbbs.ebook.logic
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import com.bandbbs.ebook.database.BookEntity
@@ -56,7 +57,8 @@ class InterconnetFile(private val conn: InterHandshake) {
     private lateinit var chapterDao: ChapterDao
     private var bookId: Int = 0
     private var totalChaptersInBook: Int = 0
-    private var lastChunkTime: Long = 0
+    private var lastChunkEndTimeMs: Long = 0L
+    private var smoothedBytesPerSecond: Double = 0.0
     var onError: ((message: String, count: Int) -> Unit)? = null
     var onSuccess: ((message: String, count: Int) -> Unit)? = null
     var onProgress: ((progress: Double, chunkPreview: String, status: String) -> Unit)? = null
@@ -123,7 +125,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         busy = false
         chapterIndices = emptyList()
         totalChaptersInBook = 0
-        lastChunkTime = 0
+        lastChunkEndTimeMs = 0L
+        smoothedBytesPerSecond = 0.0
         currentChapterChunks = emptyList()
         currentChunkIndex = 0
         currentChapterForTransfer = null
@@ -623,7 +626,8 @@ class InterconnetFile(private val conn: InterHandshake) {
         this.currentChapterChunks = emptyList()
         this.currentChunkIndex = 0
         this.currentChapterForTransfer = null
-        this.lastChunkTime = 0L
+        this.lastChunkEndTimeMs = 0L
+        this.smoothedBytesPerSecond = 0.0
 
         busy = true
         isCoverOnlyTransfer = false
@@ -723,6 +727,7 @@ class InterconnetFile(private val conn: InterHandshake) {
             if (currentChunkIndex >= currentChapterChunks.size) return@launch
 
             val chunkContent = currentChapterChunks[currentChunkIndex]
+            val chunkBytes = chunkContent.toByteArray(Charsets.UTF_8)
             val chapterForTransfer = ChapterForTransfer(
                 index = chapter.index,
                 name = chapter.name,
@@ -737,7 +742,7 @@ class InterconnetFile(private val conn: InterHandshake) {
                 data = json.encodeToString(chapterForTransfer)
             )
 
-            val currentTime = System.currentTimeMillis()
+            val sendStartTimeMs = SystemClock.elapsedRealtime()
 
             try {
                 conn.sendMessage(json.encodeToString(message)).await()
@@ -747,27 +752,42 @@ class InterconnetFile(private val conn: InterHandshake) {
                 return@launch
             }
 
+            val sendEndTimeMs = SystemClock.elapsedRealtime()
             val totalChaptersToSend = chapterIndices.size.coerceAtLeast(1)
             val progress =
                 (currentChapterIndexInSlicedList.toDouble() + (currentChunkIndex + 1.0) / currentChapterChunks.size) / totalChaptersToSend
 
-            if (lastChunkTime != 0L) {
-                val timeTaken = currentTime - lastChunkTime
-                val speed =
-                    if (timeTaken > 0) " ${bytesToReadable(chunkContent.toByteArray().size / (timeTaken / 1000.0))}/s" else " --"
-                onProgress?.invoke(
-                    progress,
-                    "${chapter.name} (${currentChunkIndex + 1}/${currentChapterChunks.size})",
-                    speed
-                )
-            } else {
-                onProgress?.invoke(
-                    progress,
-                    "${chapter.name} (${currentChunkIndex + 1}/${currentChapterChunks.size})",
-                    " --"
-                )
-            }
-            lastChunkTime = currentTime
+            val speedText = buildSpeedText(chunkBytes.size, sendStartTimeMs, sendEndTimeMs)
+            onProgress?.invoke(
+                progress,
+                "${chapter.name} (${currentChunkIndex + 1}/${currentChapterChunks.size})",
+                speedText
+            )
+
+            lastChunkEndTimeMs = sendEndTimeMs
+        }
+    }
+
+    private fun buildSpeedText(chunkBytes: Int, sendStartTimeMs: Long, sendEndTimeMs: Long): String {
+        val measuredDurationMs = (sendEndTimeMs - sendStartTimeMs).coerceAtLeast(1L)
+        val fullCycleDurationMs = if (lastChunkEndTimeMs > 0L) {
+            (sendEndTimeMs - lastChunkEndTimeMs).coerceAtLeast(1L)
+        } else {
+            measuredDurationMs
+        }
+
+        val instantSpeed = chunkBytes * 1000.0 / fullCycleDurationMs
+        smoothedBytesPerSecond = if (smoothedBytesPerSecond <= 0.0) {
+            instantSpeed
+        } else {
+            val alpha = 0.25
+            alpha * instantSpeed + (1 - alpha) * smoothedBytesPerSecond
+        }
+
+        return if (smoothedBytesPerSecond > 0.0) {
+            " ${bytesToReadable(smoothedBytesPerSecond)}/s"
+        } else {
+            " --"
         }
     }
 
