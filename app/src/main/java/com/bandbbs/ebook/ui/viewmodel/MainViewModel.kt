@@ -611,10 +611,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (_: TimeoutCancellationException) {
                 _bandStorageInfo.value = BandStorageInfo(isLoading = false)
-                connectionHandler.markConnectionFailed("获取手环存储信息超时")
+                _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                    title = "手环准备中",
+                    message = "获取手环存储信息失败，请多次重试即可。",
+                    showRetry = true
+                )
             } catch (e: Exception) {
                 _bandStorageInfo.value = BandStorageInfo(isLoading = false)
-                connectionHandler.markConnectionFailed("获取手环存储信息失败")
+                _connectionRequiredDialogState.value = ConnectionRequiredDialogState(
+                    title = "手环准备中",
+                    message = "获取手环存储信息失败，请多次重试即可。",
+                    showRetry = true
+                )
             }
         }
     }
@@ -1709,7 +1717,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 @Suppress("DEPRECATION")
                 val currentVersionCode = packageInfo.versionCode
 
-                val androidResult = VersionChecker.checkUpdate(currentVersionCode)
+                val androidResult = VersionChecker.checkUpdate(context, currentVersionCode)
                 val updateInfoList = mutableListOf<VersionChecker.UpdateInfo>()
                 var errorMsg: String? = null
 
