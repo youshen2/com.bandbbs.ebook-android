@@ -13,7 +13,9 @@ object EpubParser {
         val title: String,
         val author: String,
         val chapters: List<EpubChapter>,
-        val coverImage: ByteArray? = null
+        val coverImage: ByteArray? = null,
+        val summary: String? = null,
+        val category: String? = null
     )
 
     data class EpubChapter(
@@ -35,7 +37,9 @@ object EpubParser {
                     wordCount = chapter.wordCount
                 )
             },
-            coverImage = optimizedBook.coverImage
+            coverImage = optimizedBook.coverImage,
+            summary = optimizedBook.summary,
+            category = optimizedBook.category
         )
     }
 

@@ -888,6 +888,8 @@ class ImportHandler(
                         format = "epub",
                         coverImagePath = coverImagePath,
                         author = epubBook.author,
+                        summary = epubBook.summary,
+                        category = epubBook.category,
                         localCategory = selectedCategory
                     )
                 )
@@ -901,26 +903,33 @@ class ImportHandler(
             var processedEpubChapters = epubBook.chapters
             var parsedBookInfo: BookInfoParser.ParsedBookInfo? = null
 
-            if (!noSplit && processedEpubChapters.isNotEmpty() &&
-                (processedEpubChapters[0].title == "简介" || processedEpubChapters[0].title == "介绍")
-            ) {
-                importingState.update {
-                    it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f)
-                }
-                val introContent = processedEpubChapters[0].content
-                parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
-                if (parsedBookInfo != null) {
-                    val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
-                    if (bookEntity != null) {
-                        val updatedEntity = bookEntity.copy(
-                            author = parsedBookInfo.author ?: bookEntity.author,
-                            summary = parsedBookInfo.summary ?: bookEntity.summary,
-                            bookStatus = parsedBookInfo.status ?: bookEntity.bookStatus,
-                            category = parsedBookInfo.tags ?: bookEntity.category
-                        )
-                        db.bookDao().update(updatedEntity)
+            if (!noSplit && processedEpubChapters.isNotEmpty()) {
+                val introIndex = processedEpubChapters.indexOfFirst { chapter ->
+                    val normalizedTitle = chapter.title.trim().lowercase()
+                    normalizedTitle in setOf("简介", "介绍", "书籍信息", "内容简介", "作品简介", "introduction", "summary", "about")
+                }.takeIf { it in 0..2 }
+
+                if (introIndex != null) {
+                    importingState.update {
+                        it?.copy(statusText = "正在解析书籍信息...", progress = 0.65f)
                     }
-                    processedEpubChapters = processedEpubChapters.drop(1)
+                    val introContent = processedEpubChapters[introIndex].content
+                    parsedBookInfo = BookInfoParser.parseIntroductionContent(introContent)
+                    if (parsedBookInfo != null) {
+                        val bookEntity = db.bookDao().getBookByPath(destFile.absolutePath)
+                        if (bookEntity != null) {
+                            val updatedEntity = bookEntity.copy(
+                                author = parsedBookInfo.author ?: bookEntity.author,
+                                summary = parsedBookInfo.summary ?: bookEntity.summary,
+                                bookStatus = parsedBookInfo.status ?: bookEntity.bookStatus,
+                                category = parsedBookInfo.tags ?: bookEntity.category
+                            )
+                            db.bookDao().update(updatedEntity)
+                        }
+                        processedEpubChapters = processedEpubChapters.filterIndexed { index, _ ->
+                            index != introIndex
+                        }
+                    }
                 }
             }
 

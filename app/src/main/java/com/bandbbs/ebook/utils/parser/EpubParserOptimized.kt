@@ -20,7 +20,9 @@ object EpubParserOptimized {
         val title: String,
         val author: String,
         val chapters: List<EpubChapter>,
-        val coverImage: ByteArray? = null
+        val coverImage: ByteArray? = null,
+        val summary: String? = null,
+        val category: String? = null
     )
 
     data class EpubChapter(
@@ -94,7 +96,9 @@ object EpubParserOptimized {
             title = metadata["title"] ?: "未知书名",
             author = metadata["author"] ?: "未知作者",
             chapters = chapters,
-            coverImage = coverImage
+            coverImage = coverImage,
+            summary = metadata["summary"],
+            category = metadata["category"]
         )
     }
 
@@ -198,28 +202,70 @@ object EpubParserOptimized {
                         "spine" -> inSpine = true
                         "title" -> {
                             if (inMetadata) {
-                                parser.next()
-                                if (parser.eventType == XmlPullParser.TEXT) {
-                                    metadata["title"] = parser.text
+                                readCurrentTagText(parser)?.let { text ->
+                                    if (text.isNotBlank()) {
+                                        metadata["title"] = text
+                                    }
                                 }
                             }
                         }
 
                         "creator" -> {
                             if (inMetadata) {
-                                parser.next()
-                                if (parser.eventType == XmlPullParser.TEXT) {
-                                    metadata["author"] = parser.text
+                                readCurrentTagText(parser)?.let { text ->
+                                    if (text.isNotBlank()) {
+                                        metadata["author"] = text
+                                    }
+                                }
+                            }
+                        }
+
+                        "description" -> {
+                            if (inMetadata) {
+                                readCurrentTagText(parser)?.let { text ->
+                                    if (text.isNotBlank() && metadata["summary"].isNullOrBlank()) {
+                                        metadata["summary"] = text
+                                    }
+                                }
+                            }
+                        }
+
+                        "subject" -> {
+                            if (inMetadata) {
+                                readCurrentTagText(parser)?.let { text ->
+                                    if (text.isNotBlank()) {
+                                        metadata["category"] = appendMetadataValue(metadata["category"], text)
+                                    }
                                 }
                             }
                         }
 
                         "meta" -> {
                             if (inMetadata) {
-                                val name = parser.getAttributeValue(null, "name")
-                                val content = parser.getAttributeValue(null, "content")
-                                if (name == "cover" && content != null) {
+                                val name = parser.getAttributeValue(null, "name")?.trim()?.lowercase()
+                                val property = parser.getAttributeValue(null, "property")?.trim()?.lowercase()
+                                val content = parser.getAttributeValue(null, "content")?.trim()
+                                val metaText = readCurrentTagText(parser)
+
+                                if (name == "cover" && !content.isNullOrBlank()) {
                                     coverItemId = content
+                                }
+
+                                val metaValue = content?.takeIf { it.isNotBlank() } ?: metaText
+                                if (!metaValue.isNullOrBlank()) {
+                                    when {
+                                        name in setOf("description", "summary", "intro", "introduction") ||
+                                            property in setOf("description", "dcterms:description") -> {
+                                            if (metadata["summary"].isNullOrBlank()) {
+                                                metadata["summary"] = metaValue
+                                            }
+                                        }
+
+                                        name in setOf("subject", "tag", "tags", "category", "categories", "genre") ||
+                                            property in setOf("belongs-to-collection", "subject", "schema:about") -> {
+                                            metadata["category"] = appendMetadataValue(metadata["category"], metaValue)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -287,7 +333,7 @@ object EpubParserOptimized {
     }
 
     private fun parseHtmlChapter(htmlBytes: ByteArray): EpubChapter {
-        val htmlContent = String(htmlBytes, Charsets.UTF_8)
+        val htmlContent = decodeHtmlBytes(htmlBytes)
         val title = extractTitle(htmlContent)
         var content = extractTextContent(htmlContent)
 
@@ -296,6 +342,62 @@ object EpubParserOptimized {
         val wordCount = content.length
 
         return EpubChapter(title, content, wordCount)
+    }
+
+    private fun decodeHtmlBytes(htmlBytes: ByteArray): String {
+        val charset = detectHtmlCharset(htmlBytes)
+        return try {
+            String(htmlBytes, charset(charset))
+        } catch (_: Exception) {
+            String(htmlBytes, Charsets.UTF_8)
+        }
+    }
+
+    private fun charset(name: String) = kotlin.text.Charsets.forName(name)
+
+    private fun detectHtmlCharset(htmlBytes: ByteArray): String {
+        val sample = String(htmlBytes, Charsets.ISO_8859_1)
+        val metaCharsetRegex = Regex(
+            """<meta[^>]+charset\\s*=\\s*[\"']?([A-Za-z0-9_\\-]+)""",
+            RegexOption.IGNORE_CASE
+        )
+        val contentTypeCharsetRegex = Regex(
+            """<meta[^>]+content\\s*=\\s*[\"'][^\"']*charset=([A-Za-z0-9_\\-]+)[^\"']*[\"']""",
+            RegexOption.IGNORE_CASE
+        )
+
+        return metaCharsetRegex.find(sample)?.groupValues?.getOrNull(1)
+            ?: contentTypeCharsetRegex.find(sample)?.groupValues?.getOrNull(1)
+            ?: "UTF-8"
+    }
+
+    private fun appendMetadataValue(existing: String?, value: String): String {
+        val normalized = value.trim().replace(Regex("\\s+"), " ")
+        if (normalized.isBlank()) return existing.orEmpty()
+        if (existing.isNullOrBlank()) return normalized
+
+        val items = existing.split("|").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+        if (items.none { it.equals(normalized, ignoreCase = true) }) {
+            items.add(normalized)
+        }
+        return items.joinToString(" | ")
+    }
+
+    private fun readCurrentTagText(parser: XmlPullParser): String? {
+        val targetDepth = parser.depth
+        val builder = StringBuilder()
+        var eventType = parser.next()
+
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            if (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.CDSECT) {
+                builder.append(parser.text)
+            } else if (eventType == XmlPullParser.END_TAG && parser.depth == targetDepth) {
+                break
+            }
+            eventType = parser.next()
+        }
+
+        return builder.toString().trim().ifBlank { null }
     }
 
     private fun removeTitleFromContent(content: String, title: String): String {
@@ -364,6 +466,8 @@ object EpubParserOptimized {
     private val titleRegex = Regex("<title[^>]*>([^<]+)</title>", RegexOption.IGNORE_CASE)
     private val h1Regex = Regex("<h1[^>]*>([^<]+)</h1>", RegexOption.IGNORE_CASE)
     private val h2Regex = Regex("<h2[^>]*>([^<]+)</h2>", RegexOption.IGNORE_CASE)
+    private val brRegex = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
+    private val blockTagRegex = Regex("</?(p|div|section|article|li|tr|td|blockquote|h[1-6])[^>]*>", RegexOption.IGNORE_CASE)
     private val scriptRegex = Regex(
         "<script[^>]*>.*?</script>",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
@@ -395,14 +499,25 @@ object EpubParserOptimized {
     private fun extractTextContent(html: String): String {
         var text = scriptRegex.replace(html, "")
         text = styleRegex.replace(text, "")
+        text = brRegex.replace(text, "\n")
+        text = blockTagRegex.replace(text, "\n")
         text = tagRegex.replace(text, " ")
         text = text.replace("&nbsp;", " ")
+            .replace("&#160;", " ")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace("&ldquo;", "\"")
+            .replace("&rdquo;", "\"")
+            .replace("&lsquo;", "'")
+            .replace("&rsquo;", "'")
+            .replace("&hellip;", "…")
 
+        text = text.replace("\r\n", "\n").replace('\r', '\n')
+        text = text.lines().joinToString("\n") { it.trim() }
         text = spaceRegex.replace(text, " ")
         text = newlineRegex.replace(text, "\n\n")
 
