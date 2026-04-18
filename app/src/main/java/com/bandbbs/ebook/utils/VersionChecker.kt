@@ -1,5 +1,7 @@
 package com.bandbbs.ebook.utils
 
+import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -17,7 +19,7 @@ object VersionChecker {
     }
 
     @Serializable
-    data class CheckUpdateReq(val model: String, val versionCode: Int)
+    data class CheckUpdateReq(val model: String, val versionCode: Int, val aid: String = "")
 
     @Serializable
     data class UpdateConfig(
@@ -62,21 +64,25 @@ object VersionChecker {
         val downloadUrl: String = ""
     )
 
-    suspend fun checkUpdate(currentVersionCode: Int): Result<UpdateInfo> {
-        return checkDeviceUpdate("Android", "android", currentVersionCode)
+    suspend fun checkUpdate(context: Context, currentVersionCode: Int): Result<UpdateInfo> {
+        val aid = getAndroidId(context)
+        return checkDeviceUpdate("Android", "android", currentVersionCode, aid)
     }
 
     suspend fun checkBandUpdate(
+        context: Context,
         currentDeviceName: String,
         currentVersionCode: Int? = null
     ): Result<UpdateInfo> {
-        return checkDeviceUpdate(currentDeviceName, "band", currentVersionCode ?: 0)
+        val aid = getAndroidId(context)
+        return checkDeviceUpdate(currentDeviceName, "band", currentVersionCode ?: 0, aid)
     }
 
     private suspend fun checkDeviceUpdate(
         model: String,
         deviceType: String,
-        currentVersionCode: Int
+        currentVersionCode: Int,
+        aid: String
     ): Result<UpdateInfo> {
         return try {
             val url = URL(API_CHECK_UPDATE)
@@ -89,7 +95,7 @@ object VersionChecker {
             connection.doOutput = true
 
             connection.outputStream.use { os ->
-                val req = json.encodeToString(CheckUpdateReq(model, currentVersionCode))
+                val req = json.encodeToString(CheckUpdateReq(model, currentVersionCode, aid))
                 os.write(req.toByteArray())
             }
 
@@ -159,5 +165,12 @@ object VersionChecker {
             Log.e(TAG, "获取公告失败", e)
             Result.failure(e)
         }
+    }
+
+    private fun getAndroidId(context: Context): String {
+        return runCatching {
+            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+                .orEmpty()
+        }.getOrDefault("")
     }
 }
