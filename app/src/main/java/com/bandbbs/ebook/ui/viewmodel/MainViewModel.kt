@@ -1776,7 +1776,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             try {
-                val bandResult = VersionChecker.checkBandUpdate(deviceName, bandVersion)
+                val context = getApplication<Application>().applicationContext
+                val bandResult = VersionChecker.checkBandUpdate(context, deviceName, bandVersion)
 
                 bandResult.fold(
                     onSuccess = { bandUpdateInfo ->
